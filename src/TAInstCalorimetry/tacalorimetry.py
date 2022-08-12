@@ -15,7 +15,7 @@ class Measurement():
     #
     #
     #
-    def __init__(self, folder=None):
+    def __init__(self, folder=None, show_info=False):
         """
         intialize measurements from folder
         """
@@ -24,7 +24,7 @@ class Measurement():
         if folder:
             self._data, self._info = self.get_data_and_parameters_from_folder(
                                 folder,
-                                show_info=False
+                                show_info=show_info
                                 )
         else:
             self._info = None
@@ -38,6 +38,10 @@ class Measurement():
         """
         get_data_and_parameters_from_folder
         """
+        
+        # init lists of DataFrames
+        list_info = []
+        list_data = []
         
         # loop folder
         for f in os.listdir(folder):
@@ -57,7 +61,7 @@ class Measurement():
             
             # sheets
             if show_info:
-                [print(s) for s in xl.sheet_names]
+                [print(f"  - {s}") for s in xl.sheet_names]
             
             try:
                 # get experiment info (first sheet)
@@ -74,14 +78,14 @@ class Measurement():
                 # add sample information
                 df_experiment_info["sample"] = file
                 
-                try:
-                    info = info.append(df_experiment_info, sort=True)
-                except:
-                    info = df_experiment_info        
+                # append to list
+                list_info.append(df_experiment_info)        
                 
             except Exception as e:
-                print(e)
-                print(f"==> ERROR in file {f}")
+                # info
+                if show_info:
+                    print(f"==> ERROR in file {f} in reading info")
+                    print(e)
                 
                 
             try:
@@ -124,22 +128,29 @@ class Measurement():
                 # add sample information
                 df_data["sample"] = file
                 
-                try:
-                    data = data.append(df_data, sort=True)
-                except:
-                    data = df_data                   
+                # append to list
+                list_data.append(df_data)                  
             
             except Exception as e:
-                print(e)
+                # info
+                if show_info:
+                    print(f"==> ERROR in file {f} in reading data")
+                    print(e)
+                
                 
         # check for "info"
         if not "info" in locals():
             # set info variable to None
             info = None
+        else:
+            # build overall dataframe from list for "info"
+            info = pd.concat(list_info)
+            
+        # build overall dataframe from list for "data"
+        data = pd.concat(list_data)            
             
         # return
         return data, info
-    
     
     #
     # iterate samples
@@ -147,6 +158,11 @@ class Measurement():
     def iter_samples(self):
         """
         iterate samples and return corresponding data
+        
+        Returns
+        -------
+        sample (str) : name of the current sample
+        data (pd.DataFrame) : data corresponding to the current sample
         """
         
         for sample, data in self._data.groupby(by="sample"):

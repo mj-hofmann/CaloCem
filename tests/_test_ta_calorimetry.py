@@ -10,7 +10,6 @@ filename = os.path.basename(__file__).replace(".py", "")
 os.sys.path.append(pathname + os.sep + os.pardir + os.sep + "src")
 
 # import
-# from ta_calorimetry import ta_calorimetry
 from TAInstCalorimetry import tacalorimetry
 
 
@@ -20,11 +19,22 @@ from TAInstCalorimetry import tacalorimetry
 path_to_data = pathname + os.sep + "DATA"
 
 # experiments via class
-tam = tacalorimetry.Measurement(folder=path_to_data)
+tam = tacalorimetry.Measurement(
+                        folder=path_to_data,
+                        show_info=False
+                        )
 
 # get sample and information
 data = tam.get_data()
 info = tam.get_information()
+
+
+# %% get samples
+#
+
+for sample, sample_data in tam.iter_samples():
+    # print
+    print(sample)
 
 
 # %% basic plotting
@@ -33,7 +43,6 @@ info = tam.get_information()
 tam.plot()
 # show plot
 tacalorimetry.plt.show()
-
 
 # %% customized plotting
 
@@ -70,3 +79,5 @@ ax.set_ylim(top=100)
 ax.set_xlim(right=12)
 # show plot
 tacalorimetry.plt.show()
+
+
