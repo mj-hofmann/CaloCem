@@ -12,7 +12,6 @@ os.sys.path.append(pathname + os.sep + os.pardir + os.sep + "src")
 # import
 from TAInstCalorimetry import tacalorimetry
 
-
 # %% use class based approach
 
 # define data path
@@ -70,7 +69,7 @@ print(cum_h)
 # show cumulated heat plot
 ax = tam.plot(
     t_unit="h",
-    y='normalizedheat',
+    y='normalized_heat',
     y_unit_milli=False
     )
 
