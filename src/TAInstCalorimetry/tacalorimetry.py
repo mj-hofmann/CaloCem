@@ -11,7 +11,7 @@ import pandas as pd
 #
 class Measurement():
     """
-    Base class of "ta-calorimetry"
+    Base class of "tacalorimetry"
     """
 
     # ensure consistent data column names -- here as class variable
@@ -55,6 +55,7 @@ class Measurement():
         for f in os.listdir(folder):
 
             if not f.endswith((".xls", ".csv")):
+                # go to next
                 continue
 
             # info
@@ -66,30 +67,38 @@ class Measurement():
 
             # check xls
             if f.endswith(".xls"):
+                # collect information
                 try:
                     self._info = pd.concat(
-                        [self._info, self.read_calo_info_xls(file)])
+                        [self._info, self.read_calo_info_xls(file, show_info=show_info)])
                 except:
-                    self._info = self.read_calo_info_xls(file)
-                    print("du depp")
+                    # initialize
+                    self._info = self.read_calo_info_xls(file, show_info=show_info)
+                
+                # collect data
                 try:
                     self._data = pd.concat(
-                        [self._data, self.read_calo_data_xls(file)])
+                        [self._data, self.read_calo_data_xls(file, show_info=show_info)])
                 except:
-                    self._data = self.read_calo_data_xls(file)
+                    # initialize
+                    self._data = self.read_calo_data_xls(file, show_info=show_info)
 
             # append csv
             if f.endswith(".csv"):
+                # collect information
                 try:
                     self._data = pd.concat(
                         [self._data, self.read_calo_data_csv(file)])
                 except:
+                    # initialize
                     self._data = self.read_calo_data_csv(file)
-                    print("hallo")
+                
+                # collect data
                 try:
                     self._info = pd.concat(
                         [self._info, self.read_calo_info_csv(file)])
                 except:
+                    # initialize
                     self._info = self.read_calo_info_csv(file)
 
         # check for "info"
@@ -101,9 +110,24 @@ class Measurement():
     # determine csv data range
     #
     def determine_data_range_csv(self, file):
+        """
+        determine csv data range of CSV-file.
+
+        Parameters
+        ----------
+        file : str
+            filepath.
+
+        Returns
+        -------
+        empty_lines : TYPE
+            DESCRIPTION.
+
+        """
         # open csv file
         thefile = open(file)
-        # detect empty lines which are characteristic at the beginning and end of the data block
+        # detect empty lines which are characteristic at the beginning and 
+        # end of the data block
         empty_lines = [
             index for index, line in enumerate(csv.reader(thefile)) if len(line) == 0
         ]
@@ -114,72 +138,143 @@ class Measurement():
     # read csv data
     #
     def read_calo_data_csv(self, file):
+        """
+        read data from csv file
+
+        Parameters
+        ----------
+        file : str
+            filepath.
+
+        Returns
+        -------
+        data : pd.DataFrame
+            experimental data contained in file.
+
+        """
+        # determine number of lines to skip
         empty_lines = self.determine_data_range_csv(file)
+        # read data from csv-file
         data = pd.read_csv(
-            file, skiprows=empty_lines[0], nrows=empty_lines[1] -
-            empty_lines[0] - 2
+            file, 
+            skiprows=empty_lines[0], 
+            nrows=empty_lines[1] - empty_lines[0] - 2
         )
         # remove "columns" with many NaNs
         data = data.dropna(axis=1, thresh=10)
+        # set column names
         data.columns = self.colnames
+        # add sample name as column
         data["sample"] = file
+        
+        # return
         return data
 
     #
     # read csv info
     #
     def read_calo_info_csv(self, file):
+        """
+        read info from csv file
+
+        Parameters
+        ----------
+        file : str
+            filepath.
+
+        Returns
+        -------
+        info : pd.DataFrame
+            information (metadata) contained in file
+
+        """
+        # determine number of lines to skip
         empty_lines = self.determine_data_range_csv(file)
-        # info block
+        # read info block from csv-file
         info = pd.read_csv(
-            file, nrows=empty_lines[0] - 1, names=["parameter", "value"]
+            file, 
+            nrows=empty_lines[0] - 1, 
+            names=["parameter", "value"]
         ).dropna(subset=["parameter"])
+        # add sample name as column
         info["sample"] = file
-        # the last block is not really meta data but summary data and somewhat not necessary
-        # info = pd.concat([pd.read_csv(file,nrows=empty_lines[0]-1, names=["a","b"]), pd.read_csv(file, skiprows=empty_lines[1]) ] )
-        # print(info.head(15))
+        # the last block is not really meta data but summary data and 
+        # somewhat not necessary
+
+        # return
         return info
 
     #
     # read excel info
     #
     def read_calo_info_xls(self, file, show_info=True):
+        """
+        read information from xls-file
+
+        Parameters
+        ----------
+        file : str
+            filepath.
+        show_info : bool, optional
+            flag whether or not to show information. The default is True.
+
+        Returns
+        -------
+        info : pd.DataFrame
+            information (metadata) contained in file
+
+        """
         # specify Excel
         xl = pd.ExcelFile(file)
-
-        # sheets
-        # if show_info:
-        #    [print(s) for s in xl.sheet_names]
 
         try:
             # get experiment info (first sheet)
             df_experiment_info = xl.parse(
-                sheet_name="Experiment info", header=0, names=["parameter", "value"]
+                sheet_name="Experiment info",
+                header=0,
+                names=["parameter", "value"]
             ).dropna(subset=["parameter"])
             # use first row as header
-            # df_experiment_info.columns = df_experiment_info.iloc[0]
             df_experiment_info = df_experiment_info.iloc[1:, :]
 
             # add sample information
             df_experiment_info["sample"] = file
 
-            # try:
-            #    info = info.append(df_experiment_info, sort=True)
-            # except:
+            # rename variable
             info = df_experiment_info
 
+            # return
             return info
 
         except Exception as e:
-            print(e)
-            print(f"==> ERROR in file {file}")
+            if show_info:
+                print(e)
+                print(f"==> ERROR in file {file}")
 
     #
     # read excel data
     #
     def read_calo_data_xls(self, file, show_info=True):
+        """
+        read data from xls-file
 
+        Parameters
+        ----------
+        file : str
+            filepath.
+        show_info : bool, optional
+            flag whether or not to show information. The default is True.
+
+        Returns
+        -------
+        data : pd.DataFrame
+            data contained in file
+
+        """
+
+        # define Excel file
         xl = pd.ExcelFile(file)
+        
         try:
             # get experiment info (first sheet)
             df_data = xl.parse(xl.sheet_names[-1], header=None)
@@ -216,7 +311,6 @@ class Measurement():
                 df_data.insert(1, "temperature_ambient_c", "nan")
 
             # forced renaming
-            # print(df_data.columns)
             df_data.columns = self.colnames
 
             # convert to float
@@ -226,15 +320,14 @@ class Measurement():
             # add sample information
             df_data["sample"] = file
 
-            # try:
-            #    data = data.append(df_data, sort=True)
-            # except:
+            # rename
             data = df_data
 
             return data
 
         except Exception as e:
-            print(e)
+            if show_info:
+                print(e)
 
     #
     # iterate samples
