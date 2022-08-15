@@ -70,36 +70,36 @@ class Measurement():
                 # collect information
                 try:
                     self._info = pd.concat(
-                        [self._info, self.read_calo_info_xls(file, show_info=show_info)])
+                        [self._info, self._read_calo_info_xls(file, show_info=show_info)])
                 except:
                     # initialize
-                    self._info = self.read_calo_info_xls(file, show_info=show_info)
+                    self._info = self._read_calo_info_xls(file, show_info=show_info)
                 
                 # collect data
                 try:
                     self._data = pd.concat(
-                        [self._data, self.read_calo_data_xls(file, show_info=show_info)])
+                        [self._data, self._read_calo_data_xls(file, show_info=show_info)])
                 except:
                     # initialize
-                    self._data = self.read_calo_data_xls(file, show_info=show_info)
+                    self._data = self._read_calo_data_xls(file, show_info=show_info)
 
             # append csv
             if f.endswith(".csv"):
                 # collect information
                 try:
                     self._data = pd.concat(
-                        [self._data, self.read_calo_data_csv(file)])
+                        [self._data, self._read_calo_data_csv(file, show_info=show_info)])
                 except:
                     # initialize
-                    self._data = self.read_calo_data_csv(file)
+                    self._data = self._read_calo_data_csv(file, show_info=show_info)
                 
                 # collect data
                 try:
                     self._info = pd.concat(
-                        [self._info, self.read_calo_info_csv(file)])
+                        [self._info, self._read_calo_info_csv(file, show_info=show_info)])
                 except:
                     # initialize
-                    self._info = self.read_calo_info_csv(file)
+                    self._info = self._read_calo_info_csv(file, show_info=show_info)
 
         # check for "info"
         if not "info" in locals():
@@ -109,7 +109,7 @@ class Measurement():
     #
     # determine csv data range
     #
-    def determine_data_range_csv(self, file):
+    def _determine_data_range_csv(self, file):
         """
         determine csv data range of CSV-file.
 
@@ -137,7 +137,7 @@ class Measurement():
     #
     # read csv data
     #
-    def read_calo_data_csv(self, file):
+    def _read_calo_data_csv(self, file, show_info=True):
         """
         read data from csv file
 
@@ -153,7 +153,7 @@ class Measurement():
 
         """
         # determine number of lines to skip
-        empty_lines = self.determine_data_range_csv(file)
+        empty_lines = self._determine_data_range_csv(file)
         # read data from csv-file
         data = pd.read_csv(
             file, 
@@ -173,7 +173,7 @@ class Measurement():
     #
     # read csv info
     #
-    def read_calo_info_csv(self, file):
+    def _read_calo_info_csv(self, file, show_info=True):
         """
         read info from csv file
 
@@ -189,7 +189,7 @@ class Measurement():
 
         """
         # determine number of lines to skip
-        empty_lines = self.determine_data_range_csv(file)
+        empty_lines = self._determine_data_range_csv(file)
         # read info block from csv-file
         info = pd.read_csv(
             file, 
@@ -207,7 +207,7 @@ class Measurement():
     #
     # read excel info
     #
-    def read_calo_info_xls(self, file, show_info=True):
+    def _read_calo_info_xls(self, file, show_info=True):
         """
         read information from xls-file
 
@@ -254,7 +254,7 @@ class Measurement():
     #
     # read excel data
     #
-    def read_calo_data_xls(self, file, show_info=True):
+    def _read_calo_data_xls(self, file, show_info=True):
         """
         read data from xls-file
 
@@ -310,8 +310,12 @@ class Measurement():
                 # print("hjallo")
                 df_data.insert(1, "temperature_ambient_c", "nan")
 
-            # forced renaming
-            df_data.columns = self.colnames
+            # try forced renaming
+            try:
+                df_data.columns = self.colnames
+            except Exception as e:
+                if show_info:
+                    print(e)
 
             # convert to float
             for c in df_data:
