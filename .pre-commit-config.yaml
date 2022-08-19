@@ -1,0 +1,14 @@
+# see https://pre-commit.com
+# HOWTO: https://www.youtube.com/watch?v=psjz6rwzMdk
+
+# specify 
+# - git repo (here https://github.com/psf/black)
+# - tag (here 21.9b0)
+# - which commeand to run (here black)
+# # further options (here --safe)
+repos:
+-   repo: https://github.com/psf/black
+    rev: 21.9b0
+    hooks:
+    -   id: black
+        args: [--safe]
