@@ -36,6 +36,10 @@ tam.plot()
 tacalorimetry.plt.show()
 ```
 
+Without further options specified, the ```plot()```-method yields the following.
+
+![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-08%20112743.png?raw=true)
+
 The cumulated heat after a certain period of time from starting the measurement is a relevant quantity for answering different types of questions. For this purpose, the method ```get_cumulated_heat_at_hours``` returns on overview of this parameter for all the samples in the specified folder.
 
 ```python
@@ -47,11 +51,32 @@ cum_h = tam.get_cumulated_heat_at_hours(
 # show result
 print(cum_h)
 ```
+The ```plot()```-method can also be tuned to show the temporal course of normalized heat.
 
+```python
+# show cumulated heat plot
+ax = tam.plot(
+    t_unit="h",
+    y='normalized_heat',
+    y_unit_milli=False
+)
+
+# guide to the eye line
+ax.axvline(2, color="gray", alpha=0.5, linestyle=":")
+
+# set upper limits
+ax.set_ylim(top=250)
+ax.set_xlim(right=6)
+# show plot
+tacalorimetry.plt.show())
+```
+The following plot is obtained:
+
+![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-19%20085928.png?raw=true)
 
 ## Installation
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install TAInstCalorimetry.
 
 ```bash
 pip install TAInstCalorimetry
