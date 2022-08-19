@@ -74,8 +74,11 @@ ax = tam.plot(
     y_unit_milli=False
 )
 
+# guide to the eye line
+ax.axvline(2, color="gray", alpha=0.5, linestyle=":")           
+
 # set upper limits
-ax.set_ylim(top=100)
+ax.set_ylim(top=250)
 ax.set_xlim(right=12)
 # show plot
 tacalorimetry.plt.show()
