@@ -92,3 +92,7 @@ List of contributors:
 
 ## License
 [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/#)
+
+
+## Test
+![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/blob/dev/.github/workflows/tests.yml/badge.svg)
