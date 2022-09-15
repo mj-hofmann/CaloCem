@@ -72,7 +72,7 @@ class Measurement:
                             self._read_calo_info_xls(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._info = self._read_calo_info_xls(file, show_info=show_info)
 
@@ -84,7 +84,7 @@ class Measurement:
                             self._read_calo_data_xls(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._data = self._read_calo_data_xls(file, show_info=show_info)
 
@@ -98,7 +98,7 @@ class Measurement:
                             self._read_calo_data_csv(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._data = self._read_calo_data_csv(file, show_info=show_info)
 
@@ -110,12 +110,12 @@ class Measurement:
                             self._read_calo_info_csv(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._info = self._read_calo_info_csv(file, show_info=show_info)
 
         # check for "info"
-        if not "info" in locals():
+        if "info" not in locals():
             # set info variable to None
             info = None
 
@@ -395,7 +395,7 @@ class Measurement:
 
         # x-unit
         if t_unit == "s":
-            x_factor = 1
+            x_factor = 1.0
         elif t_unit == "min":
             x_factor = 1 / 60
         elif t_unit == "h":
