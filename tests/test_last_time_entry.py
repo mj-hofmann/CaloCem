@@ -17,10 +17,10 @@ import os
         ("OPC_2.xls", 336000),
     ],
 )
-def test_example_files(test_input, expected):
+def test_last_time_entry(test_input, expected):
 
     # path to data
-    path_to_data = os.getcwd() + os.sep + "tests" + os.sep + "DATA"
+    path_to_data = os.getcwd() + os.sep + "DATA"
 
     # experiments via class
     tam = tacalorimetry.Measurement(folder=path_to_data, show_info=False)
