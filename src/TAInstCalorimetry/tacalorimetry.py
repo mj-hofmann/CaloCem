@@ -14,17 +14,6 @@ class Measurement:
     Base class of "tacalorimetry"
     """
 
-    # ensure consistent data column names -- here as class variable
-    colnames = [
-        "time",
-        "ambient_temp_c",
-        "temp_c",
-        "heat_flow",
-        "heat",
-        "normalized_heat_flow",
-        "normalized_heat",
-    ]
-
     #
     # init
     #
@@ -165,17 +154,83 @@ class Measurement:
             experimental data contained in file.
 
         """
-        # determine number of lines to skip
-        empty_lines = self._determine_data_range_csv(file)
-        # read data from csv-file
+
+        # define Excel file
         data = pd.read_csv(
-            file, skiprows=empty_lines[0], nrows=empty_lines[1] - empty_lines[0] - 2
+            file, header=None, sep="No meaningful separator", engine="python"
         )
-        # remove "columns" with many NaNs
-        data = data.dropna(axis=1, thresh=10)
-        # set column names
-        data.columns = self.colnames
-        # add sample name as column
+
+        # get "column" count
+        data["count"] = [len(i) for i in data[0].str.split(",")]
+
+        # get most frequent count --> assume this for selection of "data" rows
+        data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
+
+        # init and loop list of lists
+        list_of_lists = []
+        for _, r in data.iterrows():
+            # append to list
+            list_of_lists.append(str(r.to_list()).strip("['']").split(","))
+
+        # get DataFrame from list of lists
+        data = pd.DataFrame(list_of_lists)
+
+        # get new column names
+        new_columnames = []
+        for i in data.iloc[0, :]:
+            # build
+            new_columname = (
+                re.sub(r'[\s\n\[\]\(\)° _"]+', "_", i.lower())
+                .replace("/", "_")
+                .replace("_signal_", "_")
+                .strip("_")
+            )
+
+            # select appropriate unit
+            if new_columname == "time":
+                new_columname += "_s"
+            elif "temperature" in new_columname:
+                new_columname += "_c"
+            elif new_columname == "heat_flow":
+                new_columname += "_w"
+            elif new_columname == "heat":
+                new_columname += "_j"
+            elif new_columname == "normalized_heat_flow":
+                new_columname += "_w_g"
+            elif new_columname == "normalized_heat":
+                new_columname += "_j_g"
+            else:
+                new_columname += "_nan"
+
+            # add to list
+            new_columnames.append(new_columname)
+
+        # set
+        data.columns = new_columnames
+
+        # cut out data part
+        data = data.iloc[1:, :].reset_index(drop=True)
+
+        # drop column
+        try:
+            data = data.drop(columns=["time_markers_nan"])
+        except KeyError:
+            pass
+
+        # remove columns with too many NaNs
+        data = data.dropna(axis=1, thresh=3)
+        # # remove rows with NaNs
+        data = data.dropna(axis=0)
+
+        # float conversion
+        for _c in data.columns:
+            # convert
+            data[_c] = data[_c].astype(float)
+
+        # restrict to "time_s" > 0
+        data = data.query("time_s >= 0").reset_index(drop=True)
+
+        # add sample information
         data["sample"] = file
 
         # return
@@ -283,11 +338,8 @@ class Measurement:
         xl = pd.ExcelFile(file)
 
         try:
-            # get experiment info (first sheet)
-            df_data = xl.parse(xl.sheet_names[-1], header=None)
-
-            # remove "columns" with many NaNs
-            df_data = df_data.dropna(axis=1, thresh=10)
+            # parse "data" sheet
+            df_data = xl.parse("Raw data", header=None)
 
             # replace init timestamp
             df_data.iloc[0, 0] = "time"
@@ -297,12 +349,9 @@ class Measurement:
             for i, j in zip(df_data.iloc[0, :], df_data.iloc[1, :]):
                 # build
                 new_columnames.append(
-                    f"{i}_{j}".lower()
-                    .replace(" ", "_")
+                    re.sub(r"[\s\n\[\]\(\)° _]+", "_", f"{i}_{j}".lower())
                     .replace("/", "_")
-                    .replace("°", "_")
-                    .replace("__", "_")
-                    .replace("\n", "_")
+                    .replace("_signal_", "_")
                 )
 
             # set
@@ -311,22 +360,21 @@ class Measurement:
             # cut out data part
             df_data = df_data.iloc[2:, :].reset_index(drop=True)
 
-            # check if ambient temperature is present
-            # if not add empty column (after time)
-            if not any("ambient" in s for s in new_columnames):
-                # print("hjallo")
-                df_data.insert(1, "temperature_ambient_c", "nan")
-
-            # try forced renaming
+            # drop column
             try:
-                df_data.columns = self.colnames
-            except Exception as e:
-                if show_info:
-                    print(e)
+                df_data = df_data.drop(columns=["time_markers_nan"])
+            except KeyError:
+                pass
 
-            # convert to float
-            for c in df_data:
-                df_data[c] = df_data[c].astype(float)
+            # remove columns with too many NaNs
+            df_data = df_data.dropna(axis=1, thresh=3)
+            # # remove rows with NaNs
+            # df_data = df_data.dropna(axis=0)
+
+            # float conversion
+            for _c in df_data.columns:
+                # convert
+                df_data[_c] = df_data[_c].astype(float)
 
             # add sample information
             df_data["sample"] = file
@@ -334,6 +382,7 @@ class Measurement:
             # rename
             data = df_data
 
+            # return
             return data
 
         except Exception as e:
@@ -363,7 +412,7 @@ class Measurement:
     def plot(
         self,
         t_unit="h",
-        y="normalized_heat_flow",
+        y="normalized_heat_flow_w_g",
         y_unit_milli=True,
         regex=None,
         show_info=True,
@@ -383,11 +432,11 @@ class Measurement:
         """
 
         # y-value
-        if y == "normalized_heat_flow":
-            y_column = "normalized_heat_flow"
+        if y == "normalized_heat_flow_w_g":
+            y_column = "normalized_heat_flow_w_g"
             y_label = "Normalized Heat Flow / [W/g]"
-        elif y == "normalized_heat":
-            y_column = "normalized_heat"
+        elif y == "normalized_heat_j_g":
+            y_column = "normalized_heat_j_g"
             y_label = "Normalized Heat / [J/g]"
 
         if y_unit_milli:
@@ -413,12 +462,12 @@ class Measurement:
         for s, d in self.iter_samples():
             # define pattern
             if regex:
-                if not re.findall(f"{regex}\.xls", os.path.basename(s)):
+                if not re.findall(rf"{regex}\.xls", os.path.basename(s)):
                     # go to next
                     continue
             # plot
             plt.plot(
-                d["time"] * x_factor,
+                d["time_s"] * x_factor,
                 d[y_column] * y_factor,
                 label=os.path.basename(d.loc[0, "sample"])
                 .split(".xls")[0]
@@ -453,7 +502,7 @@ class Measurement:
             target_s = 3600 * target_h
             # get heat at target time
             hf_at_target = float(
-                df.query("time >= @target_s").head(1)["normalized_heat"]
+                df.query("time_s >= @target_s").head(1)["normalized_heat_j_g"]
             )
 
             # if cuoff time specified
@@ -461,7 +510,7 @@ class Measurement:
                 # convert target time to seconds
                 target_s = 60 * cutoff_min
                 hf_at_cutoff = float(
-                    df.query("time <= @target_s").tail(1)["normalized_heat"]
+                    df.query("time_s <= @target_s").tail(1)["normalized_heat_j_g"]
                 )
                 # correct heatflow for heatflow at cutoff
                 hf_at_target = hf_at_target - hf_at_cutoff

@@ -16,10 +16,10 @@ os.sys.path.append(pathname + os.sep + os.pardir + os.sep + "src")
 # %% use class based approach
 
 # define data path
-path_to_data = pathname + os.sep + "DATA"
+path_to_data = pathname + os.sep + os.pardir + os.sep + "DATA"
 
 # experiments via class
-tam = tacalorimetry.Measurement(folder=path_to_data, show_info=False)
+tam = tacalorimetry.Measurement(folder=path_to_data, show_info=True)
 
 # get sample and information
 data = tam.get_data()
@@ -62,7 +62,7 @@ cum_h = tam.get_cumulated_heat_at_hours(target_h=2, cutoff_min=0)
 print(cum_h)
 
 # show cumulated heat plot
-ax = tam.plot(t_unit="h", y="normalized_heat", y_unit_milli=False)
+ax = tam.plot(t_unit="h", y="normalized_heat_j_g", y_unit_milli=False)
 
 # guide to the eye line
 ax.axvline(2, color="gray", alpha=0.5, linestyle=":")
