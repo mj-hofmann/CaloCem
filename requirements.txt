@@ -1,1 +1,4 @@
 requests==2.26.0
+matplotlib==3.6.2
+pandas==1.5.1
+xlrd==2.0.1
