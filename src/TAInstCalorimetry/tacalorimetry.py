@@ -17,14 +17,16 @@ class Measurement:
     #
     # init
     #
-    def __init__(self, folder=None, show_info=False):
+    def __init__(self, folder=None, show_info=False, regex=None):
         """
         intialize measurements from folder
         """
 
         # read
         if folder:
-            self.get_data_and_parameters_from_folder(folder, show_info=show_info)
+            self.get_data_and_parameters_from_folder(
+                folder, regex=regex, show_info=show_info
+            )
         else:
             self._info = None
             self._data = None
@@ -32,7 +34,7 @@ class Measurement:
     #
     # get_data_and_parameters_from_folder
     #
-    def get_data_and_parameters_from_folder(self, folder, show_info=True):
+    def get_data_and_parameters_from_folder(self, folder, regex=None, show_info=True):
         """
         get_data_and_parameters_from_folder
         """
@@ -43,6 +45,12 @@ class Measurement:
             if not f.endswith((".xls", ".csv")):
                 # go to next
                 continue
+
+            if regex:
+                # check match
+                if not re.match(regex, f):
+                    # skip this file
+                    continue
 
             # info
             if show_info:
@@ -462,7 +470,7 @@ class Measurement:
         for s, d in self.iter_samples():
             # define pattern
             if regex:
-                if not re.findall(rf"{regex}\.xls", os.path.basename(s)):
+                if not re.findall(rf"{regex}", os.path.basename(s)):
                     # go to next
                     continue
             # plot

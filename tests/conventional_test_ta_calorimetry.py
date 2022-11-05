@@ -19,19 +19,20 @@ os.sys.path.append(pathname + os.sep + os.pardir + os.sep + "src")
 path_to_data = pathname + os.sep + os.pardir + os.sep + "DATA"
 
 # experiments via class
-tam = tacalorimetry.Measurement(folder=path_to_data, show_info=True)
+tam = tacalorimetry.Measurement(
+    folder=path_to_data, regex="(.*csv$)|(Exp_[345].*)", show_info=True
+)
 
 # get sample and information
 data = tam.get_data()
 info = tam.get_information()
-
 
 # %% get samples
 #
 
 for sample, sample_data in tam.iter_samples():
     # print
-    print(sample)
+    print(os.path.basename(sample))
 
 
 # %% basic plotting
@@ -46,7 +47,7 @@ tacalorimetry.plt.show()
 ax = tam.plot(
     t_unit="d",  # time axis in hours
     y_unit_milli=True,
-    regex="1",  # regex expression for filtering
+    regex="3",  # regex expression for filtering
 )
 
 # set upper limits
