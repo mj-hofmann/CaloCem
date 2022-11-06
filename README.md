@@ -18,7 +18,8 @@ Next, we define where the exported files are stored. With this information at ha
 ```python
 # define data path
 path_to_data = pathname + os.sep + "DATA"
-# on your machine, a could be specified e.g. as
+# on your machine, a path to the .xls and .csv source files could be specified 
+# in the following form
 # path_to_data = r"C:\Users\Admin\Downloads\example_data"
 
 # experiments via class
