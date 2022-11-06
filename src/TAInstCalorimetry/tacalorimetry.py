@@ -17,16 +17,41 @@ class Measurement:
     #
     # init
     #
-    def __init__(self, folder=None, show_info=False, regex=None):
+    def __init__(self, folder=None, show_info=False, regex=None, auto_clean=True):
         """
         intialize measurements from folder
+
+        Parameters
+        ----------
+        folder : str, optional
+            path to folder containing .xls and/or .csv experimental result
+            files. The default is None.
+        show_info : bool, optional
+            whether or not to print some informative lines during code
+            execution. The default is False.
+        regex : str, optional
+            regex pattern to include only certain experimental result files
+            during initialization. The default is None.
+        auto_clean : bool, optional
+            whether or not to exclude NaN values contained in the original
+            files and combine data from differently names temperature columns.
+            The default is True.
+
+        Returns
+        -------
+        None.
+
         """
 
         # read
         if folder:
+            # get data and parameters
             self.get_data_and_parameters_from_folder(
                 folder, regex=regex, show_info=show_info
             )
+            if auto_clean:
+                # remove NaN values and merge time columns
+                self._auto_clean_data()
         else:
             self._info = None
             self._data = None
@@ -415,6 +440,53 @@ class Measurement:
             yield sample, data
 
     #
+    # auto clean data
+    #
+    def _auto_clean_data(self):
+        """
+        remove NaN values from self._data and merge differently named columns
+        representing the (constant) temperature set for the measurement
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # remove NaN values and reset index
+        self._data = self._data.dropna(
+            subset=[c for c in self._data.columns if re.match("normalized_heat", c)]
+        ).reset_index(drop=True)
+
+        # determine NaN count
+        nan_count = self._data["temperature_temperature_c"].isna().astype(
+            int
+        ) + self._data["temperature_c"].isna().astype(int)
+
+        # consolidate temperature columns
+        if (
+            "temperature_temperature_c" in self._data.columns
+            and "temperature_c" in self._data.columns
+        ):
+            # use values from column "temperature_c" and set the values to column
+            # "temperature_c"
+            self._data.loc[
+                (self._data["temperature_temperature_c"].isna()) & (nan_count == 1),
+                "temperature_temperature_c",
+            ] = self._data.loc[
+                (~self._data["temperature_c"].isna()) & (nan_count == 1),
+                "temperature_c",
+            ]
+
+            # remove values from column "temperature_c"
+            self._data = self._data.drop(columns=["temperature_c"])
+
+        # rename column
+        self._data = self._data.rename(
+            columns={"temperature_temperature_c": "temperature_c"}
+        )
+
+    #
     # plot
     #
     def plot(
@@ -477,7 +549,7 @@ class Measurement:
             plt.plot(
                 d["time_s"] * x_factor,
                 d[y_column] * y_factor,
-                label=os.path.basename(d.loc[0, "sample"])
+                label=os.path.basename(d["sample"].tolist()[0])
                 .split(".xls")[0]
                 .split(".csv")[0],
             )

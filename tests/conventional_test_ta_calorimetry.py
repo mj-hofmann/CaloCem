@@ -20,7 +20,10 @@ path_to_data = pathname + os.sep + os.pardir + os.sep + "DATA"
 
 # experiments via class
 tam = tacalorimetry.Measurement(
-    folder=path_to_data, regex="(.*csv$)|(Exp_[345].*)", show_info=True
+    folder=path_to_data,
+    # regex="(.*csv$)|(Exp_[345].*)",
+    show_info=True,
+    auto_clean=True,
 )
 
 # get sample and information
@@ -33,6 +36,10 @@ info = tam.get_information()
 for sample, sample_data in tam.iter_samples():
     # print
     print(os.path.basename(sample))
+
+
+# clean
+del sample, sample_data
 
 
 # %% basic plotting
@@ -59,14 +66,18 @@ tacalorimetry.plt.show()
 
 # %% get table of cumulated heat at certain age
 
-cum_h = tam.get_cumulated_heat_at_hours(target_h=2, cutoff_min=0)
+# define target time
+target_h = 1.5
+
+# get cumlated heat flows for each sample
+cum_h = tam.get_cumulated_heat_at_hours(target_h=target_h, cutoff_min=10)
 print(cum_h)
 
 # show cumulated heat plot
 ax = tam.plot(t_unit="h", y="normalized_heat_j_g", y_unit_milli=False)
 
 # guide to the eye line
-ax.axvline(2, color="gray", alpha=0.5, linestyle=":")
+ax.axvline(target_h, color="gray", alpha=0.5, linestyle=":")
 
 # set upper limits
 ax.set_ylim(top=250)
