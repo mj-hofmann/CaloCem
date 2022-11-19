@@ -10,6 +10,7 @@ Import the ```tacalorimetry``` module from **TAInstCalorimetry**.
 
 ```python
 # import
+import os
 from TAInstCalorimetry import tacalorimetry
 ```
 
@@ -17,12 +18,16 @@ Next, we define where the exported files are stored. With this information at ha
 
 ```python
 # define data path
-path_to_data = pathname + os.sep + "DATA"
-# on your machine, a path to the .xls and .csv source files could be specified 
-# in the following form
-# path_to_data = r"C:\Users\Admin\Downloads\example_data"
+# "mycalodata" is the subfoldername where the calorimetry
+# data files (both .csv or .xlsx) are stored
 
-# experiments via class
+pathname = os.path.dirname(os.path.realpath(__file__))
+path_to_data = pathname + os.sep + "mycalodata"
+
+# Example: if projectfile is at "C:\Users\myname\myproject\myproject.py", then "mydata"
+# refers to "C:\Users\myname\myproject\mycalodata" where the data is stored
+
+# load experiments via class, i.e. instantiate tacalorimetry object with data
 tam = tacalorimetry.Measurement(folder=path_to_data)
 
 # get sample and information
