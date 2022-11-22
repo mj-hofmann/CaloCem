@@ -14,28 +14,44 @@ class Measurement:
     Base class of "tacalorimetry"
     """
 
-    # ensure consistent data column names -- here as class variable
-    colnames = [
-        "time",
-        "ambient_temp_c",
-        "temp_c",
-        "heat_flow",
-        "heat",
-        "normalized_heat_flow",
-        "normalized_heat",
-    ]
-
     #
     # init
     #
-    def __init__(self, folder=None, show_info=False):
+    def __init__(self, folder=None, show_info=False, regex=None, auto_clean=True):
         """
         intialize measurements from folder
+
+        Parameters
+        ----------
+        folder : str, optional
+            path to folder containing .xls and/or .csv experimental result
+            files. The default is None.
+        show_info : bool, optional
+            whether or not to print some informative lines during code
+            execution. The default is False.
+        regex : str, optional
+            regex pattern to include only certain experimental result files
+            during initialization. The default is None.
+        auto_clean : bool, optional
+            whether or not to exclude NaN values contained in the original
+            files and combine data from differently names temperature columns.
+            The default is True.
+
+        Returns
+        -------
+        None.
+
         """
 
         # read
         if folder:
-            self.get_data_and_parameters_from_folder(folder, show_info=show_info)
+            # get data and parameters
+            self.get_data_and_parameters_from_folder(
+                folder, regex=regex, show_info=show_info
+            )
+            if auto_clean:
+                # remove NaN values and merge time columns
+                self._auto_clean_data()
         else:
             self._info = None
             self._data = None
@@ -43,7 +59,7 @@ class Measurement:
     #
     # get_data_and_parameters_from_folder
     #
-    def get_data_and_parameters_from_folder(self, folder, show_info=True):
+    def get_data_and_parameters_from_folder(self, folder, regex=None, show_info=True):
         """
         get_data_and_parameters_from_folder
         """
@@ -54,6 +70,12 @@ class Measurement:
             if not f.endswith((".xls", ".csv")):
                 # go to next
                 continue
+
+            if regex:
+                # check match
+                if not re.match(regex, f):
+                    # skip this file
+                    continue
 
             # info
             if show_info:
@@ -72,7 +94,7 @@ class Measurement:
                             self._read_calo_info_xls(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._info = self._read_calo_info_xls(file, show_info=show_info)
 
@@ -84,7 +106,7 @@ class Measurement:
                             self._read_calo_data_xls(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._data = self._read_calo_data_xls(file, show_info=show_info)
 
@@ -98,7 +120,7 @@ class Measurement:
                             self._read_calo_data_csv(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._data = self._read_calo_data_csv(file, show_info=show_info)
 
@@ -110,12 +132,12 @@ class Measurement:
                             self._read_calo_info_csv(file, show_info=show_info),
                         ]
                     )
-                except:
+                except Exception:
                     # initialize
                     self._info = self._read_calo_info_csv(file, show_info=show_info)
 
         # check for "info"
-        if not "info" in locals():
+        if "info" not in locals():
             # set info variable to None
             info = None
 
@@ -165,17 +187,83 @@ class Measurement:
             experimental data contained in file.
 
         """
-        # determine number of lines to skip
-        empty_lines = self._determine_data_range_csv(file)
-        # read data from csv-file
+
+        # define Excel file
         data = pd.read_csv(
-            file, skiprows=empty_lines[0], nrows=empty_lines[1] - empty_lines[0] - 2
+            file, header=None, sep="No meaningful separator", engine="python"
         )
-        # remove "columns" with many NaNs
-        data = data.dropna(axis=1, thresh=10)
-        # set column names
-        data.columns = self.colnames
-        # add sample name as column
+
+        # get "column" count
+        data["count"] = [len(i) for i in data[0].str.split(",")]
+
+        # get most frequent count --> assume this for selection of "data" rows
+        data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
+
+        # init and loop list of lists
+        list_of_lists = []
+        for _, r in data.iterrows():
+            # append to list
+            list_of_lists.append(str(r.to_list()).strip("['']").split(","))
+
+        # get DataFrame from list of lists
+        data = pd.DataFrame(list_of_lists)
+
+        # get new column names
+        new_columnames = []
+        for i in data.iloc[0, :]:
+            # build
+            new_columname = (
+                re.sub(r'[\s\n\[\]\(\)° _"]+', "_", i.lower())
+                .replace("/", "_")
+                .replace("_signal_", "_")
+                .strip("_")
+            )
+
+            # select appropriate unit
+            if new_columname == "time":
+                new_columname += "_s"
+            elif "temperature" in new_columname:
+                new_columname += "_c"
+            elif new_columname == "heat_flow":
+                new_columname += "_w"
+            elif new_columname == "heat":
+                new_columname += "_j"
+            elif new_columname == "normalized_heat_flow":
+                new_columname += "_w_g"
+            elif new_columname == "normalized_heat":
+                new_columname += "_j_g"
+            else:
+                new_columname += "_nan"
+
+            # add to list
+            new_columnames.append(new_columname)
+
+        # set
+        data.columns = new_columnames
+
+        # cut out data part
+        data = data.iloc[1:, :].reset_index(drop=True)
+
+        # drop column
+        try:
+            data = data.drop(columns=["time_markers_nan"])
+        except KeyError:
+            pass
+
+        # remove columns with too many NaNs
+        data = data.dropna(axis=1, thresh=3)
+        # # remove rows with NaNs
+        data = data.dropna(axis=0)
+
+        # float conversion
+        for _c in data.columns:
+            # convert
+            data[_c] = data[_c].astype(float)
+
+        # restrict to "time_s" > 0
+        data = data.query("time_s >= 0").reset_index(drop=True)
+
+        # add sample information
         data["sample"] = file
 
         # return
@@ -283,11 +371,8 @@ class Measurement:
         xl = pd.ExcelFile(file)
 
         try:
-            # get experiment info (first sheet)
-            df_data = xl.parse(xl.sheet_names[-1], header=None)
-
-            # remove "columns" with many NaNs
-            df_data = df_data.dropna(axis=1, thresh=10)
+            # parse "data" sheet
+            df_data = xl.parse("Raw data", header=None)
 
             # replace init timestamp
             df_data.iloc[0, 0] = "time"
@@ -297,12 +382,9 @@ class Measurement:
             for i, j in zip(df_data.iloc[0, :], df_data.iloc[1, :]):
                 # build
                 new_columnames.append(
-                    f"{i}_{j}".lower()
-                    .replace(" ", "_")
+                    re.sub(r"[\s\n\[\]\(\)° _]+", "_", f"{i}_{j}".lower())
                     .replace("/", "_")
-                    .replace("°", "_")
-                    .replace("__", "_")
-                    .replace("\n", "_")
+                    .replace("_signal_", "_")
                 )
 
             # set
@@ -311,22 +393,21 @@ class Measurement:
             # cut out data part
             df_data = df_data.iloc[2:, :].reset_index(drop=True)
 
-            # check if ambient temperature is present
-            # if not add empty column (after time)
-            if not any("ambient" in s for s in new_columnames):
-                # print("hjallo")
-                df_data.insert(1, "temperature_ambient_c", "nan")
-
-            # try forced renaming
+            # drop column
             try:
-                df_data.columns = self.colnames
-            except Exception as e:
-                if show_info:
-                    print(e)
+                df_data = df_data.drop(columns=["time_markers_nan"])
+            except KeyError:
+                pass
 
-            # convert to float
-            for c in df_data:
-                df_data[c] = df_data[c].astype(float)
+            # remove columns with too many NaNs
+            df_data = df_data.dropna(axis=1, thresh=3)
+            # # remove rows with NaNs
+            # df_data = df_data.dropna(axis=0)
+
+            # float conversion
+            for _c in df_data.columns:
+                # convert
+                df_data[_c] = df_data[_c].astype(float)
 
             # add sample information
             df_data["sample"] = file
@@ -334,6 +415,7 @@ class Measurement:
             # rename
             data = df_data
 
+            # return
             return data
 
         except Exception as e:
@@ -358,12 +440,59 @@ class Measurement:
             yield sample, data
 
     #
+    # auto clean data
+    #
+    def _auto_clean_data(self):
+        """
+        remove NaN values from self._data and merge differently named columns
+        representing the (constant) temperature set for the measurement
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # remove NaN values and reset index
+        self._data = self._data.dropna(
+            subset=[c for c in self._data.columns if re.match("normalized_heat", c)]
+        ).reset_index(drop=True)
+
+        # determine NaN count
+        nan_count = self._data["temperature_temperature_c"].isna().astype(
+            int
+        ) + self._data["temperature_c"].isna().astype(int)
+
+        # consolidate temperature columns
+        if (
+            "temperature_temperature_c" in self._data.columns
+            and "temperature_c" in self._data.columns
+        ):
+            # use values from column "temperature_c" and set the values to column
+            # "temperature_c"
+            self._data.loc[
+                (self._data["temperature_temperature_c"].isna()) & (nan_count == 1),
+                "temperature_temperature_c",
+            ] = self._data.loc[
+                (~self._data["temperature_c"].isna()) & (nan_count == 1),
+                "temperature_c",
+            ]
+
+            # remove values from column "temperature_c"
+            self._data = self._data.drop(columns=["temperature_c"])
+
+        # rename column
+        self._data = self._data.rename(
+            columns={"temperature_temperature_c": "temperature_c"}
+        )
+
+    #
     # plot
     #
     def plot(
         self,
         t_unit="h",
-        y="normalized_heat_flow",
+        y="normalized_heat_flow_w_g",
         y_unit_milli=True,
         regex=None,
         show_info=True,
@@ -383,11 +512,11 @@ class Measurement:
         """
 
         # y-value
-        if y == "normalized_heat_flow":
-            y_column = "normalized_heat_flow"
+        if y == "normalized_heat_flow_w_g":
+            y_column = "normalized_heat_flow_w_g"
             y_label = "Normalized Heat Flow / [W/g]"
-        elif y == "normalized_heat":
-            y_column = "normalized_heat"
+        elif y == "normalized_heat_j_g":
+            y_column = "normalized_heat_j_g"
             y_label = "Normalized Heat / [J/g]"
 
         if y_unit_milli:
@@ -395,7 +524,7 @@ class Measurement:
 
         # x-unit
         if t_unit == "s":
-            x_factor = 1
+            x_factor = 1.0
         elif t_unit == "min":
             x_factor = 1 / 60
         elif t_unit == "h":
@@ -413,14 +542,14 @@ class Measurement:
         for s, d in self.iter_samples():
             # define pattern
             if regex:
-                if not re.findall(f"{regex}\.xls", os.path.basename(s)):
+                if not re.findall(rf"{regex}", os.path.basename(s)):
                     # go to next
                     continue
             # plot
             plt.plot(
-                d["time"] * x_factor,
+                d["time_s"] * x_factor,
                 d[y_column] * y_factor,
-                label=os.path.basename(d.loc[0, "sample"])
+                label=os.path.basename(d["sample"].tolist()[0])
                 .split(".xls")[0]
                 .split(".csv")[0],
             )
@@ -453,7 +582,7 @@ class Measurement:
             target_s = 3600 * target_h
             # get heat at target time
             hf_at_target = float(
-                df.query("time >= @target_s").head(1)["normalized_heat"]
+                df.query("time_s >= @target_s").head(1)["normalized_heat_j_g"]
             )
 
             # if cuoff time specified
@@ -461,7 +590,7 @@ class Measurement:
                 # convert target time to seconds
                 target_s = 60 * cutoff_min
                 hf_at_cutoff = float(
-                    df.query("time <= @target_s").tail(1)["normalized_heat"]
+                    df.query("time_s <= @target_s").tail(1)["normalized_heat_j_g"]
                 )
                 # correct heatflow for heatflow at cutoff
                 hf_at_target = hf_at_target - hf_at_cutoff
