@@ -3,7 +3,9 @@ import os
 import re
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from scipy import signal
 
 
 #
@@ -571,7 +573,6 @@ class Measurement:
     #
     # get the cumulated heat flow a at a certain age
     #
-
     def get_cumulated_heat_at_hours(self, target_h=4, cutoff_min=None):
         """
         get the cumulated heat flow a at a certain age
@@ -611,6 +612,91 @@ class Measurement:
 
         # return
         return results
+
+    #
+    # find peaks
+    #
+    def get_peaks(
+        self, target_col="normalized_heat_flow_w_g", prominence=0.001, show_plot=True
+    ):
+        """
+        get DataFrame of peak characteristics
+
+        Parameters
+        ----------
+        prominence : TYPE, optional
+            DESCRIPTION. The default is 0.001.
+        show_plot : TYPE, optional
+            DESCRIPTION. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # list of peaks
+        list_of_peaks_dfs = []
+
+        # loop samples
+        for sample, data in self.iter_samples():
+
+            # reset index
+            data = data.reset_index(drop=True)
+
+            # target_columns
+            _age_col = "time_s"
+            _target_col = target_col
+
+            # find peaks
+            peaks, properties = signal.find_peaks(
+                data[_target_col],
+                prominence=prominence,
+            )
+
+            # plot?
+            if show_plot:
+                # plot
+                plt.plot(data[_age_col], data[_target_col])
+                plt.plot(
+                    data[_age_col][peaks], data[_target_col][peaks], "x", color="red"
+                )
+                plt.vlines(
+                    x=data[_age_col][peaks],
+                    ymin=0,
+                    ymax=data[_target_col][peaks],
+                    color="red",
+                )
+                # add "barrier"
+                plt.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
+                # figure cosmetics
+                plt.xlim(left=0)
+                plt.xlim(right=20000)
+                plt.ylim(bottom=0)
+                plt.title(sample)
+                # show
+                plt.show()
+
+            # compile peak characteristics
+            peak_characteristics = pd.concat(
+                [
+                    data.iloc[peaks, :],
+                    pd.DataFrame(
+                        properties["prominences"], index=peaks, columns=["prominence"]
+                    ),
+                    pd.DataFrame({"peak_nr": np.arange((len(peaks)))}, index=peaks),
+                ],
+                axis=1,
+            )
+
+            # append
+            list_of_peaks_dfs.append(peak_characteristics)
+
+        # compile peak information
+        peaks = pd.concat(list_of_peaks_dfs)
+
+        # return peak list
+        return peaks
 
     #
     # get data

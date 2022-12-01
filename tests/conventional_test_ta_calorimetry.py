@@ -84,3 +84,7 @@ ax.set_ylim(top=250)
 ax.set_xlim(right=12)
 # show plot
 tacalorimetry.plt.show()
+
+# %% get peaks
+
+peaks = tam.get_peaks()
