@@ -3,10 +3,10 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "TAInstCalorimetry"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
   { email="aCodingChemist@gmail.com" },
-  { name="tgaedt"}
+  { name="mj-hofmann"}
 ]
 description = "Handling TAM Air calorimetry files made easy."
 readme = "README.md"
