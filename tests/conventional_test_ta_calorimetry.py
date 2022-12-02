@@ -87,4 +87,23 @@ tacalorimetry.plt.show()
 
 # %% get peaks
 
-peaks = tam.get_peaks()
+peaks = tam.get_peaks(show_plot=True)
+
+
+# %% get onsets
+
+# get onsets
+onsets = tam.get_peak_onsets(
+    gradient_threshold=0.000004, rolling=10, exclude_discarded_time=True, show_plot=True
+)
+
+# %% show detected onsets per samppl
+
+import seaborn as sns
+
+sns.barplot(
+    data=onsets,
+    x="time_s",
+    y=[os.path.basename(i) for i in onsets["sample"]],
+    color="#451256",
+)

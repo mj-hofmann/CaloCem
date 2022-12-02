@@ -699,6 +699,90 @@ class Measurement:
         return peaks
 
     #
+    # get peak onsets
+    #
+    def get_peak_onsets(
+        self,
+        target_col="normalized_heat_flow_w_g",
+        age_col="time_s",
+        time_discarded_s=900,
+        rolling=1,
+        gradient_threshold=0.0005,
+        show_plot=False,
+        exclude_discarded_time=False,
+    ):
+        """
+        get peak onsets based on a criterion of minimum gradient
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # init list of characteristics
+        list_of_characteristics = []
+
+        # loop samples
+        for sample, data in self.iter_samples():
+
+            if exclude_discarded_time:
+                # exclude
+                data = data.query(f"{age_col} >= {time_discarded_s}")
+
+            # reset index
+            data = data.reset_index(drop=True)
+
+            # calculate get gradient
+            data["gradient"] = pd.Series(
+                np.gradient(data[target_col].rolling(rolling).mean())
+            )
+
+            # get relevant points
+            characteristics = data.copy()
+            # discard initial time
+            characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
+            # look at values with certain gradient only
+            characteristics = characteristics.query("gradient > @gradient_threshold")
+
+            # optional plotting
+            if show_plot:
+                # plot heat flow curve
+                plt.plot(data[age_col], data[target_col])
+
+                # add vertical lines
+                for _idx, _row in characteristics.iterrows():
+                    # vline
+                    plt.axvline(_row.at[age_col], color="red", alpha=0.3)
+
+                # cosmetics
+                plt.xscale("log")
+                plt.title(sample)
+
+                # get axis
+                ax = plt.gca()
+
+                plt.fill_between(
+                    [ax.get_ylim()[0], time_discarded_s],
+                    [ax.get_ylim()[0]] * 2,
+                    [ax.get_ylim()[1]] * 2,
+                    color="black",
+                    alpha=0.35,
+                )
+
+                # show
+                plt.show()
+
+            # append to list
+            list_of_characteristics.append(characteristics)
+
+        # build overall list
+        onset_characteristics = pd.concat(list_of_characteristics)
+
+        # return
+        return onset_characteristics
+
+    #
     # get data
     #
 
