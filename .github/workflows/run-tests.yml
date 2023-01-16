@@ -30,3 +30,7 @@ jobs:
         echo "github.event.pull_request.base.ref = ${{ github.event.pull_request.base.ref }}"
         echo "github.event.pull_request.base.sha = ${{ github.event.pull_request.base.sha }}"
         echo "  "
+
+    - name: Check out repository code
+      uses: actions/checkout@v2
+    - run: echo "The ${{ github.repository }} repository has been cloned to the runner."
