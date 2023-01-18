@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+	os: [macos-latest, windows-latest]
         python-version: ['3.8', '3.9']
 
     steps:
@@ -33,4 +34,10 @@ jobs:
 
     - name: Check out repository code
       uses: actions/checkout@v2
+
     - run: echo "The ${{ github.repository }} repository has been cloned to the runner."
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
