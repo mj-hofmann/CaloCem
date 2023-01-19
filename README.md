@@ -103,4 +103,4 @@ List of contributors:
 
 
 ## Test
-![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/run-tests.yml/badge.svg)
