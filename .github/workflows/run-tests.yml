@@ -48,3 +48,8 @@ jobs:
 
     - name: Install My Package
       run: pip install .
+
+    - name: Run Pytest
+      run: python -m pytest
+
+    - run: echo "This job's status is ${{ job.status }}."
