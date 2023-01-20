@@ -39,7 +39,7 @@ import os
 def test_last_time_entry(test_input, expected):
 
     # path to data
-    path_to_data = os.getcwd() + os.sep + os.pardir + os.sep + "DATA"
+    path_to_data = "DATA"
     # path_to_data = os.getcwd() + os.sep + os.pardir + os.sep + "DATA"
 
     # experiments via class
@@ -55,7 +55,6 @@ def test_last_time_entry(test_input, expected):
 
     # actual test
     assert last_time == int(expected)
-
 
 # test_last_time_entry("opc_3.csv", 322461)
 # test_last_time_entry("OPC_2.xls", 336000)
