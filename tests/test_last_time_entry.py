@@ -39,9 +39,8 @@ import os
 def test_last_time_entry(test_input, expected):
 
     # path to data
-    path_to_data = "DATA"
-    # path_to_data = os.getcwd() + os.sep + os.pardir + os.sep + "DATA"
-
+    path_to_data = os.getcwd() + os.sep + "DATA"
+ 
     # experiments via class
     tam = tacalorimetry.Measurement(folder=path_to_data, show_info=False)
 
