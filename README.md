@@ -97,6 +97,7 @@ Please make sure to update tests as appropriate.
 
 List of contributors:
 - tgaedt
+- mj-hofmann
 
 ## License
 [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/#)
@@ -106,3 +107,8 @@ List of contributors:
 ![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/run-tests.yml/badge.svg)
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+## Downloads
+
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/tainstcalorimetry.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry) 
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/tainstcalorimetry/) 
