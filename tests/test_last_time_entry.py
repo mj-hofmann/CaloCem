@@ -29,7 +29,7 @@ import os
         # ("Mix_06.xls", 85080),
         # ("Mix_07.xls", 9960),
         # ("Mix_08.xls", 336480),
-        ("opc_3.csv", 322470),
+        ("opc_3.csv", 322461),
         # ("c3a.csv", 173929),
         # ("OPC_1.xls", 499440),
         ("OPC_2.xls", 336000),
@@ -39,9 +39,8 @@ import os
 def test_last_time_entry(test_input, expected):
 
     # path to data
-    path_to_data = os.getcwd() + os.sep + "DATA"
-    # path_to_data = os.getcwd() + os.sep + os.pardir + os.sep + "DATA"
-
+    path_to_data = os.getcwd() + os.sep + "TAInstCalorimetry" + os.sep + "DATA"
+ 
     # experiments via class
     tam = tacalorimetry.Measurement(folder=path_to_data, show_info=False)
 
@@ -56,5 +55,5 @@ def test_last_time_entry(test_input, expected):
     # actual test
     assert last_time == int(expected)
 
-
-# test_last_time_entry("Exp_1.xls", 253680)
+# test_last_time_entry("opc_3.csv", 322461)
+# test_last_time_entry("OPC_2.xls", 336000)

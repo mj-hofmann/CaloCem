@@ -4,6 +4,12 @@ After collecting multiple experimental results files from a TAM Air calorimeter 
 
 *Note: **TAInstCalorimetry** has been developed without involvement of **TA Instruments** and is thus independent from the company and its software.*
 
+## Info / Downloads
+
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/tainstcalorimetry.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry)
+[![PyPI - Downloads](https://static.pepy.tech/personalized-badge/tainstcalorimetry?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/tainstcalorimetry/) 
+
 ## Example Usage
 
 Import the ```tacalorimetry``` module from **TAInstCalorimetry**.
@@ -97,10 +103,13 @@ Please make sure to update tests as appropriate.
 
 List of contributors:
 - tgaedt
+- mj-hofmann
 
 ## License
 [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/#)
 
 
 ## Test
-![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/run-tests.yml/badge.svg)
+
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
