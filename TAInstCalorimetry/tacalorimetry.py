@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -427,7 +428,7 @@ class Measurement:
     #
     # iterate samples
     #
-    def iter_samples(self):
+    def iter_samples(self, regex=None):
         """
         iterate samples and return corresponding data
 
@@ -438,6 +439,12 @@ class Measurement:
         """
 
         for sample, data in self._data.groupby(by="sample"):
+            
+            if regex:
+                if not re.findall(regex, sample):
+                    # go to next
+                    continue
+            
             # "return"
             yield sample, data
 
@@ -617,8 +624,8 @@ class Measurement:
     # find peaks
     #
     def get_peaks(
-        self, target_col="normalized_heat_flow_w_g", prominence=0.001, show_plot=True
-    ):
+        self, target_col="normalized_heat_flow_w_g", regex=None, cutoff_min=None, prominence=0.001, distance=1, show_plot=True, plt_right_s=2e5, plt_top=1e-2
+        ):
         """
         get DataFrame of peak characteristics
 
@@ -639,7 +646,12 @@ class Measurement:
         list_of_peaks_dfs = []
 
         # loop samples
-        for sample, data in self.iter_samples():
+        for sample, data in self.iter_samples(regex=regex):
+            
+            # cutoff
+            if cutoff_min:
+                # discard points at early age
+                data = data.query("time_s >= @cutoff_min * 60")
 
             # reset index
             data = data.reset_index(drop=True)
@@ -652,6 +664,7 @@ class Measurement:
             peaks, properties = signal.find_peaks(
                 data[_target_col],
                 prominence=prominence,
+                distance=distance
             )
 
             # plot?
@@ -671,9 +684,12 @@ class Measurement:
                 plt.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
                 # figure cosmetics
                 plt.xlim(left=0)
-                plt.xlim(right=20000)
+                plt.xlim(right=plt_right_s)
                 plt.ylim(bottom=0)
-                plt.title(sample)
+                plt.ylim(top=plt_top)
+                plt.xlabel(_age_col)
+                plt.ylabel(_target_col)
+                plt.title("Peak plot for " + pathlib.Path(sample).stem)
                 # show
                 plt.show()
 
@@ -710,6 +726,7 @@ class Measurement:
         gradient_threshold=0.0005,
         show_plot=False,
         exclude_discarded_time=False,
+        regex=None
     ):
         """
         get peak onsets based on a criterion of minimum gradient
@@ -724,7 +741,7 @@ class Measurement:
         list_of_characteristics = []
 
         # loop samples
-        for sample, data in self.iter_samples():
+        for sample, data in self.iter_samples(regex=regex):
 
             if exclude_discarded_time:
                 # exclude
@@ -744,6 +761,8 @@ class Measurement:
             characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
             # look at values with certain gradient only
             characteristics = characteristics.query("gradient > @gradient_threshold")
+            # consider first entry exclusively
+            characteristics = characteristics.head(1)
 
             # optional plotting
             if show_plot:
@@ -757,7 +776,9 @@ class Measurement:
 
                 # cosmetics
                 plt.xscale("log")
-                plt.title(sample)
+                plt.title("Onset for " + pathlib.Path(sample).stem)
+                plt.xlabel(age_col)
+                plt.ylabel(target_col)
 
                 # get axis
                 ax = plt.gca()
@@ -769,6 +790,9 @@ class Measurement:
                     color="black",
                     alpha=0.35,
                 )
+                
+                # set axis limit
+                plt.xlim(left=100)
 
                 # show
                 plt.show()
