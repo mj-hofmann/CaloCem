@@ -10,6 +10,15 @@ After collecting multiple experimental results files from a TAM Air calorimeter 
 [![PyPI - Downloads](https://static.pepy.tech/personalized-badge/tainstcalorimetry?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/tainstcalorimetry/) 
 
+## Table of Contents  
+- [Example Usage](#example-usage)<br>
+  - [Basic plotting](#basic-plotting)<br>
+  - [Getting cumulated heat values](#getting-cumulated-heat-values)<br>
+  - [Identifying peaks](#identifying-peaks)<br>
+  - [Identifying peak onsets](#identifying-peak-onsets)<br>
+- [Installation](#installation)<br>
+- [Contributing](#contributing)
+
 ## Example Usage
 
 Import the ```tacalorimetry``` module from **TAInstCalorimetry**.
@@ -41,6 +50,8 @@ data = tam.get_data()
 info = tam.get_information()
 ```
 
+### Basic plotting
+
 Furthermore, the ```Measurement``` features a ```plot()```-method for readily visualizing the collected results.
 
 ```python
@@ -54,17 +65,6 @@ Without further options specified, the ```plot()```-method yields the following.
 
 ![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-08%20112743.png?raw=true)
 
-The cumulated heat after a certain period of time from starting the measurement is a relevant quantity for answering different types of questions. For this purpose, the method ```get_cumulated_heat_at_hours``` returns on overview of this parameter for all the samples in the specified folder.
-
-```python
-# get table of cumulated heat at certain age
-cum_h = tam.get_cumulated_heat_at_hours(
-                target_h=2, 
-                cutoff_min=0
-                )
-# show result
-print(cum_h)
-```
 The ```plot()```-method can also be tuned to show the temporal course of normalized heat.
 
 ```python
@@ -87,6 +87,23 @@ tacalorimetry.plt.show())
 The following plot is obtained:
 
 ![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-19%20085928.png?raw=true)
+
+### Getting cumulated heat values
+
+The cumulated heat after a certain period of time from starting the measurement is a relevant quantity for answering different types of questions. For this purpose, the method ```get_cumulated_heat_at_hours``` returns on overview of this parameter for all the samples in the specified folder.
+
+```python
+# get table of cumulated heat at certain age
+cum_h = tam.get_cumulated_heat_at_hours(
+                target_h=2, 
+                cutoff_min=0
+                )
+# show result
+print(cum_h)
+```
+### Identifying peaks
+
+### Identifying peak onsets
 
 ## Installation
 
