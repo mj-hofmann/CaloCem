@@ -1,4 +1,4 @@
-# TAInstCalorimetry- Interfacing with experimental results file from TAM Air calorimeters made easy.
+# TAInstCalorimetry - Interfacing with experimental results file from TAM Air calorimeters made easy.
 
 After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **TAInstCalorimetry** is here to get this done smoothly.
 
@@ -130,7 +130,7 @@ Tweaking some of the available keyword arguments, the following plot is obtained
 
 ### Identifying peak onsets
 
-Similarly, the peak onset characteristics are accessible via the ```get_peak_onsets```-method. The resulting plot is shown below
+Similarly, the peak onset characteristics are accessible via the ```get_peak_onsets```-method. The resulting plot is shown below.
 
 ```python
 # get onsets
@@ -142,6 +142,7 @@ onsets = tam.get_peak_onsets(
     regex="OPC"
 )
 ```
+![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-26%20174524.png?raw=true)
 
 ## Installation
 
