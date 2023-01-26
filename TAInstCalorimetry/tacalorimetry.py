@@ -633,22 +633,36 @@ class Measurement:
         show_plot=True,
         plt_right_s=2e5,
         plt_top=1e-2,
-    ):
+    ) -> pd.DataFrame:
         """
-        get DataFrame of peak characteristics
+        get DataFrame of peak characteristics.
 
         Parameters
         ----------
-        prominence : TYPE, optional
-            DESCRIPTION. The default is 0.001.
-        show_plot : TYPE, optional
-            DESCRIPTION. The default is True.
+        target_col : str, optional
+            measured quantity within which peaks are searched for. The default is "normalized_heat_flow_w_g"
+        regex : str, optional
+            regex pattern to include only certain experimental result files
+            during initialization. The default is None.
+        cutoff_min : int | float, optional
+            Time in minutes below which collected data points are discarded for peak picking
+        prominence : float, optional
+            Paek prominence characteristic for the identification of peaks. For a lower promince value, more peaks are found. The default is 0.001.
+        distance : int, optional
+            count experimental data points between accepted peaks
+        show_plot : bool, optional
+            Flag whether or not to plot peak picking for each sample. The default is True.
+        plt_right_s : int | float, optional
+            Upper limit of x-axis of in seconds. The default is 2e5.
+        plt_top : int | float, optional
+            Upper limit of y-axis of. The default is 1e-2.
 
         Returns
         -------
-        None.
+        pd.DataFrame holding peak characterisitcs for each sample.
 
         """
+
 
         # list of peaks
         list_of_peaks_dfs = []
