@@ -75,8 +75,11 @@ ax = tam.plot(
     y_unit_milli=False
 )
 
+# define target time
+target_h = 1.5
+
 # guide to the eye line
-ax.axvline(2, color="gray", alpha=0.5, linestyle=":")
+ax.axvline(target_h, color="gray", alpha=0.5, linestyle=":")
 
 # set upper limits
 ax.set_ylim(top=250)
@@ -90,20 +93,55 @@ The following plot is obtained:
 
 ### Getting cumulated heat values
 
-The cumulated heat after a certain period of time from starting the measurement is a relevant quantity for answering different types of questions. For this purpose, the method ```get_cumulated_heat_at_hours``` returns on overview of this parameter for all the samples in the specified folder.
+The cumulated heat after a certain period of time ```target_h``` from starting the measurement is a relevant quantity for answering different types of questions. For this purpose, the method ```get_cumulated_heat_at_hours``` returns an overview of this parameter for all the samples in the specified folder.
 
 ```python
 # get table of cumulated heat at certain age
-cum_h = tam.get_cumulated_heat_at_hours(
-                target_h=2, 
-                cutoff_min=0
-                )
+cumulated_heats = tam.get_cumulated_heat_at_hours(
+          target_h=target_h,
+          cutoff_min=10
+          )
+          
 # show result
-print(cum_h)
+print(cumulated_heats)
 ```
+
+The return value of the method, ```cumulated_heats``` is a ```pd.DataFrame```.
+
 ### Identifying peaks
 
+Next to cumulated heat values detected after a certain time frame from starting the reaction, peaks characteristics can be obtained from the experimental data via the ```get_peaks```-method.
+
+```python
+# get peaks
+peaks = tam.get_peaks(
+    show_plot=True,
+    prominence=0.00001,  # "sensitivity of peak picking"
+    cutoff_min=60,  # how much to discard at the beginning of the measurement
+    plt_right_s=4e5,
+    plt_top=1e-2,
+    regex=".*_\d"  # filter samples
+    )
+```
+
+Tweaking some of the available keyword arguments, the following plot is obtained:
+
+![Identified peaks for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-25%20193222.png?raw=true)
+
 ### Identifying peak onsets
+
+Similarly, the peak onset characteristics are accessible via the ```get_peak_onsets```-method. The resulting plot is shown below
+
+```python
+# get onsets
+onsets = tam.get_peak_onsets(
+    gradient_threshold=0.000001,
+    rolling=10,
+    exclude_discarded_time=True,
+    show_plot=True,
+    regex="OPC"
+)
+```
 
 ## Installation
 
