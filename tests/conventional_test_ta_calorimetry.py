@@ -11,12 +11,11 @@ filename = os.path.basename(__file__).replace(".py", "")
 
 os.sys.path.append(pathname + os.sep + os.pardir + os.sep + "src")
 
-# import
 
 # %% use class based approach
 
 # define data path
-path_to_data = pathname + os.sep + os.pardir + os.sep + "DATA"
+path_to_data = pathname + os.sep + os.pardir + os.sep + "TAInstCalorimetry" + os.sep + "DATA"
 
 # experiments via class
 tam = tacalorimetry.Measurement(
@@ -29,6 +28,7 @@ tam = tacalorimetry.Measurement(
 # get sample and information
 data = tam.get_data()
 info = tam.get_information()
+
 
 # %% get samples
 #
@@ -48,6 +48,7 @@ del sample, sample_data
 tam.plot()
 # show plot
 tacalorimetry.plt.show()
+
 
 # %% customized plotting
 
@@ -85,25 +86,27 @@ ax.set_xlim(right=12)
 # show plot
 tacalorimetry.plt.show()
 
+
 # %% get peaks
 
-peaks = tam.get_peaks(show_plot=True)
+# get peaks
+peaks = tam.get_peaks(
+    show_plot=True,
+    prominence=0.00001,
+    cutoff_min=60,
+    plt_right_s=4e5,
+    plt_top=1e-2,
+    regex=".*_\d"
+    )
 
 
 # %% get onsets
 
 # get onsets
 onsets = tam.get_peak_onsets(
-    gradient_threshold=0.000004, rolling=10, exclude_discarded_time=True, show_plot=True
-)
-
-# %% show detected onsets per samppl
-
-import seaborn as sns
-
-sns.barplot(
-    data=onsets,
-    x="time_s",
-    y=[os.path.basename(i) for i in onsets["sample"]],
-    color="#451256",
+    gradient_threshold=0.000001,
+    rolling=10,
+    exclude_discarded_time=True,
+    show_plot=True,
+    regex="OPC"
 )

@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -427,7 +428,7 @@ class Measurement:
     #
     # iterate samples
     #
-    def iter_samples(self):
+    def iter_samples(self, regex=None):
         """
         iterate samples and return corresponding data
 
@@ -438,6 +439,12 @@ class Measurement:
         """
 
         for sample, data in self._data.groupby(by="sample"):
+
+            if regex:
+                if not re.findall(regex, sample):
+                    # go to next
+                    continue
+
             # "return"
             yield sample, data
 
@@ -617,21 +624,42 @@ class Measurement:
     # find peaks
     #
     def get_peaks(
-        self, target_col="normalized_heat_flow_w_g", prominence=0.001, show_plot=True
-    ):
+        self,
+        target_col="normalized_heat_flow_w_g",
+        regex=None,
+        cutoff_min=None,
+        prominence=0.001,
+        distance=1,
+        show_plot=True,
+        plt_right_s=2e5,
+        plt_top=1e-2,
+    ) -> pd.DataFrame:
         """
-        get DataFrame of peak characteristics
+        get DataFrame of peak characteristics.
 
         Parameters
         ----------
-        prominence : TYPE, optional
-            DESCRIPTION. The default is 0.001.
-        show_plot : TYPE, optional
-            DESCRIPTION. The default is True.
+        target_col : str, optional
+            measured quantity within which peaks are searched for. The default is "normalized_heat_flow_w_g"
+        regex : str, optional
+            regex pattern to include only certain experimental result files
+            during initialization. The default is None.
+        cutoff_min : int | float, optional
+            Time in minutes below which collected data points are discarded for peak picking
+        prominence : float, optional
+            Paek prominence characteristic for the identification of peaks. For a lower promince value, more peaks are found. The default is 0.001.
+        distance : int, optional
+            count experimental data points between accepted peaks
+        show_plot : bool, optional
+            Flag whether or not to plot peak picking for each sample. The default is True.
+        plt_right_s : int | float, optional
+            Upper limit of x-axis of in seconds. The default is 2e5.
+        plt_top : int | float, optional
+            Upper limit of y-axis of. The default is 1e-2.
 
         Returns
         -------
-        None.
+        pd.DataFrame holding peak characterisitcs for each sample.
 
         """
 
@@ -639,7 +667,12 @@ class Measurement:
         list_of_peaks_dfs = []
 
         # loop samples
-        for sample, data in self.iter_samples():
+        for sample, data in self.iter_samples(regex=regex):
+
+            # cutoff
+            if cutoff_min:
+                # discard points at early age
+                data = data.query("time_s >= @cutoff_min * 60")
 
             # reset index
             data = data.reset_index(drop=True)
@@ -650,8 +683,7 @@ class Measurement:
 
             # find peaks
             peaks, properties = signal.find_peaks(
-                data[_target_col],
-                prominence=prominence,
+                data[_target_col], prominence=prominence, distance=distance
             )
 
             # plot?
@@ -671,9 +703,12 @@ class Measurement:
                 plt.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
                 # figure cosmetics
                 plt.xlim(left=0)
-                plt.xlim(right=20000)
+                plt.xlim(right=plt_right_s)
                 plt.ylim(bottom=0)
-                plt.title(sample)
+                plt.ylim(top=plt_top)
+                plt.xlabel(_age_col)
+                plt.ylabel(_target_col)
+                plt.title("Peak plot for " + pathlib.Path(sample).stem)
                 # show
                 plt.show()
 
@@ -710,13 +745,31 @@ class Measurement:
         gradient_threshold=0.0005,
         show_plot=False,
         exclude_discarded_time=False,
+        regex=None,
     ):
         """
         get peak onsets based on a criterion of minimum gradient
-
+        Parameters
+        ----------
+        target_col : str, optional
+            measured quantity within which peak onsets are searched for. The default is "normalized_heat_flow_w_g"
+        age_col : str, optional
+            Time unit within which peak onsets are searched for. The default is "time_s"        
+        time_discarded_s : int | float, optional
+            Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
+        rolling : int, optional
+            Width of "rolling" window within which the values of "target_col" are averaged. A higher value will introduce a stronger smoothing effect. The default is 1, i.e. no smoothing.
+        gradient_threshold : float, optional
+            Threshold of slope for identification of a peak onset. For a lower value, earlier peak onsets will be identified. The default is 0.0005.
+        show_plot : bool, optional
+            Flag whether or not to plot peak picking for each sample. The default is False.
+        exclude_discarded_time : bool, optional
+            Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
+        regex : str, optional
+            regex pattern to include only certain experimental result files during initialization. The default is None.
         Returns
         -------
-        None.
+        pd.DataFrame holding peak onset characterisitcs for each sample.
 
         """
 
@@ -724,7 +777,7 @@ class Measurement:
         list_of_characteristics = []
 
         # loop samples
-        for sample, data in self.iter_samples():
+        for sample, data in self.iter_samples(regex=regex):
 
             if exclude_discarded_time:
                 # exclude
@@ -744,6 +797,8 @@ class Measurement:
             characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
             # look at values with certain gradient only
             characteristics = characteristics.query("gradient > @gradient_threshold")
+            # consider first entry exclusively
+            characteristics = characteristics.head(1)
 
             # optional plotting
             if show_plot:
@@ -757,7 +812,9 @@ class Measurement:
 
                 # cosmetics
                 plt.xscale("log")
-                plt.title(sample)
+                plt.title("Onset for " + pathlib.Path(sample).stem)
+                plt.xlabel(age_col)
+                plt.ylabel(target_col)
 
                 # get axis
                 ax = plt.gca()
@@ -769,6 +826,9 @@ class Measurement:
                     color="black",
                     alpha=0.35,
                 )
+
+                # set axis limit
+                plt.xlim(left=100)
 
                 # show
                 plt.show()
