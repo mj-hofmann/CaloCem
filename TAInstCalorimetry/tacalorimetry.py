@@ -663,7 +663,6 @@ class Measurement:
 
         """
 
-
         # list of peaks
         list_of_peaks_dfs = []
 
@@ -750,10 +749,27 @@ class Measurement:
     ):
         """
         get peak onsets based on a criterion of minimum gradient
-
+        Parameters
+        ----------
+        target_col : str, optional
+            measured quantity within which peak onsets are searched for. The default is "normalized_heat_flow_w_g"
+        age_col : str, optional
+            Time unit within which peak onsets are searched for. The default is "time_s"        
+        time_discarded_s : int | float, optional
+            Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
+        rolling : int, optional
+            Width of "rolling" window within which the values of "target_col" are averaged. A higher value will introduce a stronger smoothing effect. The default is 1, i.e. no smoothing.
+        gradient_threshold : float, optional
+            Threshold of slope for identification of a peak onset. For a lower value, earlier peak onsets will be identified. The default is 0.0005.
+        show_plot : bool, optional
+            Flag whether or not to plot peak picking for each sample. The default is False.
+        exclude_discarded_time : bool, optional
+            Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
+        regex : str, optional
+            regex pattern to include only certain experimental result files during initialization. The default is None.
         Returns
         -------
-        None.
+        pd.DataFrame holding peak onset characterisitcs for each sample.
 
         """
 
