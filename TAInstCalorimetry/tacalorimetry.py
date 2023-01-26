@@ -439,12 +439,12 @@ class Measurement:
         """
 
         for sample, data in self._data.groupby(by="sample"):
-            
+
             if regex:
                 if not re.findall(regex, sample):
                     # go to next
                     continue
-            
+
             # "return"
             yield sample, data
 
@@ -624,8 +624,16 @@ class Measurement:
     # find peaks
     #
     def get_peaks(
-        self, target_col="normalized_heat_flow_w_g", regex=None, cutoff_min=None, prominence=0.001, distance=1, show_plot=True, plt_right_s=2e5, plt_top=1e-2
-        ):
+        self,
+        target_col="normalized_heat_flow_w_g",
+        regex=None,
+        cutoff_min=None,
+        prominence=0.001,
+        distance=1,
+        show_plot=True,
+        plt_right_s=2e5,
+        plt_top=1e-2,
+    ):
         """
         get DataFrame of peak characteristics
 
@@ -647,7 +655,7 @@ class Measurement:
 
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
-            
+
             # cutoff
             if cutoff_min:
                 # discard points at early age
@@ -662,9 +670,7 @@ class Measurement:
 
             # find peaks
             peaks, properties = signal.find_peaks(
-                data[_target_col],
-                prominence=prominence,
-                distance=distance
+                data[_target_col], prominence=prominence, distance=distance
             )
 
             # plot?
@@ -726,7 +732,7 @@ class Measurement:
         gradient_threshold=0.0005,
         show_plot=False,
         exclude_discarded_time=False,
-        regex=None
+        regex=None,
     ):
         """
         get peak onsets based on a criterion of minimum gradient
@@ -790,7 +796,7 @@ class Measurement:
                     color="black",
                     alpha=0.35,
                 )
-                
+
                 # set axis limit
                 plt.xlim(left=100)
 
