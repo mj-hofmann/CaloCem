@@ -1,4 +1,6 @@
-# TAInstCalorimetry - Interfacing with experimental results file from TAM Air calorimeters made easy.
+![Logo](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/icon/icon.png?raw=true)
+
+# Interfacing with experimental results file from TAM Air calorimeters made easy.
 
 After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **TAInstCalorimetry** is here to get this done smoothly.
 
