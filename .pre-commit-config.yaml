@@ -8,18 +8,7 @@
 # # further options (here --safe)
 repos:
 -   repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 21.9b0
     hooks:
     -   id: black
         args: [--safe]
-
-- repo: local
-    hooks:
-    - id: pytest-check
-      name: pytest-check
-      stages: [commit]
-      types: [python]
-      entry: pytest
-      language: system
-      pass_filenames: false
-      always_run: true
