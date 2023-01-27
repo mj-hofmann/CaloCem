@@ -12,3 +12,14 @@ repos:
     hooks:
     -   id: black
         args: [--safe]
+
+- repo: local
+    hooks:
+    - id: pytest-check
+      name: pytest-check
+      stages: [commit]
+      types: [python]
+      entry: pytest
+      language: system
+      pass_filenames: false
+      always_run: true
