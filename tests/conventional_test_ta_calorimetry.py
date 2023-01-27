@@ -31,8 +31,8 @@ info = tam.get_information()
 
 
 # %% get samples
-#
 
+# loop samples
 for sample, sample_data in tam.iter_samples():
     # print
     print(os.path.basename(sample))
@@ -43,7 +43,6 @@ del sample, sample_data
 
 
 # %% basic plotting
-#
 
 tam.plot()
 # show plot
