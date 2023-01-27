@@ -15,7 +15,9 @@ os.sys.path.append(pathname + os.sep + os.pardir + os.sep + "src")
 # %% use class based approach
 
 # define data path
-path_to_data = pathname + os.sep + os.pardir + os.sep + "TAInstCalorimetry" + os.sep + "DATA"
+path_to_data = (
+    pathname + os.sep + os.pardir + os.sep + "TAInstCalorimetry" + os.sep + "DATA"
+)
 
 # experiments via class
 tam = tacalorimetry.Measurement(
@@ -95,8 +97,8 @@ peaks = tam.get_peaks(
     cutoff_min=60,
     plt_right_s=4e5,
     plt_top=1e-2,
-    regex=".*_\d"
-    )
+    regex=".*_\d",
+)
 
 
 # %% get onsets
@@ -107,5 +109,5 @@ onsets = tam.get_peak_onsets(
     rolling=10,
     exclude_discarded_time=True,
     show_plot=True,
-    regex="OPC"
+    regex="OPC",
 )

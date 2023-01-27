@@ -1,7 +1,9 @@
-from TAInstCalorimetry import tacalorimetry
-import pytest
-import pysnooper
 import os
+
+import pysnooper
+import pytest
+
+from TAInstCalorimetry import tacalorimetry
 
 #
 # run "time check" on each sample file
@@ -40,7 +42,7 @@ def test_last_time_entry(test_input, expected):
 
     # path to data
     path_to_data = os.getcwd() + os.sep + "TAInstCalorimetry" + os.sep + "DATA"
- 
+
     # experiments via class
     tam = tacalorimetry.Measurement(folder=path_to_data, show_info=False)
 
@@ -54,6 +56,7 @@ def test_last_time_entry(test_input, expected):
 
     # actual test
     assert last_time == int(expected)
+
 
 # test_last_time_entry("opc_3.csv", 322461)
 # test_last_time_entry("OPC_2.xls", 336000)

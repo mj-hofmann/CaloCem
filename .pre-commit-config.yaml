@@ -1,5 +1,6 @@
 # see https://pre-commit.com
 # HOWTO: https://www.youtube.com/watch?v=psjz6rwzMdk
+# for making it run: "pre-commit install"
 
 # specify 
 # - git repo (here https://github.com/psf/black)
@@ -8,7 +9,7 @@
 # # further options (here --safe)
 repos:
 -   repo: https://github.com/psf/black
-    rev: 21.9b0
+    rev: 22.3.0
     hooks:
     -   id: black
         args: [--safe]
