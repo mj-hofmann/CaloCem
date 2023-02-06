@@ -3,8 +3,8 @@ name = "TAInstCalorimetry"
 version = "0.1.4"
 description = "Handling TAM Air calorimetry files made easy."
 authors = [
-	{ name = "mj-hofmann", email = "aCodingChemist@gmail.com" },
-	{ name = "tgaedt", email = "torben.gaedt@tum.de" }
+	{ "mj-hofmann <aCodingChemist@gmail.com>" },
+	{ "tgaedt <torben.gaedt@tum.de>" }
 ]
 license = "GNU GENERAL PUBLIC LICENSE"
 
