@@ -2,7 +2,10 @@
 name = "TAInstCalorimetry"
 version = "0.1.4"
 description = "Handling TAM Air calorimetry files made easy."
-authors = ["mj-hofmann <aCodingChemist@gmail.com>", "tgaedt <torben.gaedt@tum.de>"]
+authors = [
+	{ name = "mj-hofmann", email = "aCodingChemist@gmail.com" },
+	{ name = "tgaedt", email = "torben.gaedt@tum.de" }
+]
 license = "GNU GENERAL PUBLIC LICENSE"
 
 repository = "https://github.com/mj-hofmann/TAInstCalorimetry"
@@ -29,6 +32,15 @@ scipy = "^1.10.0"
 flake8 = "^6.0.0"
 tox = "^4.2.1"
 PySnooper = "^1.1.1"
+
+# classifiers from https://pypi.org/classifiers/
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Utilities",
+]
 
 [tool.pytest.ini_options]
 testpaths = [
