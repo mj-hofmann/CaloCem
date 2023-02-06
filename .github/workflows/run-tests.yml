@@ -7,7 +7,7 @@ jobs:
   build:
     strategy:
       matrix:
-        python-version: ['3.8', '3.9']
+        python-version: ['3.7', '3.8', '3.9']
         os: [windows-latest]
     runs-on: ${{ matrix.os }}
 
@@ -33,14 +33,12 @@ jobs:
         echo "  "
 
     - name: Check out repository code
-      using: 'node16'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - run: echo "The ${{ github.repository }} repository has been cloned to the runner."
 
     - name: Set up Python ${{ matrix.python-version }}
-      using: 'node16'
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
 
