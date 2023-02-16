@@ -67,7 +67,7 @@ Without further options specified, the ```plot()```-method yields the following.
 
 ![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-08%20112743.png?raw=true)
 
-The ```plot()```-method can also be tuned to show the temporal course of normalized heat.
+The ```plot()```-method can also be tuned to show the temporal course of normalized heat. On the one hand, this "tuning" refers to the specification of further keyword arguments such as ```t_unit``` and ```y```. On the other hand, the ```plot()```-method returns an object of type ```matplotlib.axes._subplots.AxesSubplot```, which can be used to further customize the plot. In the following, a guide-to-the-eye line is introduced next to adjuting the axes limts, which is not provided for via the ```plot()```-method's signature.
 
 ```python
 # show cumulated heat plot
@@ -87,7 +87,7 @@ ax.axvline(target_h, color="gray", alpha=0.5, linestyle=":")
 ax.set_ylim(top=250)
 ax.set_xlim(right=6)
 # show plot
-tacalorimetry.plt.show())
+tacalorimetry.plt.show()
 ```
 The following plot is obtained:
 
@@ -129,6 +129,8 @@ peaks = tam.get_peaks(
 Tweaking some of the available keyword arguments, the following plot is obtained:
 
 ![Identified peaks for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-25%20193222.png?raw=true)
+
+Please keep in mind, that in particular for samples of ordinary Portland cement (OPC) a clear and unambiguous identification/assigment of peaks remains a challenging task which cannot be achieved in each and every case by **TAInstCalorimetry**. It is left to the user draw meaningful scientific conclusions from the characteristics derived from this method.
 
 ### Identifying peak onsets
 
