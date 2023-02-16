@@ -36,5 +36,13 @@ repos:
   rev: 6.0.0
   hooks:
   - id: flake8
-  ## You can add flake8 plugins via `additional_dependencies`:
-  #  additional_dependencies: [flake8-bugbear]
+    args: # arguments to configure flake8
+        # making isort line length compatible with black
+        # https://rednafi.github.io/digressions/python/2020/04/06/python-precommit.html
+        - "--max-line-length=80"
+        - "--max-complexity=18"
+        - "--select=B,C,E,F,W,T4,B9"
+        # these are errors that will be ignored by flake8
+        # check out their meaning here
+        # https://flake8.pycqa.org/en/latest/user/error-codes.html
+        - "--ignore=E203,E266,E501,W503,F403,F401,E402,F841"

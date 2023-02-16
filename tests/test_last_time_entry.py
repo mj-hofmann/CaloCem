@@ -5,6 +5,7 @@ import pytest
 
 from TAInstCalorimetry import tacalorimetry
 
+
 #
 # run "time check" on each sample file
 # see https://www.youtube.com/watch?v=DhUpxWjOhME (~ at 12:20)
@@ -32,8 +33,8 @@ from TAInstCalorimetry import tacalorimetry
         # ("Mix_07.xls", 9960),
         # ("Mix_08.xls", 336480),
         ("opc_3.csv", 322461),
-        # ("c3a.csv", 173929),
-        # ("OPC_1.xls", 499440),
+        ("c3a.csv", 173873),
+        ("OPC_1.xls", 495720),
         ("OPC_2.xls", 336000),
     ],
 )

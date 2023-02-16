@@ -1,7 +1,7 @@
 import csv
 import os
-import re
 import pathlib
+import re
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,9 +52,15 @@ class Measurement:
             self.get_data_and_parameters_from_folder(
                 folder, regex=regex, show_info=show_info
             )
-            if auto_clean:
-                # remove NaN values and merge time columns
-                self._auto_clean_data()
+            try:
+                if auto_clean:
+                    # remove NaN values and merge time columns
+                    self._auto_clean_data()
+            except Exception as e:
+                # info
+                print(e)
+                # return
+                return
         else:
             self._info = None
             self._data = None
@@ -268,6 +274,7 @@ class Measurement:
 
         # add sample information
         data["sample"] = file
+        data["sample_short"] = pathlib.Path(file).stem
 
         # return
         return data
@@ -298,6 +305,7 @@ class Measurement:
         ).dropna(subset=["parameter"])
         # add sample name as column
         info["sample"] = file
+        info["sample_short"] = pathlib.Path(file).stem
         # the last block is not really meta data but summary data and
         # somewhat not necessary
 
@@ -337,6 +345,7 @@ class Measurement:
 
             # add sample information
             df_experiment_info["sample"] = file
+            df_experiment_info["sample_short"] = pathlib.Path(file).stem
 
             # rename variable
             info = df_experiment_info
@@ -414,6 +423,7 @@ class Measurement:
 
             # add sample information
             df_data["sample"] = file
+            df_data["sample_short"] = pathlib.Path(file).stem
 
             # rename
             data = df_data
@@ -754,7 +764,7 @@ class Measurement:
         target_col : str, optional
             measured quantity within which peak onsets are searched for. The default is "normalized_heat_flow_w_g"
         age_col : str, optional
-            Time unit within which peak onsets are searched for. The default is "time_s"        
+            Time unit within which peak onsets are searched for. The default is "time_s"
         time_discarded_s : int | float, optional
             Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
         rolling : int, optional
