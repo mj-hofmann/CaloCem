@@ -24,7 +24,7 @@ tam = tacalorimetry.Measurement(
     folder=path_to_data,
     # regex="(.*csv$)|(Exp_[345].*)",
     show_info=True,
-    auto_clean=True,
+    auto_clean=False,
 )
 
 # get sample and information
@@ -97,7 +97,7 @@ peaks = tam.get_peaks(
     cutoff_min=60,
     plt_right_s=4e5,
     plt_top=1e-2,
-    regex=".*_\d",
+    regex=r".*_\d",
 )
 
 

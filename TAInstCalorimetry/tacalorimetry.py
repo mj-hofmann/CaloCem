@@ -6,6 +6,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pysnooper
 from scipy import signal
 
 
@@ -16,6 +17,10 @@ class Measurement:
     """
     Base class of "tacalorimetry"
     """
+
+    # init
+    _info = pd.DataFrame()
+    _data = pd.DataFrame()
 
     #
     # init
@@ -59,11 +64,11 @@ class Measurement:
             except Exception as e:
                 # info
                 print(e)
+                raise ValueError(
+                    "auto_clean failed. Consider switching to turn this option off."
+                )
                 # return
                 return
-        else:
-            self._info = None
-            self._data = None
 
     #
     # get_data_and_parameters_from_folder
@@ -105,7 +110,8 @@ class Measurement:
                     )
                 except Exception:
                     # initialize
-                    self._info = self._read_calo_info_xls(file, show_info=show_info)
+                    if self._info.empty:
+                        self._info = self._read_calo_info_xls(file, show_info=show_info)
 
                 # collect data
                 try:
@@ -117,7 +123,8 @@ class Measurement:
                     )
                 except Exception:
                     # initialize
-                    self._data = self._read_calo_data_xls(file, show_info=show_info)
+                    if self._info.empty:
+                        self._data = self._read_calo_data_xls(file, show_info=show_info)
 
             # append csv
             if f.endswith(".csv"):
@@ -131,7 +138,8 @@ class Measurement:
                     )
                 except Exception:
                     # initialize
-                    self._data = self._read_calo_data_csv(file, show_info=show_info)
+                    if self._info.empty:
+                        self._data = self._read_calo_data_csv(file, show_info=show_info)
 
                 # collect data
                 try:
@@ -143,12 +151,8 @@ class Measurement:
                     )
                 except Exception:
                     # initialize
-                    self._info = self._read_calo_info_csv(file, show_info=show_info)
-
-        # check for "info"
-        if "info" not in locals():
-            # set info variable to None
-            info = None
+                    if self._info.empty:
+                        self._info = self._read_calo_info_csv(file, show_info=show_info)
 
     #
     # determine csv data range
@@ -182,6 +186,34 @@ class Measurement:
     # read csv data
     #
     def _read_calo_data_csv(self, file, show_info=True):
+        """
+        try reading calorimetry data from csv file via multiple options
+
+        Parameters
+        ----------
+        file : str | pathlib.Path
+            path to csv fileto be read.
+        show_info : bool, optional
+            flag whether or not to show information. The default is True.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+
+        try:
+            data = self._read_calo_data_csv_comma_sep(file, show_info=show_info)
+        except Exception:
+            data = self._read_calo_data_csv_tab_sep(file, show_info=show_info)
+
+        # return
+        return data
+
+    #
+    # read csv data
+    #
+    def _read_calo_data_csv_comma_sep(self, file, show_info=True):
         """
         read data from csv file
 
@@ -280,6 +312,64 @@ class Measurement:
         return data
 
     #
+    # read csv data
+    #
+    def _read_calo_data_csv_tab_sep(self, file: str, show_info=True) -> pd.DataFrame:
+        """
+        assuming(!) a sampled mass of 1g --> heat_flow_w == normalized_heat_flow_w_g
+
+        Parameters
+        ----------
+        file : str | pathlib.Path
+            path to tab separated csv-files from "older" versions of the device.
+        show_info : bool, optional
+            flag whether or not to show information. The default is True.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+
+        # read
+        raw = pd.read_csv(file, sep="\t", header=None)
+
+        # process
+        data = raw.copy()
+
+        # remove all-Nan columns
+        data = data.dropna(how="all", axis=1)
+
+        # rename
+        try:
+            data.columns = ["time_s", "heat_flow_mw"]
+        except ValueError:
+            # return empty DataFrame
+            return pd.DataFrame({"time_s": 0}, index=[0])
+
+        # get data columns
+        data = data.loc[3:, :]
+
+        # convert data types
+        data["time_s"] = data["time_s"].astype(float)
+        data["heat_flow_mw"] = data["heat_flow_mw"].apply(
+            lambda x: float(x.replace(",", "."))
+        )
+
+        # convert to same unit
+        data["heat_flow_w"] = data["heat_flow_mw"] / 1000
+        data["normalized_heat_flow_w_g"] = data["heat_flow_w"]
+        # remove "heat_flow_w" column
+        del data["heat_flow_mw"]
+
+        # add sample information
+        data["sample"] = file
+        data["sample_short"] = pathlib.Path(file).stem
+
+        # return
+        return data
+
+    #
     # read csv info
     #
     def _read_calo_info_csv(self, file, show_info=True):
@@ -297,17 +387,23 @@ class Measurement:
             information (metadata) contained in file
 
         """
-        # determine number of lines to skip
-        empty_lines = self._determine_data_range_csv(file)
-        # read info block from csv-file
-        info = pd.read_csv(
-            file, nrows=empty_lines[0] - 1, names=["parameter", "value"]
-        ).dropna(subset=["parameter"])
+
+        try:
+            # determine number of lines to skip
+            empty_lines = self._determine_data_range_csv(file)
+            # read info block from csv-file
+            info = pd.read_csv(
+                file, nrows=empty_lines[0] - 1, names=["parameter", "value"]
+            ).dropna(subset=["parameter"])
+            # the last block is not really meta data but summary data and
+            # somewhat not necessary
+        except IndexError:
+            # return empty DataFrame
+            info = pd.DataFrame({})
+
         # add sample name as column
         info["sample"] = file
         info["sample_short"] = pathlib.Path(file).stem
-        # the last block is not really meta data but summary data and
-        # somewhat not necessary
 
         # return
         return info
