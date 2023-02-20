@@ -23,6 +23,7 @@ path_to_data = (
 tam = tacalorimetry.Measurement(
     folder=path_to_data,
     # regex="(.*csv$)|(Exp_[345].*)",
+    # regex="(.*[1-5].csv$)",
     show_info=True,
     auto_clean=False,
 )
@@ -44,9 +45,14 @@ for sample, sample_data in tam.iter_samples():
 del sample, sample_data
 
 
+# %% normalize
+
+tam.normalize_sample_to_mass("calorimetry_data_1", 1.05)
+
+
 # %% basic plotting
 
-tam.plot()
+tam.plot(y="heat_flow_w")
 # show plot
 tacalorimetry.plt.show()
 

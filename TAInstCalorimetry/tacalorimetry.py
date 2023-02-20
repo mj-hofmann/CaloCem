@@ -316,8 +316,6 @@ class Measurement:
     #
     def _read_calo_data_csv_tab_sep(self, file: str, show_info=True) -> pd.DataFrame:
         """
-        assuming(!) a sampled mass of 1g --> heat_flow_w == normalized_heat_flow_w_g
-
         Parameters
         ----------
         file : str | pathlib.Path
@@ -358,7 +356,6 @@ class Measurement:
 
         # convert to same unit
         data["heat_flow_w"] = data["heat_flow_mw"] / 1000
-        data["normalized_heat_flow_w_g"] = data["heat_flow_w"]
         # remove "heat_flow_w" column
         del data["heat_flow_mw"]
 
@@ -630,6 +627,9 @@ class Measurement:
         if y == "normalized_heat_flow_w_g":
             y_column = "normalized_heat_flow_w_g"
             y_label = "Normalized Heat Flow / [W/g]"
+        if y == "heat_flow_w":
+            y_column = "heat_flow_w"
+            y_label = "Heat Flow / [W]"
         elif y == "normalized_heat_j_g":
             y_column = "normalized_heat_j_g"
             y_label = "Normalized Heat / [J/g]"
@@ -981,3 +981,40 @@ class Measurement:
         """
 
         return self._info
+
+    #
+    # set
+    #
+
+    def normalize_sample_to_mass(
+        self, sample_short: str, mass_g: float, show_info=True
+    ):
+        """
+        normalize "heat_flow" to a certain mass
+
+        Parameters
+        ----------
+        sample_short : str
+            "sample_short" name of sample to be normalized.
+        mass_g : float
+            mass in gram to which "heat_flow_w" are normalized.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # normalize "heat_flow_w" to sample mass
+        self._data.loc[
+            self._data["sample_short"] == sample_short, "normalized_heat_flow_w_g"
+        ] = (
+            self._data.loc[self._data["sample_short"] == sample_short, "heat_flow_w"]
+            / mass_g
+        )
+
+        # info
+        if show_info:
+            print(
+                f"heat_flow_w of sample {sample_short} normalized to {mass_g}g sample."
+            )
