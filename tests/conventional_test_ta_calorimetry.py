@@ -57,6 +57,13 @@ tam.plot(y="heat_flow_w")
 tacalorimetry.plt.show()
 
 
+# %% basic plotting
+
+tam.plot(y="heat_j")
+# show plot
+tacalorimetry.plt.show()
+
+
 # %% customized plotting
 
 ax = tam.plot(

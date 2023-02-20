@@ -159,6 +159,12 @@ class Measurement:
                         except Exception:
                             pass
 
+        # get "heat_j" columns if the column is not part of the source files
+        try:
+            self._infer_heat_j_column()
+        except Exception:
+            pass
+
     #
     # determine csv data range
     #
@@ -640,12 +646,15 @@ class Measurement:
         if y == "normalized_heat_flow_w_g":
             y_column = "normalized_heat_flow_w_g"
             y_label = "Normalized Heat Flow / [W/g]"
-        if y == "heat_flow_w":
+        elif y == "heat_flow_w":
             y_column = "heat_flow_w"
             y_label = "Heat Flow / [W]"
         elif y == "normalized_heat_j_g":
             y_column = "normalized_heat_j_g"
             y_label = "Normalized Heat / [J/g]"
+        elif y == "heat_j":
+            y_column = "heat_j"
+            y_label = "Heat / [J]"
 
         if y_unit_milli:
             y_label = y_label.replace("[", "[m")
@@ -1029,8 +1038,74 @@ class Measurement:
             / mass_g
         )
 
+        # normalize "heat_j" to sample mass
+        try:
+            self._data.loc[
+                self._data["sample_short"] == sample_short, "normalized_heat_j_g"
+            ] = (
+                self._data.loc[self._data["sample_short"] == sample_short, "heat_j"]
+                / mass_g
+            )
+        except Exception:
+            pass
+
         # info
         if show_info:
-            print(
-                f"heat_flow_w of sample {sample_short} normalized to {mass_g}g sample."
-            )
+            print(f"Sample {sample_short} normalized to {mass_g}g sample.")
+
+    #
+    # infer "heat_j" values
+    #
+
+    def _infer_heat_j_column(self):
+        """
+        helper function to calculate the "heat_j" columns from "heat_flow_w" and
+        "time_s" columns
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # list of dfs
+        list_of_dfs = []
+
+        # loop samples
+        for sample, roi in self.iter_samples():
+            # check whether a "native" "heat_j"-column is available
+            try:
+                if not roi["heat_j"].isna().all():
+                    # use as is
+                    list_of_dfs.append(roi)
+                    # go to next
+                    continue
+            except KeyError as e:
+                # info
+                print(e)
+
+            # info
+            print(f'==> Inferring "heat_j" column for {sample}')
+
+            # get target rows
+            roi = roi.dropna(subset=["heat_flow_w"]).sort_values(by="time_s")
+
+            # inferring cumulated heat using the "trapezoidal integration method"
+
+            # introduce helpers
+            roi["_h1_y"] = 0.5 * (
+                roi["heat_flow_w"] + roi["heat_flow_w"].shift(1)
+            ).shift(-1)
+            roi["_h2_x"] = (roi["time_s"] - roi["time_s"].shift(1)).shift(-1)
+
+            # integrate
+            roi["heat_j"] = (roi["_h1_y"] * roi["_h2_x"]).cumsum()
+
+            # clean
+            del roi["_h1_y"], roi["_h2_x"]
+
+            # append to list
+            list_of_dfs.append(roi)
+
+        # set data including "heat_j"
+        self._data = pd.concat(list_of_dfs)
