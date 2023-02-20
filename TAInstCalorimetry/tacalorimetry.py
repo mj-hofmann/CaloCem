@@ -152,7 +152,12 @@ class Measurement:
                 except Exception:
                     # initialize
                     if self._info.empty:
-                        self._info = self._read_calo_info_csv(file, show_info=show_info)
+                        try:
+                            self._info = self._read_calo_info_csv(
+                                file, show_info=show_info
+                            )
+                        except Exception:
+                            pass
 
     #
     # determine csv data range
@@ -359,6 +364,14 @@ class Measurement:
         # remove "heat_flow_w" column
         del data["heat_flow_mw"]
 
+        # float conversion
+        for _c in data.columns:
+            # convert
+            data[_c] = data[_c].astype(float)
+
+        # restrict to "time_s" > 0
+        data = data.query("time_s >= 0").reset_index(drop=True)
+
         # add sample information
         data["sample"] = file
         data["sample_short"] = pathlib.Path(file).stem
@@ -396,7 +409,7 @@ class Measurement:
             # somewhat not necessary
         except IndexError:
             # return empty DataFrame
-            info = pd.DataFrame({})
+            info = pd.DataFrame()
 
         # add sample name as column
         info["sample"] = file
@@ -699,15 +712,18 @@ class Measurement:
                 df.query("time_s >= @target_s").head(1)["normalized_heat_j_g"]
             )
 
-            # if cuoff time specified
+            # if cutoff time specified
             if cutoff_min:
                 # convert target time to seconds
                 target_s = 60 * cutoff_min
-                hf_at_cutoff = float(
-                    df.query("time_s <= @target_s").tail(1)["normalized_heat_j_g"]
-                )
-                # correct heatflow for heatflow at cutoff
-                hf_at_target = hf_at_target - hf_at_cutoff
+                try:
+                    hf_at_cutoff = float(
+                        df.query("time_s <= @target_s").tail(1)["normalized_heat_j_g"]
+                    )
+                    # correct heatflow for heatflow at cutoff
+                    hf_at_target = hf_at_target - hf_at_cutoff
+                except TypeError:
+                    return np.NaN
 
             # return
             return hf_at_target

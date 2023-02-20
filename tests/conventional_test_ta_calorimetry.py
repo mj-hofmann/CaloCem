@@ -23,7 +23,7 @@ path_to_data = (
 tam = tacalorimetry.Measurement(
     folder=path_to_data,
     # regex="(.*csv$)|(Exp_[345].*)",
-    # regex="(.*[1-5].csv$)",
+    regex=r"(.*data_\d.csv$)",
     show_info=True,
     auto_clean=False,
 )
