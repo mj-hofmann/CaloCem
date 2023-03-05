@@ -713,7 +713,7 @@ class Measurement:
         get the cumulated heat flow a at a certain age
         """
 
-        def apllicable(df, target_h=4, cutoff_min=None):
+        def applicable(df, target_h=4, cutoff_min=None):
             # convert target time to seconds
             target_s = 3600 * target_h
             # get heat at target time
@@ -732,6 +732,8 @@ class Measurement:
                     # correct heatflow for heatflow at cutoff
                     hf_at_target = hf_at_target - hf_at_cutoff
                 except TypeError:
+                    name_wt_nan = df.at[1,"sample_short"]
+                    print(f"Found nan in Normalized heat of sample {name_wt_nan}")
                     return np.NaN
 
             # return
@@ -740,7 +742,7 @@ class Measurement:
         # groupby
         results = (
             self._data.groupby(by="sample")
-            .apply(lambda x: apllicable(x, target_h=target_h, cutoff_min=cutoff_min))
+            .apply(lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min))
             .reset_index(level=0)
         )
         # rename
