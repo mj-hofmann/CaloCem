@@ -85,7 +85,7 @@ tacalorimetry.plt.show()
 target_h = 1.5
 
 # get cumlated heat flows for each sample
-cum_h = tam.get_cumulated_heat_at_hours(target_h=target_h, cutoff_min=10)
+cum_h = tam.get_cumulated_heat_at_hours(target_h=target_h, cutoff_min=0.5)
 print(cum_h)
 
 # show cumulated heat plot
@@ -122,5 +122,5 @@ onsets = tam.get_peak_onsets(
     rolling=10,
     exclude_discarded_time=True,
     show_plot=True,
-    regex="OPC",
+    regex=r".*_\d",
 )
