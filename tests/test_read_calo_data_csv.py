@@ -12,7 +12,7 @@ from TAInstCalorimetry import tacalorimetry
         ("c3a.csv", 173873),
         (
             "TEST_CALO_Gen1+2.csv",
-            0,
+            None,
         ),  # multiples samples in one file?  --> do nothing / return 0
         ("TEST_CALO_Gen3.csv", 172799),
         ("calorimetry_data_1.csv", 296830),  # comma sep
@@ -30,8 +30,12 @@ def test_last_time_entry(file, expected):
     # get data
     data = tacalorimetry.Measurement()._read_calo_data_csv(path / file)
 
-    # discard NaN values
-    data = data.dropna()
-
-    # actual test
-    assert int(data.tail(1)["time_s"]) == expected
+    # checks
+    if data is None:
+        # test
+        assert data is None
+    else:
+        # discard NaN values
+        data = data.dropna()
+        # actual test
+        assert int(data.tail(1)["time_s"]) == expected

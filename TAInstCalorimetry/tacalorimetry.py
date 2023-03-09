@@ -1,4 +1,5 @@
 import csv
+import logging
 import os
 import pathlib
 import re
@@ -8,6 +9,21 @@ import numpy as np
 import pandas as pd
 import pysnooper
 from scipy import signal
+
+logging.basicConfig(
+    filename="TAInstCalorimetry.log",
+    encoding="utf-8",
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%m/%d/%Y %I:%M:%S",
+    filemode="a",
+    level=logging.INFO,
+)
+
+
+class AutoCleanException(Exception):
+    def __init__(self):
+        message = "auto_clean failed. Consider switching to turn this option off."
+        super().__init__(message)
 
 
 #
@@ -64,11 +80,14 @@ class Measurement:
             except Exception as e:
                 # info
                 print(e)
-                raise ValueError(
-                    "auto_clean failed. Consider switching to turn this option off."
-                )
+                raise AutoCleanException
                 # return
                 return
+
+        # Message
+        print(
+            "================\nAre you missing some samples? Try rerunning with auto_clean=True.\n================="
+        )
 
     #
     # get_data_and_parameters_from_folder
@@ -77,6 +96,10 @@ class Measurement:
         """
         get_data_and_parameters_from_folder
         """
+
+        if not isinstance(folder, str):
+            # convert
+            folder = str(folder)
 
         # loop folder
         for f in os.listdir(folder):
@@ -121,14 +144,15 @@ class Measurement:
                             self._read_calo_data_xls(file, show_info=show_info),
                         ]
                     )
+
                 except Exception:
                     # initialize
-                    if self._info.empty:
+                    if self._data.empty:
                         self._data = self._read_calo_data_xls(file, show_info=show_info)
 
             # append csv
             if f.endswith(".csv"):
-                # collect information
+                # collect data
                 try:
                     self._data = pd.concat(
                         [
@@ -136,12 +160,13 @@ class Measurement:
                             self._read_calo_data_csv(file, show_info=show_info),
                         ]
                     )
+
                 except Exception:
                     # initialize
-                    if self._info.empty:
+                    if self._data.empty:
                         self._data = self._read_calo_data_csv(file, show_info=show_info)
 
-                # collect data
+                # collect information
                 try:
                     self._info = pd.concat(
                         [
@@ -218,6 +243,14 @@ class Measurement:
         except Exception:
             data = self._read_calo_data_csv_tab_sep(file, show_info=show_info)
 
+        # valid read
+        if data is None:
+            # log
+            logging.info(f"\u2716 reading {file} FAILED.")
+
+        # log
+        logging.info(f"\u2714 reading {file} successful.")
+
         # return
         return data
 
@@ -244,6 +277,11 @@ class Measurement:
         data = pd.read_csv(
             file, header=None, sep="No meaningful separator", engine="python"
         )
+
+        # check for tab-separation
+        if "\t" in data.at[0, 0]:
+            # raise Exception
+            raise ValueError
 
         # get "column" count
         data["count"] = [len(i) for i in data[0].str.split(",")]
@@ -310,7 +348,13 @@ class Measurement:
         # float conversion
         for _c in data.columns:
             # convert
-            data[_c] = data[_c].astype(float)
+            try:
+                data[_c] = data[_c].astype(float)
+            except ValueError:
+                if data[_c].str.contains("\t").any():
+                    raise ValueError
+                else:
+                    return None
 
         # restrict to "time_s" > 0
         data = data.query("time_s >= 0").reset_index(drop=True)
@@ -540,12 +584,18 @@ class Measurement:
             # rename
             data = df_data
 
+            # log
+            logging.info(f"\u2714 reading {file} successful.")
+
             # return
             return data
 
         except Exception as e:
             if show_info:
                 print(e)
+
+            # log
+            logging.info(f"\u2716 reading {file} FAILED.")
 
     #
     # iterate samples
@@ -732,7 +782,7 @@ class Measurement:
                     # correct heatflow for heatflow at cutoff
                     hf_at_target = hf_at_target - hf_at_cutoff
                 except TypeError:
-                    name_wt_nan = df.at[1,"sample_short"]
+                    name_wt_nan = df.at[1, "sample_short"]
                     print(f"Found nan in Normalized heat of sample {name_wt_nan}")
                     return np.NaN
 
@@ -1008,6 +1058,26 @@ class Measurement:
         """
 
         return self._info
+
+    #
+    # get sample names
+    #
+
+    def get_sample_names(self):
+        """
+        get list of sample names
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # get list
+        samples = [pathlib.Path(s).stem for s, _ in self.iter_samples()]
+
+        # return
+        return samples
 
     #
     # set
