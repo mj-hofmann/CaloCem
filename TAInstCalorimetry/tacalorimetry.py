@@ -758,6 +758,7 @@ class Measurement:
     #
     # get the cumulated heat flow a at a certain age
     #
+
     def get_cumulated_heat_at_hours(self, target_h=4, cutoff_min=None):
         """
         get the cumulated heat flow a at a certain age
@@ -770,6 +771,7 @@ class Measurement:
             hf_at_target = float(
                 df.query("time_s >= @target_s").head(1)["normalized_heat_j_g"]
             )
+            #
 
             # if cutoff time specified
             if cutoff_min:
@@ -782,7 +784,7 @@ class Measurement:
                     # correct heatflow for heatflow at cutoff
                     hf_at_target = hf_at_target - hf_at_cutoff
                 except TypeError:
-                    name_wt_nan = df.at[1, "sample_short"]
+                    name_wt_nan = df["sample_short"].tolist()[0]
                     print(f"Found nan in Normalized heat of sample {name_wt_nan}")
                     return np.NaN
 
