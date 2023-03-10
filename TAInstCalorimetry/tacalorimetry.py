@@ -10,6 +10,8 @@ import pandas as pd
 import pysnooper
 from scipy import signal
 
+from TAInstCalorimetry import utils
+
 logging.basicConfig(
     filename="TAInstCalorimetry.log",
     encoding="utf-8",
@@ -363,6 +365,9 @@ class Measurement:
         data["sample"] = file
         data["sample_short"] = pathlib.Path(file).stem
 
+        # type conversion
+        data = utils.convert_df_to_float(data)
+
         # return
         return data
 
@@ -425,6 +430,9 @@ class Measurement:
         # add sample information
         data["sample"] = file
         data["sample_short"] = pathlib.Path(file).stem
+
+        # type conversion
+        data = utils.convert_df_to_float(data)
 
         # return
         return data
@@ -785,22 +793,53 @@ class Measurement:
                     hf_at_target = hf_at_target - hf_at_cutoff
                 except TypeError:
                     name_wt_nan = df["sample_short"].tolist()[0]
-                    print(f"Found nan in Normalized heat of sample {name_wt_nan}")
+                    print(
+                        f"Found NaN in Normalized heat of sample {name_wt_nan} searching for cumulated heat at {target_h}h and a cutoff of {cutoff_min}min."
+                    )
                     return np.NaN
 
             # return
             return hf_at_target
 
-        # groupby
-        results = (
-            self._data.groupby(by="sample")
-            .apply(lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min))
-            .reset_index(level=0)
-        )
-        # rename
-        results.columns = ["sample", "cumulated_heat_at_hours"]
-        results["target_h"] = target_h
-        results["cutoff_min"] = cutoff_min
+        # in case of one specified time
+        if isinstance(target_h, int) or isinstance(target_h, float):
+            # groupby
+            results = (
+                self._data.groupby(by="sample")
+                .apply(
+                    lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min)
+                )
+                .reset_index(level=0)
+            )
+            # rename
+            results.columns = ["sample", "cumulated_heat_at_hours"]
+            results["target_h"] = target_h
+            results["cutoff_min"] = cutoff_min
+
+        # in case of specified list of times
+        elif isinstance(target_h, list):
+            # init list
+            list_of_results = []
+            # loop
+            for this_target_h in target_h:
+                # groupby
+                _results = (
+                    self._data.groupby(by="sample")
+                    .apply(
+                        lambda x: applicable(
+                            x, target_h=this_target_h, cutoff_min=cutoff_min
+                        )
+                    )
+                    .reset_index(level=0)
+                )
+                # rename
+                _results.columns = ["sample", "cumulated_heat_at_hours"]
+                _results["target_h"] = this_target_h
+                _results["cutoff_min"] = cutoff_min
+                # append to list
+                list_of_results.append(_results)
+            # build overall results DataFrame
+            results = pd.concat(list_of_results)
 
         # return
         return results

@@ -31,7 +31,7 @@ tam = tacalorimetry.Measurement(path, show_info=True)
 # %%
 data = tam.get_data()
 
-h = tam.get_cumulated_heat_at_hours(target_h=2, cutoff_min=10)
+h = tam.get_cumulated_heat_at_hours(target_h=[1, 2, 3, 4], cutoff_min=10)
 
 # print(h)
 
