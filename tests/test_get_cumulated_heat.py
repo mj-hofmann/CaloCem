@@ -25,7 +25,7 @@ def test_get_cumulated_heat(target_h):
     path = pathlib.Path().cwd() / "TAInstCalorimetry" / "DATA"
 
     # init object
-    tam = tacalorimetry.Measurement(path, show_info=True)
+    tam = tacalorimetry.Measurement(path, auto_clean=False, show_info=True)
 
     # get cumulated heats
     cumulated_heats = tam.get_cumulated_heat_at_hours(target_h=target_h, cutoff_min=10)

@@ -290,7 +290,7 @@ class Measurement:
             # get target row
             helper = data[0].str.contains("Reaction start")
             # get row
-            start_row = helper[helper is True].index.tolist()[0]
+            start_row = helper[helper].index.tolist()[0]
             # get offset for in-situ files
             t_offset_in_situ_s = float(data.at[start_row, 0].split(",")[0])
 
