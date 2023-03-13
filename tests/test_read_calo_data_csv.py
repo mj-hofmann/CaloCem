@@ -16,10 +16,10 @@ from TAInstCalorimetry import tacalorimetry
         ),  # multiples samples in one file?  --> do nothing / return 0
         ("TEST_CALO_Gen3.csv", 172799),
         ("calorimetry_data_1.csv", 296830),  # comma sep
-        ("calorimetry_data_2.csv", 293534),
+        ("calorimetry_data_2.csv", 277199),
         ("calorimetry_data_3.csv", 296820),  # comma sep
-        ("calorimetry_data_4.csv", 294065),
-        ("calorimetry_data_5.csv", 294068),
+        ("calorimetry_data_4.csv", 277199),
+        ("calorimetry_data_5.csv", 277199),
     ],
 )
 def test_last_time_entry(file, expected):

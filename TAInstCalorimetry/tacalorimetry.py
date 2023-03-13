@@ -285,6 +285,15 @@ class Measurement:
             # raise Exception
             raise ValueError
 
+        # look for potential index indicating in-situ-file
+        if data[0].str.contains("Reaction start").any():
+            # get target row
+            helper = data[0].str.contains("Reaction start")
+            # get row
+            start_row = helper[helper is True].index.tolist()[0]
+            # get offset for in-situ files
+            t_offset_in_situ_s = float(data.at[start_row, 0].split(",")[0])
+
         # get "column" count
         data["count"] = [len(i) for i in data[0].str.split(",")]
 
@@ -358,8 +367,19 @@ class Measurement:
                 else:
                     return None
 
+        # check for "in-situ" sample --> reset
+        try:
+            # offset
+            data["time_s"] -= t_offset_in_situ_s
+            # write to log
+            logging.info(
+                f"\u26a0 Consider {file} as in-situ-file --> time-scale adjusted."
+            )
+        except Exception:
+            pass
+
         # restrict to "time_s" > 0
-        data = data.query("time_s >= 0").reset_index(drop=True)
+        data = data.query("time_s > 0").reset_index(drop=True)
 
         # add sample information
         data["sample"] = file

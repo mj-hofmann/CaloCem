@@ -27,13 +27,19 @@ from TAInstCalorimetry import tacalorimetry
 path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
 
 # get data
-tam = tacalorimetry.Measurement(path, show_info=True)
+tam = tacalorimetry.Measurement(
+    path, regex="calorimetry_data_[245].*csv", show_info=True
+)
 # %%
 data = tam.get_data()
 
-h = tam.get_cumulated_heat_at_hours(target_h=[1, 2, 3, 4], cutoff_min=10)
+h = tam.get_cumulated_heat_at_hours(target_h=[1, 2, 3, 4, 8], cutoff_min=10)
 
 # print(h)
+
+import seaborn as sns
+
+sns.barplot(data=h, hue="sample", y="cumulated_heat_at_hours", x="target_h")
 
 # # get "last time for a file
 # last_time = int(data.tail(1)["time_s"])
@@ -47,3 +53,7 @@ h = tam.get_cumulated_heat_at_hours(target_h=[1, 2, 3, 4], cutoff_min=10)
 # kk = tacalorimetry.Measurement()._read_calo_data_csv_comma_sep(r"C:\Users\LocalAdmin\Documents\GitHub\TAInstCalorimetry\TAInstCalorimetry\DATA\TEST_CALO_Gen1+2.csv")
 # data = tacalorimetry.Measurement()._read_calo_data_csv_comma_sep(r"C:\Users\LocalAdmin\Documents\GitHub\TAInstCalorimetry\TAInstCalorimetry\DATA\TEST_CALO_Gen3.csv")
 # data = tacalorimetry.Measurement()._read_calo_data_csv(r"C:\Users\LocalAdmin\Documents\GitHub\TAInstCalorimetry\TAInstCalorimetry\DATA\calorimetry_data_1.csv")
+
+tam.plot(regex="calorimetry_data_.*")
+
+tacalorimetry.plt.xlim(0, 20)
