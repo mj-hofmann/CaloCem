@@ -847,6 +847,59 @@ class Measurement:
         return plt.gca()
 
     #
+    # plot by category
+    #
+    def plot_by_category(
+        self, category: str, t_unit="h", y="normalized_heat_flow_w_g", y_unit_milli=True
+    ):
+        """
+        plot by category, wherein the category is based on the information passed
+        via "self._add_metadata_source". Options available as "category" are
+        accessible via "self.get_metadata_grouping_options"
+
+        Parameters
+        ----------
+        category : str
+            category (from "self.get_metadata_grouping_options") to group by.
+        t_unit : TYPE, optional
+            see "self.plot". The default is "h".
+        y : TYPE, optional
+            see "self.plot". The default is "normalized_heat_flow_w_g".
+        y_unit_milli : TYPE, optional
+            see "self.plot". The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # get available category values
+        category_values = self._metadata[category].unique()
+
+        # loop category values
+        for category_value in category_values:
+            # identify corresponding samples
+            target_idx = self._metadata[category] == category_value
+
+            # pick relevant samples
+            target_samples = self._metadata.loc[target_idx, self._metadata_id]
+
+            # build corresponding regex
+            regex = "(" + ")|(".join(target_samples) + ")"
+
+            # plot
+            ax = self.plot(regex=regex, t_unit=t_unit, y=y, y_unit_milli=y_unit_milli)
+
+            # define title
+            title = f"Grouped by {category} = {category_value}"
+            # set title
+            ax.set_title(title)
+
+            # yield latest plot
+            yield category_value, ax
+
+    #
     # get the cumulated heat flow a at a certain age
     #
 
@@ -1388,3 +1441,19 @@ class Measurement:
         else:
             # raise custom Exception
             raise AddMetaDataSourceException(self._metadata.columns.tolist())
+
+    #
+    # get metadata group-by options
+    #
+    def get_metadata_grouping_options(self) -> list:
+        """
+        get a list of categories to group by in in "self.plot_by_category"
+
+        Returns
+        -------
+        list
+            list of categories avaialble for grouping by.
+        """
+
+        # get list based on column names of "_metadata"
+        return self._metadata.columns.tolist()
