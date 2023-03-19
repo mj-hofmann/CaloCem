@@ -35,6 +35,16 @@ class ColdStartException(Exception):
         super().__init__(message)
 
 
+class AddMetaDataSourceException(Exception):
+    def __init__(self, list_of_possible_ids):
+        message = "The specified id column is not available in the declared file. Please use one of"
+        for option in list_of_possible_ids:
+            # extend string
+            message += f"\n  - {option}"
+        # show message
+        super().__init__(message)
+
+
 #
 # Base class of "ta-calorimetry"
 #
@@ -46,6 +56,10 @@ class Measurement:
     # init
     _info = pd.DataFrame()
     _data = pd.DataFrame()
+
+    # further metadata
+    _metadata = pd.DataFrame()
+    _metadata_id = ""
 
     # define pickle filenames
     _file_data_pickle = pathlib.Path().cwd() / "_data.pickle"
@@ -1170,6 +1184,23 @@ class Measurement:
         return self._info
 
     #
+    # get added metadata
+    #
+    def get_metadata(self) -> tuple:
+        """
+
+
+        Returns
+        -------
+        tuple
+            pd.DataFrame of metadata and string of the column used as ID (has to
+            be unique).
+        """
+
+        # return
+        return self._metadata, self._metadata_id
+
+    #
     # get sample names
     #
 
@@ -1309,3 +1340,51 @@ class Measurement:
         for file in [self._file_data_pickle, self._file_info_pickle]:
             # remove file
             pathlib.Path(file).unlink()
+
+    #
+    # add metadata
+    #
+    def add_metadata_source(self, file: str, sample_id_column: str):
+        """
+        add an additional source of metadata the object. The source file is of
+        type "csv" or "xlsx" and holds information on one sample per row. Columns
+        can be named without restrictions.
+
+        To allow for a mapping, the values occurring in self._data["sample_short"]
+        should appear in the source file. The column is declared via the keyword
+        "sample_id_colum"
+
+        Parameters
+        ----------
+        file : str
+            path to additonal metadata source file.
+        sample_id_colum : str
+            column name in the additional source file matching self._data["sample_short"].
+
+        Returns
+        -------
+        None.
+
+        """
+
+        if not pathlib.Path(file).suffix.lower() in [".csv", ".xlsx"]:
+            # info
+            print("Please use metadata files of type csv and xlsx only.")
+            # return
+            return
+
+        # read file
+        try:
+            # read as Excel
+            self._metadata = pd.read_excel(file)
+        except ValueError:
+            # read as csv
+            self._metadata = pd.read_csv(file)
+
+        # save mapper column
+        if sample_id_column in self._metadata.columns:
+            # save mapper column
+            self._metadata_id = sample_id_column
+        else:
+            # raise custom Exception
+            raise AddMetaDataSourceException(self._metadata.columns.tolist())
