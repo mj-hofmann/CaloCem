@@ -2,6 +2,7 @@ import csv
 import logging
 import os
 import pathlib
+import pickle
 import re
 
 import matplotlib.pyplot as plt
@@ -28,6 +29,12 @@ class AutoCleanException(Exception):
         super().__init__(message)
 
 
+class ColdStartException(Exception):
+    def __init__(self):
+        message = "cold_start failed. Consider switching to cold_start=True."
+        super().__init__(message)
+
+
 #
 # Base class of "ta-calorimetry"
 #
@@ -40,10 +47,16 @@ class Measurement:
     _info = pd.DataFrame()
     _data = pd.DataFrame()
 
+    # define pickle filenames
+    _file_data_pickle = pathlib.Path().cwd() / "_data.pickle"
+    _file_info_pickle = pathlib.Path().cwd() / "_info.pickle"
+
     #
     # init
     #
-    def __init__(self, folder=None, show_info=False, regex=None, auto_clean=True):
+    def __init__(
+        self, folder=None, show_info=False, regex=None, auto_clean=True, cold_start=True
+    ):
         """
         intialize measurements from folder
 
@@ -62,7 +75,9 @@ class Measurement:
             whether or not to exclude NaN values contained in the original
             files and combine data from differently names temperature columns.
             The default is True.
-
+        cold_start : bool, optional
+            whether or not to use "pickled" files for initialization; save time
+            on reading
         Returns
         -------
         None.
@@ -71,10 +86,14 @@ class Measurement:
 
         # read
         if folder:
-            # get data and parameters
-            self.get_data_and_parameters_from_folder(
-                folder, regex=regex, show_info=show_info
-            )
+            if cold_start:
+                # get data and parameters
+                self.get_data_and_parameters_from_folder(
+                    folder, regex=regex, show_info=show_info
+                )
+            else:
+                # get data and parameters from pickled files
+                self.get_data_and_parameters_from_pickle()
             try:
                 if auto_clean:
                     # remove NaN values and merge time columns
@@ -88,7 +107,7 @@ class Measurement:
 
         # Message
         print(
-            "================\nAre you missing some samples? Try rerunning with auto_clean=True.\n================="
+            "================\nAre you missing some samples? Try rerunning with auto_clean=True and cold_start=True.\n================="
         )
 
     #
@@ -191,6 +210,36 @@ class Measurement:
             self._infer_heat_j_column()
         except Exception:
             pass
+
+        # write _data and _info to pickle
+        with open(self._file_data_pickle, "wb") as f:
+            pickle.dump(self._data, f)
+        with open(self._file_info_pickle, "wb") as f:
+            pickle.dump(self._info, f)
+
+    #
+    # get data and information from pickled files
+    #
+    def get_data_and_parameters_from_pickle(self):
+        """
+        get data and information from pickled files
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # read from pickle
+        try:
+            self._data = pd.read_pickle(self._file_data_pickle)
+            self._info = pd.read_pickle(self._file_info_pickle)
+        except FileNotFoundError:
+            # raise custom Exception
+            raise ColdStartException()
+
+        # log
+        logging.info("_data and _info loaded from pickle files.")
 
     #
     # determine csv data range
@@ -1242,3 +1291,21 @@ class Measurement:
 
         # set data including "heat_j"
         self._data = pd.concat(list_of_dfs)
+
+    #
+    # remove pickle files
+    #
+    def remove_pickle_files(self):
+        """
+        remove pickle files if re-reading of source files needed
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # remove files
+        for file in [self._file_data_pickle, self._file_info_pickle]:
+            # remove file
+            pathlib.Path(file).unlink()

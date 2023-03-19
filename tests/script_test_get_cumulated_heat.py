@@ -28,7 +28,7 @@ path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
 
 # get data
 tam = tacalorimetry.Measurement(
-    path, regex="calorimetry_data_[245].*csv", show_info=True
+    path, regex="calorimetry_data_[245].*csv", show_info=True, cold_start=False
 )
 # %%
 data = tam.get_data()
@@ -57,3 +57,8 @@ sns.barplot(data=h, hue="sample", y="cumulated_heat_at_hours", x="target_h")
 tam.plot(regex="calorimetry_data_.*")
 
 tacalorimetry.plt.xlim(0, 20)
+
+
+# # %% remove pickled files
+
+# tam.remove_pickle_files()
