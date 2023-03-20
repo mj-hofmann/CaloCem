@@ -8,7 +8,7 @@ path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
 
 # get data
 tam = tacalorimetry.Measurement(
-    path, regex="myexp.*", show_info=True, cold_start=False, auto_clean=False
+    path, regex="myexp.*", show_info=True, cold_start=True, auto_clean=False
 )
 # %%
 data = tam.get_data()
@@ -26,7 +26,7 @@ meta, meta_id = tam.get_metadata()
 categorize_by = "cement_name"  # 'date', 'cement_amount_g', 'water_amount_g'
 
 # # define action by two or more categories
-# categorize_by = ['cement_name', 'cement_amount_g']
+categorize_by = ["date", "cement_name"]
 
 # loop through plots via generator
 for this_plot in tam.plot_by_category(
