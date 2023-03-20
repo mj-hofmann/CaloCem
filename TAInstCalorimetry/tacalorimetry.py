@@ -850,7 +850,7 @@ class Measurement:
     # plot by category
     #
     def plot_by_category(
-        self, category: str, t_unit="h", y="normalized_heat_flow_w_g", y_unit_milli=True
+        self, categories, t_unit="h", y="normalized_heat_flow_w_g", y_unit_milli=True
     ):
         """
         plot by category, wherein the category is based on the information passed
@@ -859,8 +859,9 @@ class Measurement:
 
         Parameters
         ----------
-        category : str
+        category : str, list[str]
             category (from "self.get_metadata_grouping_options") to group by.
+            specify a string or a list of strings here
         t_unit : TYPE, optional
             see "self.plot". The default is "h".
         y : TYPE, optional
@@ -874,13 +875,45 @@ class Measurement:
 
         """
 
-        # get available category values
-        category_values = self._metadata[category].unique()
+        def build_helper_string(values: list) -> str:
+            """
+            build a "nicely" formatted string from a supplied list
+            """
+
+            if len(values) == 2:
+                # connect with "and"
+                formatted = " and ".join([str(i) for i in values])
+            elif len(values) > 2:
+                # connect with comma and "and" for last element
+                formatted = (
+                    ", ".join([str(i) for i in values[:-1]]) + " and " + str(values[-1])
+                )
+            else:
+                formatted = "---"
+
+            # return
+            return formatted
 
         # loop category values
-        for category_value in category_values:
-            # identify corresponding samples
-            target_idx = self._metadata[category] == category_value
+        for selections, _ in self._metadata.groupby(by=categories):
+
+            if isinstance(selections, tuple):
+                # - if multiple categories to group by are specified -
+                # init helper DataFrame
+                target_idx = pd.DataFrame()
+                # identify corresponding samples
+                for selection, category in zip(selections, categories):
+                    target_idx[category] = self._metadata[category] == selection
+                # get relevant indices
+                target_idx = target_idx.sum(axis=1) == len(categories)
+                # define title
+                title = f"Grouped by { build_helper_string(categories)} ({build_helper_string(selections)})"
+            else:
+                # - if only one(!) category to group by is specified -
+                # identify corresponding samples
+                target_idx = self._metadata[categories] == selections
+                # define title
+                title = f"Grouped by {categories} ({selections})"
 
             # pick relevant samples
             target_samples = self._metadata.loc[target_idx, self._metadata_id]
@@ -891,13 +924,11 @@ class Measurement:
             # plot
             ax = self.plot(regex=regex, t_unit=t_unit, y=y, y_unit_milli=y_unit_milli)
 
-            # define title
-            title = f"Grouped by {category} = {category_value}"
             # set title
             ax.set_title(title)
 
             # yield latest plot
-            yield category_value, ax
+            yield selections, ax
 
     #
     # get the cumulated heat flow a at a certain age

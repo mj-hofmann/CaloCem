@@ -22,19 +22,24 @@ meta, meta_id = tam.get_metadata()
 
 # %% plot by category
 
-categorize_by = (
-    "cement_name"  # 'date', 'cement_name', 'cement_amount_g', 'water_amount_g'
-)
+# define action by one category
+categorize_by = "cement_name"  # 'date', 'cement_amount_g', 'water_amount_g'
+
+# # define action by two or more categories
+# categorize_by = ['cement_name', 'cement_amount_g']
 
 # loop through plots via generator
 for this_plot in tam.plot_by_category(
     categorize_by,
 ):
+    # info
+    print(categorize_by)
+
     # extract parts obtained from generator
     category_value, ax = this_plot
 
     # fine tuning of plot/cosmetics
-    ax.set_title(f'My samples for "{category_value}" in category {categorize_by}')
+    # ax.set_title(f'My samples for "{category_value}" in category {categorize_by}')
     ax.set_ylim(0, 3)
 
     tacalorimetry.plt.show()
