@@ -18,6 +18,7 @@ After collecting multiple experimental results files from a TAM Air calorimeter 
   - [Getting cumulated heat values](#getting-cumulated-heat-values)<br>
   - [Identifying peaks](#identifying-peaks)<br>
   - [Identifying peak onsets](#identifying-peak-onsets)<br>
+  - [Plotting by Category](#plotting-by-category)<br>
 - [Installation](#installation)<br>
 - [Contributing](#contributing)
 
@@ -147,6 +148,57 @@ onsets = tam.get_peak_onsets(
 )
 ```
 ![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-26%20174524.png?raw=true)
+
+### Plotting by Category
+
+For introducing the idea of plotting calorimetry data "by category" another set of experimental data will be introduced. Next to the calorimetry data alone, information on investigated samples is supplied via an additional source file. In the present example via the file ```mini_metadata.csv```.
+
+To begin with, a ```TAInstCalorimetry.tacalorimetry.Measurement```-object is initialized for selected files from the specified ````path```.
+
+```python
+import pathlib
+from TAInstCalorimetry import tacalorimetry
+
+# path to experimental calorimetry files
+path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
+
+# initialize TAInstCalorimetry.tacalorimetry.Measurement object
+tam_II = tacalorimetry.Measurement(
+    path, regex="myexp.*", show_info=True, cold_start=True, auto_clean=False
+)
+```
+
+Next, we need to connect the previously defined object to our metadata provided by the ```mini_metadata.csv```-file. To establish this mapping between experimental results and metadata, the file location, i.e. path, and the column name containing the exact(!) names of the calorimetry files needs to be passed to the ```add_metadata_source```-method. In our case, we declare the column ```experiment_nr``` for this purpose
+
+```python
+# add metadata
+tam.add_metadata_source("mini_metadata.csv", "experiment_nr")
+```
+
+Finally, a plotting by category can be carried out by one or multiple categories as shown in the following.
+
+```python
+# define action by one category
+categorize_by = "cement_name"  # 'date', 'cement_amount_g', 'water_amount_g'
+
+# # define action by two or more categories
+categorize_by = ["date", "cement_name"]
+
+# loop through plots via generator
+for this_plot in tam.plot_by_category(categorize_by):
+    # extract parts obtained from generator
+    category_value, ax = this_plot
+    # fine tuning of plot/cosmetics
+    ax.set_ylim(0, 3)
+    # show plot
+    tacalorimetry.plt.show()
+```
+
+This yields plots of the following kind.
+
+![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170659.png?raw=true)
+
+![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170711.png?raw=true)
 
 ## Installation
 
