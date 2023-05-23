@@ -824,13 +824,34 @@ class Measurement:
                     # go to next
                     continue
             # plot
-            plt.plot(
-                d["time_s"] * x_factor,
-                d[y_column] * y_factor,
-                label=os.path.basename(d["sample"].tolist()[0])
-                .split(".xls")[0]
-                .split(".csv")[0],
-            )
+            try:
+                # attempt mean and std plot
+                # mean plot
+                p_mean = plt.plot(
+                    d["time_s"] * x_factor,
+                    d[y_column, "mean"] * y_factor,
+                    label=os.path.basename(d["sample"].tolist()[0])
+                    .split(".xls")[0]
+                    .split(".csv")[0],
+                )
+                # std plot of "fill_between" type
+                plt.fill_between(
+                    d["time_s"] * x_factor,
+                    (d[y_column, "mean"] - d[y_column, "std"]) * y_factor,
+                    (d[y_column, "mean"] + d[y_column, "std"]) * y_factor,
+                    color=p_mean[0].get_color(),
+                    alpha=0.4,
+                    label=None,
+                )
+            except Exception:
+                # "standard plot"
+                plt.plot(
+                    d["time_s"] * x_factor,
+                    d[y_column] * y_factor,
+                    label=os.path.basename(d["sample"].tolist()[0])
+                    .split(".xls")[0]
+                    .split(".csv")[0],
+                )
 
         # legend
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
@@ -1488,3 +1509,92 @@ class Measurement:
 
         # get list based on column names of "_metadata"
         return self._metadata.columns.tolist()
+
+    #
+    # average by metadata
+    #
+    def average_by_metadata(
+        self,
+        group_by: str,
+        meta_id="experiment_nr",
+        data_id="sample_short",
+        time_average_window_s=60,
+        get_time_from="left",
+    ):
+        """
+
+
+        Parameters
+        ----------
+        group_by : str | list[str]
+            DESCRIPTION.
+        meta_id : TYPE, optional
+            DESCRIPTION. The default is "experiment_nr".
+        data_id : TYPE, optional
+            DESCRIPTION. The default is "sample_short".
+        time_average_window_s : TYPE, optional
+            DESCRIPTION. The default is 60.
+        get_time_from : TYPE, optional
+            DESCRIPTION. The default is "left". further options: # "mid" "right"
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # get metadata
+        meta, meta_id = self.get_metadata()
+
+        # get data
+        df = self._data
+
+        # rename sample in "data" by metadata grouping options
+        for value, group in meta.groupby(group_by):
+            # if one grouping level is used
+            if isinstance(value, str) or isinstance(value, int):
+                # modify data --> replace "sample_short" with metadata group name
+                _idx_to_replace = df[data_id].isin(group[meta_id])
+                df.loc[_idx_to_replace, data_id] = str(value)
+            # if multiple grouping levels are used
+            elif isinstance(value, tuple):
+                # modify data --> replace "sample_short" with metadata group name
+                _idx_to_replace = df[data_id].isin(group[meta_id])
+                df.loc[_idx_to_replace, data_id] = " | ".join([str(x) for x in value])
+            else:
+                pass
+
+        # sort experimentally detected times to "bins"
+        df["BIN"] = pd.cut(
+            df["time_s"], np.arange(0, 2 * 24 * 60 * 60, time_average_window_s)
+        )
+
+        # calculate average and std
+        df = (
+            df.groupby([data_id, "BIN"])
+            .agg(
+                {
+                    "normalized_heat_flow_w_g": ["mean", "std"],
+                    "normalized_heat_j_g": ["mean", "std"],
+                }
+            )
+            .dropna(thresh=2)
+            .reset_index()
+        )
+
+        # regain "time_s" columns
+        if get_time_from == "left":
+            df["time_s"] = [i.left for i in df["BIN"]]
+        elif get_time_from == "mid":
+            df["time_s"] = [i.mid for i in df["BIN"]]
+        elif get_time_from == "right":
+            df["time_s"] = [i.right for i in df["BIN"]]
+
+        # remove "BIN" auxiliary column
+        del df["BIN"]
+
+        # copy information to "sample" column --> needed for plotting
+        df["sample"] = df[data_id]
+
+        # overwrite data
+        self._data = df
