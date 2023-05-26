@@ -56,6 +56,9 @@ class Measurement:
     # init
     _info = pd.DataFrame()
     _data = pd.DataFrame()
+    _data_unprocessed = (
+        pd.DataFrame()
+    )  # helper to store experimental data as loaded from files
 
     # further metadata
     _metadata = pd.DataFrame()
@@ -231,6 +234,9 @@ class Measurement:
         with open(self._file_info_pickle, "wb") as f:
             pickle.dump(self._info, f)
 
+        # store experimental data for recreating state after reading from files
+        self._data_unprocessed = self._data.copy()
+
     #
     # get data and information from pickled files
     #
@@ -248,6 +254,8 @@ class Measurement:
         try:
             self._data = pd.read_pickle(self._file_data_pickle)
             self._info = pd.read_pickle(self._file_info_pickle)
+            # store experimental data for recreating state after reading from files
+            self._data_unprocessed = self._data.copy()
         except FileNotFoundError:
             # raise custom Exception
             raise ColdStartException()
@@ -824,34 +832,28 @@ class Measurement:
                     # go to next
                     continue
             # plot
+
+            # "standard" plot --> individual or averaged
+            p_mean = plt.plot(
+                d["time_s"] * x_factor,
+                d[y_column] * y_factor,
+                label=os.path.basename(d["sample"].tolist()[0])
+                .split(".xls")[0]
+                .split(".csv")[0],
+            )
             try:
-                # attempt mean and std plot
-                # mean plot
-                p_mean = plt.plot(
-                    d["time_s"] * x_factor,
-                    d[y_column, "mean"] * y_factor,
-                    label=os.path.basename(d["sample"].tolist()[0])
-                    .split(".xls")[0]
-                    .split(".csv")[0],
-                )
                 # std plot of "fill_between" type
                 plt.fill_between(
                     d["time_s"] * x_factor,
-                    (d[y_column, "mean"] - d[y_column, "std"]) * y_factor,
-                    (d[y_column, "mean"] + d[y_column, "std"]) * y_factor,
+                    (d[y_column] - d[f"{y_column}_std"]) * y_factor,
+                    (d[y_column] + d[f"{y_column}_std"]) * y_factor,
                     color=p_mean[0].get_color(),
                     alpha=0.4,
                     label=None,
                 )
             except Exception:
-                # "standard plot"
-                plt.plot(
-                    d["time_s"] * x_factor,
-                    d[y_column] * y_factor,
-                    label=os.path.basename(d["sample"].tolist()[0])
-                    .split(".xls")[0]
-                    .split(".csv")[0],
-                )
+                # do nothing
+                pass
 
         # legend
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
@@ -1295,11 +1297,11 @@ class Measurement:
         """
 
 
-        Returns
-        -------
+         Returns
+         -------
         tuple
-            pd.DataFrame of metadata and string of the column used as ID (has to
-            be unique).
+             pd.DataFrame of metadata and string of the column used as ID (has to
+             be unique).
         """
 
         # return
@@ -1518,7 +1520,9 @@ class Measurement:
         group_by: str,
         meta_id="experiment_nr",
         data_id="sample_short",
-        time_average_window_s=60,
+        time_average_window_s: int = 60,
+        time_average_log_bin_count: int = None,
+        time_s_max: int = 2 * 24 * 60 * 60,
         get_time_from="left",
     ):
         """
@@ -1533,9 +1537,13 @@ class Measurement:
         data_id : TYPE, optional
             DESCRIPTION. The default is "sample_short".
         time_average_window_s : TYPE, optional
-            DESCRIPTION. The default is 60.
+            DESCRIPTION. The default is 60. The value is not(!) consindered if
+            the keyword time_average_log_bin_count is specified
         get_time_from : TYPE, optional
             DESCRIPTION. The default is "left". further options: # "mid" "right"
+
+        time_average_log_bin_count: number of bins if even spacing in logarithmic
+        scale is applied
 
         Returns
         -------
@@ -1565,9 +1573,17 @@ class Measurement:
                 pass
 
         # sort experimentally detected times to "bins"
-        df["BIN"] = pd.cut(
-            df["time_s"], np.arange(0, 2 * 24 * 60 * 60, time_average_window_s)
-        )
+        if time_average_log_bin_count:
+            # evenly spaced bins on log scale (geometric spacing)
+            df["BIN"] = pd.cut(
+                df["time_s"],
+                np.geomspace(1, time_s_max, num=time_average_log_bin_count),
+            )
+        else:
+            # evenly spaced bins on linear scale with fixed width
+            df["BIN"] = pd.cut(
+                df["time_s"], np.arange(0, time_s_max, time_average_window_s)
+            )
 
         # calculate average and std
         df = (
@@ -1581,6 +1597,9 @@ class Measurement:
             .dropna(thresh=2)
             .reset_index()
         )
+
+        # "flatten" column names
+        df.columns = ["_".join(i).replace("mean", "_").strip("_") for i in df.columns]
 
         # regain "time_s" columns
         if get_time_from == "left":
@@ -1596,5 +1615,18 @@ class Measurement:
         # copy information to "sample" column --> needed for plotting
         df["sample"] = df[data_id]
 
-        # overwrite data
+        # overwrite data with averaged data
         self._data = df
+
+    #
+    # undo action of "average_by_metadata"
+    #
+    def undo_average_by_metadata(self):
+        """
+        undo action of "average_by_metadata"
+        """
+
+        # set "unprocessed" data as exeperimental data / "de-average"
+        if not self._data_unprocessed.empty:
+            # reset
+            self._data = self._data_unprocessed.copy()

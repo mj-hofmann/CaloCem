@@ -33,3 +33,15 @@ tam.average_by_metadata(categorize_by)
 
 # plot
 tam.plot()
+
+
+# %% revert aggregation
+
+# undo aggregation
+tam.undo_average_by_metadata()
+
+
+# %% plot de-aggregated data
+
+# plot
+tam.plot()
