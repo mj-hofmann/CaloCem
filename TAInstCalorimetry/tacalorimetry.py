@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pysnooper
 from scipy import signal
+from scipy.interpolate import splrep, splev
 
 from TAInstCalorimetry import utils
 
@@ -1630,3 +1631,21 @@ class Measurement:
         if not self._data_unprocessed.empty:
             # reset
             self._data = self._data_unprocessed.copy()
+
+
+    def apply_tian_correction(self, tau, smoothing):
+        for s, d in self.iter_samples():
+            y = d["normalized_heat_flow_w_g"]
+            y = y.fillna(0)
+            x = d["time_s"]
+            y = splrep(x,y,k=3,s=smoothing)
+            dydx = splev(x,y,der=1)
+            #print(dydx)
+            #d["normalized_heat_flow_w_g_tian"] = dydx*tau + d["normalized_heat_flow_w_g"]
+            #print(d)
+            self._data.loc[
+            self._data["sample"] == s, "normalized_heat_flow_w_g_tian"
+                ] = (dydx*tau + self._data.loc[
+                         self._data["sample"] == s, "normalized_heat_flow_w_g"
+                     ]
+                     )
