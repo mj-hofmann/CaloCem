@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
-import pandas as pd
 
 import sys
 from pathlib import Path
+
 parentfolder = Path(__file__).cwd().parent
 sys.path.insert(0, parentfolder.as_posix())
 
@@ -13,17 +13,42 @@ datapath = parentfolder / "TAInstCalorimetry" / "DATA"
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
-    # regex="(.*csv$)|(Exp_[345].*)",
-    regex=r"c3a.csv",
+    regex=r"(c3a)|(opc_3).csv",
     show_info=True,
     auto_clean=False,
     cold_start=True,
 )
 
-tam.apply_tian_correction(300,1.5e-2)
+# apply Tian-correction
+tam.apply_tian_correction(
+    tau=300, 
+    smoothing=1.5e-2
+    )
 
-fig, ax = plt.subplots()
-ax.plot(tam._data["time_s"], tam._data["normalized_heat_flow_w_g"])
-ax.plot(tam._data["time_s"], tam._data["normalized_heat_flow_w_g_tian"])
-ax.set_xlim(0,1000)
+# loop samples
+for sample, data in tam.iter_samples():
+    print(sample)
+    # fig, ax = plt.subplots()
+    p = plt.plot(
+        data["time_s"], data["normalized_heat_flow_w_g"], alpha=0.5, linestyle=":"
+    )
+    plt.plot(
+        data["time_s"], data["normalized_heat_flow_w_g_tian"], color=p[0].get_color()
+    )
+
+# set limit
+plt.xlim(0, 1000)
+plt.ylim(0, 1.25)
+# show plot
+plt.show()
+
+# undo Tian-correction
+tam.undo_tian_correction()
+
+# plot
+tam.plot(t_unit="s", y_unit_milli=False)
+# set limit
+plt.xlim(0, 1000)
+plt.ylim(0, 1.25)
+# show plot
 plt.show()
