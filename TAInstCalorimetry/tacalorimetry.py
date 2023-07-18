@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pysnooper
 from scipy import signal
+from scipy.interpolate import splrep, splev
 
 from TAInstCalorimetry import utils
 
@@ -1630,3 +1631,66 @@ class Measurement:
         if not self._data_unprocessed.empty:
             # reset
             self._data = self._data_unprocessed.copy()
+
+    #
+    # apply_tian_correction
+    #
+    def apply_tian_correction(self, tau=300, smoothing=0):
+        """
+        apply_tian_correction
+
+        Parameters
+        ----------
+        tau : TYPE, optional
+            time constant to be applied for the correction. The value has to 
+            be determined experimentally. The default is 300.
+        smoothing : TYPE, optional
+            smoothing value for spline. A value of 0 implies no modification
+            of the experimental data. The default is 0.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        # apply the correction for each sample
+        for s, d in self.iter_samples():
+            # get y-data
+            y = d["normalized_heat_flow_w_g"]
+            # NaN-handling in y-data
+            y = y.fillna(0)
+            # get x-data
+            x = d["time_s"]
+            
+            # Find the B-spline representation of a 1-D curve.
+            y = splrep(x, y, k=3, s=smoothing)
+            # Evaluate a B-spline or its derivatives
+            dydx = splev(x, y, der=1)
+            
+            self._data.loc[
+                self._data["sample"] == s,
+                "normalized_heat_flow_w_g_tian"
+                ] = dydx*tau + self._data.loc[
+                         self._data["sample"] == s, 
+                         "normalized_heat_flow_w_g"
+                     ]
+                    
+    
+    #
+    # undo Tian-correction
+    #
+    def undo_tian_correction(self):
+        """
+        undo_tian_correction; i.e. restore original data 
+        
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        # call original restore function
+        self.undo_average_by_metadata()
+                     
