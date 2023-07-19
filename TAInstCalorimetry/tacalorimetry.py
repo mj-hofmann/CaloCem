@@ -1258,6 +1258,117 @@ class Measurement:
         return onset_characteristics
 
     #
+    # get maximum slope
+    #
+    
+    def get_maximum_slope(
+        self,
+        target_col="normalized_heat_flow_w_g",
+        age_col="time_s",
+        time_discarded_s=900,
+        rolling=1,
+        show_plot=False,
+        exclude_discarded_time=False,
+        regex=None,
+    ):
+        """
+        get maximum slope as a characteristic value
+        Parameters
+        ----------
+        target_col : str, optional
+            measured quantity within which peak onsets are searched for. The default is "normalized_heat_flow_w_g"
+        age_col : str, optional
+            Time unit within which peak onsets are searched for. The default is "time_s"
+        time_discarded_s : int | float, optional
+            Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
+        rolling : int, optional
+            Width of "rolling" window within which the values of "target_col" are averaged. A higher value will introduce a stronger smoothing effect. The default is 1, i.e. no smoothing.
+         show_plot : bool, optional
+            Flag whether or not to plot peak picking for each sample. The default is False.
+        exclude_discarded_time : bool, optional
+            Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
+        regex : str, optional
+            regex pattern to include only certain experimental result files during initialization. The default is None.
+        Returns
+        -------
+        pd.DataFrame holding peak onset characterisitcs for each sample.
+    
+        """
+    
+        # init list of characteristics
+        list_of_characteristics = []
+    
+        # loop samples
+        for sample, data in self.iter_samples(regex=regex):
+    
+            if exclude_discarded_time:
+                # exclude
+                data = data.query(f"{age_col} >= {time_discarded_s}")
+    
+            # reset index
+            data = data.reset_index(drop=True)
+    
+            # calculate get gradient
+            data["gradient"] = pd.Series(
+                np.gradient(data[target_col].rolling(rolling).mean())
+            )
+    
+            # get relevant points
+            characteristics = data.copy()
+            # discard initial time
+            characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
+            # get index corresponding to maximum gradient
+            idx_max = characteristics["gradient"].idxmax()
+            if np.isnan(idx_max):
+                # go to next
+                continue
+            # consider first entry exclusively
+            characteristics = characteristics.loc[idx_max,:].to_frame().T
+    
+            # optional plotting
+            if show_plot:
+                # plot heat flow curve
+                plt.plot(data[age_col], data[target_col])
+    
+                # add vertical lines
+                for _idx, _row in characteristics.iterrows():
+                    # vline
+                    plt.axvline(_row.at[age_col], color="red", alpha=0.3)
+    
+                # cosmetics
+                plt.xscale("log")
+                plt.title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
+                plt.xlabel(age_col)
+                plt.ylabel(target_col)
+    
+                # get axis
+                ax = plt.gca()
+    
+                plt.fill_between(
+                    [ax.get_ylim()[0], time_discarded_s],
+                    [ax.get_ylim()[0]] * 2,
+                    [ax.get_ylim()[1]] * 2,
+                    color="black",
+                    alpha=0.35,
+                )
+    
+                # set axis limit
+                plt.xlim(left=100)
+                plt.ylim(bottom=0)
+    
+                # show
+                plt.show()
+    
+            # append to list
+            list_of_characteristics.append(characteristics)
+    
+        # build overall list
+        max_slope_characteristics = pd.concat(list_of_characteristics)
+    
+        # return
+        return max_slope_characteristics
+
+    #
     # get data
     #
 
