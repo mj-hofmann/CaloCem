@@ -413,6 +413,11 @@ class Measurement:
 
         # set
         data.columns = new_columnames
+        
+        # validate new column names
+        if not "time_s" in new_columnames:
+            # stop here
+            return None
 
         # cut out data part
         data = data.iloc[1:, :].reset_index(drop=True)
@@ -434,10 +439,8 @@ class Measurement:
             try:
                 data[_c] = data[_c].astype(float)
             except ValueError:
-                if data[_c].str.contains("\t").any():
-                    raise ValueError
-                else:
-                    return None
+                # go to next column
+                continue
 
         # check for "in-situ" sample --> reset
         try:
@@ -692,10 +695,17 @@ class Measurement:
 
         except Exception as e:
             if show_info:
-                print(e)
+                print("\n\n===============================================================")
+                print(f"{e} in file \'{pathlib.Path(file).name}\'")
+                print("Please, rename the data sheet to \'Raw data\' (device default).")
+                print("===============================================================\n\n")
 
             # log
             logging.info(f"\u2716 reading {file} FAILED.")
+            
+            # return
+            return None
+
 
     #
     # iterate samples

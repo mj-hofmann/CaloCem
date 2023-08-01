@@ -16,6 +16,7 @@ from TAInstCalorimetry import tacalorimetry
 @pytest.mark.parametrize(
     "test_input,expected",
     [
+        ("MOD_OPC_1.xls", None),
         ("OPC_1.xls", 499440),
         ("OPC_2.xls", 336000),
     ],
@@ -28,9 +29,13 @@ def test_last_time_entry(test_input, expected):
 
     # get data
     data = tacalorimetry.Measurement()._read_calo_data_xls(path / test_input)
-
-    # get "last time for a file
-    last_time = int(data.tail(1)["time_s"])
-
-    # actual test
-    assert last_time == int(expected)
+    
+    # check for None return
+    if data is None:
+        # check
+        assert data == expected
+    else:
+        # get "last time for a file
+        last_time = int(data.tail(1)["time_s"])
+        # actual test
+        assert last_time == int(expected)

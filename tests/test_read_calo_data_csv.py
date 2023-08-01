@@ -20,6 +20,7 @@ from TAInstCalorimetry import tacalorimetry
         ("calorimetry_data_3.csv", 296820),  # comma sep
         ("calorimetry_data_4.csv", 277199),
         ("calorimetry_data_5.csv", 277199),
+        ("MOD_myexp1.csv", 259040),  # comma sep ("corrupt" due to 2 missing values)
     ],
 )
 def test_last_time_entry(file, expected):
