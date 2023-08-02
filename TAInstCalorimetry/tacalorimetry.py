@@ -5,6 +5,7 @@ import pathlib
 import pickle
 import re
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -787,6 +788,7 @@ class Measurement:
         y_unit_milli=True,
         regex=None,
         show_info=True,
+        ax=None
     ):
         """
         plot  of
@@ -835,50 +837,100 @@ class Measurement:
         else:
             y_factor = 1
 
-        # iterate samples
-        for s, d in self.iter_samples():
-            # define pattern
-            if regex:
-                if not re.findall(rf"{regex}", os.path.basename(s)):
-                    # go to next
-                    continue
-            # plot
+        
+        # if specific axis to plot to is specified
+        if isinstance(ax, matplotlib.axes._axes.Axes):
+            # iterate samples
+            for s, d in self.iter_samples():
+                # define pattern
+                if regex:
+                    if not re.findall(rf"{regex}", os.path.basename(s)):
+                        # go to next
+                        continue
+                # plot
 
-            # "standard" plot --> individual or averaged
-            p_mean = plt.plot(
-                d["time_s"] * x_factor,
-                d[y_column] * y_factor,
-                label=os.path.basename(d["sample"].tolist()[0])
-                .split(".xls")[0]
-                .split(".csv")[0],
-            )
-            try:
-                # std plot of "fill_between" type
-                plt.fill_between(
+                # "standard" plot --> individual or averaged
+                p_mean = ax.plot(
                     d["time_s"] * x_factor,
-                    (d[y_column] - d[f"{y_column}_std"]) * y_factor,
-                    (d[y_column] + d[f"{y_column}_std"]) * y_factor,
-                    color=p_mean[0].get_color(),
-                    alpha=0.4,
-                    label=None,
+                    d[y_column] * y_factor,
+                    label=os.path.basename(d["sample"].tolist()[0])
+                    .split(".xls")[0]
+                    .split(".csv")[0],
                 )
-            except Exception:
-                # do nothing
-                pass
+                try:
+                    # std plot of "fill_between" type
+                    ax.fill_between(
+                        d["time_s"] * x_factor,
+                        (d[y_column] - d[f"{y_column}_std"]) * y_factor,
+                        (d[y_column] + d[f"{y_column}_std"]) * y_factor,
+                        color=p_mean[0].get_color(),
+                        alpha=0.4,
+                        label=None,
+                    )
+                except Exception:
+                    # do nothing
+                    pass
 
-        # legend
-        plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
+            # legend
+            ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
 
-        # limits
-        plt.xlim(left=0)
-        plt.ylim(bottom=0)
+            # limits
+            ax.set_xlim(left=0)
+            ax.set_ylim(bottom=0)
 
-        # add labels
-        plt.xlabel(f"Age / [{t_unit}]")
-        plt.ylabel(y_label)
+            # add labels
+            ax.set_xlabel(f"Age / [{t_unit}]")
+            ax.set_ylabel(y_label)
 
-        # return ax
-        return plt.gca()
+            # return ax
+            return ax
+        
+        # if no specific axis to plot to is specified
+        else:
+            # iterate samples
+            for s, d in self.iter_samples():
+                # define pattern
+                if regex:
+                    if not re.findall(rf"{regex}", os.path.basename(s)):
+                        # go to next
+                        continue
+                # plot
+    
+                # "standard" plot --> individual or averaged
+                p_mean = plt.plot(
+                    d["time_s"] * x_factor,
+                    d[y_column] * y_factor,
+                    label=os.path.basename(d["sample"].tolist()[0])
+                    .split(".xls")[0]
+                    .split(".csv")[0],
+                )
+                try:
+                    # std plot of "fill_between" type
+                    plt.fill_between(
+                        d["time_s"] * x_factor,
+                        (d[y_column] - d[f"{y_column}_std"]) * y_factor,
+                        (d[y_column] + d[f"{y_column}_std"]) * y_factor,
+                        color=p_mean[0].get_color(),
+                        alpha=0.4,
+                        label=None,
+                    )
+                except Exception:
+                    # do nothing
+                    pass
+    
+            # legend
+            plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
+    
+            # limits
+            plt.xlim(left=0)
+            plt.ylim(bottom=0)
+    
+            # add labels
+            plt.xlabel(f"Age / [{t_unit}]")
+            plt.ylabel(y_label)
+    
+            # return ax
+            return plt.gca()
 
     #
     # plot by category
