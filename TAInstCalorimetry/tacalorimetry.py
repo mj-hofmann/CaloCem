@@ -1110,7 +1110,7 @@ class Measurement:
         show_plot=True,
         plt_right_s=2e5,
         plt_top=1e-2,
-        ax: matplotlib.axes._axes.Axes | None = None
+        ax=None
     ) -> pd.DataFrame:
         """
         get DataFrame of peak characteristics.
@@ -1254,6 +1254,7 @@ class Measurement:
         show_plot=False,
         exclude_discarded_time=False,
         regex=None,
+        ax=None
     ):
         """
         get peak onsets based on a criterion of minimum gradient
@@ -1275,6 +1276,8 @@ class Measurement:
             Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
         regex : str, optional
             regex pattern to include only certain experimental result files during initialization. The default is None.
+        ax : matplotlib.axes._axes.Axes | None, optional
+            The default is None.
         Returns
         -------
         pd.DataFrame holding peak onset characterisitcs for each sample.
@@ -1296,7 +1299,10 @@ class Measurement:
 
             # calculate get gradient
             data["gradient"] = pd.Series(
-                np.gradient(data[target_col].rolling(rolling).mean())
+                np.gradient(
+                    data[target_col].rolling(rolling).mean(),
+                    data[age_col]
+                    )
             )
 
             # get relevant points
@@ -1307,39 +1313,78 @@ class Measurement:
             characteristics = characteristics.query("gradient > @gradient_threshold")
             # consider first entry exclusively
             characteristics = characteristics.head(1)
-
+            
             # optional plotting
             if show_plot:
-                # plot heat flow curve
-                plt.plot(data[age_col], data[target_col])
-
-                # add vertical lines
-                for _idx, _row in characteristics.iterrows():
-                    # vline
-                    plt.axvline(_row.at[age_col], color="red", alpha=0.3)
-
-                # cosmetics
-                plt.xscale("log")
-                plt.title("Onset for " + pathlib.Path(sample).stem)
-                plt.xlabel(age_col)
-                plt.ylabel(target_col)
-
-                # get axis
-                ax = plt.gca()
-
-                plt.fill_between(
-                    [ax.get_ylim()[0], time_discarded_s],
-                    [ax.get_ylim()[0]] * 2,
-                    [ax.get_ylim()[1]] * 2,
-                    color="black",
-                    alpha=0.35,
-                )
-
-                # set axis limit
-                plt.xlim(left=100)
-
-                # show
-                plt.show()
+                # if specific axis to plot to is specified
+                if isinstance(ax, matplotlib.axes._axes.Axes):
+                    # plot heat flow curve
+                    p = ax.plot(data[age_col], data[target_col])
+    
+                    # add vertical lines
+                    for _idx, _row in characteristics.iterrows():
+                        # vline
+                        ax.axvline(
+                            _row.at[age_col], 
+                            color=p[0].get_color(), 
+                            alpha=0.3
+                            )
+                        # add "slope line"
+                        ax.axline(
+                            (_row.at[age_col], _row.at[target_col]),
+                            slope=_row.at["gradient"],
+                            color=p[0].get_color(),
+                            # color="k",
+                            # linewidth=0.2
+                            alpha=0.25,
+                            linestyle="--"
+                            )
+    
+                    # cosmetics
+                    # ax.set_xscale("log")
+                    ax.set_title("Onset for " + pathlib.Path(sample).stem)
+                    ax.set_xlabel(age_col)
+                    ax.set_ylabel(target_col)
+    
+                    ax.fill_between(
+                        [ax.get_ylim()[0], time_discarded_s],
+                        [ax.get_ylim()[0]] * 2,
+                        [ax.get_ylim()[1]] * 2,
+                        color="black",
+                        alpha=0.35,
+                    )
+    
+                    # set axis limit
+                    ax.set_xlim(left=100)
+                
+                else:
+                    # plot heat flow curve
+                    plt.plot(data[age_col], data[target_col])
+    
+                    # add vertical lines
+                    for _idx, _row in characteristics.iterrows():
+                        # vline
+                        plt.axvline(_row.at[age_col], color="red", alpha=0.3)
+    
+                    # cosmetics
+                    # plt.xscale("log")
+                    plt.title("Onset for " + pathlib.Path(sample).stem)
+                    plt.xlabel(age_col)
+                    plt.ylabel(target_col)
+    
+                    # get axis
+                    ax = plt.gca()
+    
+                    plt.fill_between(
+                        [ax.get_ylim()[0], time_discarded_s],
+                        [ax.get_ylim()[0]] * 2,
+                        [ax.get_ylim()[1]] * 2,
+                        color="black",
+                        alpha=0.35,
+                    )
+    
+                    # set axis limit
+                    plt.xlim(left=100)
 
             # append to list
             list_of_characteristics.append(characteristics)
@@ -1347,8 +1392,14 @@ class Measurement:
         # build overall list
         onset_characteristics = pd.concat(list_of_characteristics)
 
-        # return
-        return onset_characteristics
+        # return        
+        if isinstance(ax, matplotlib.axes._axes.Axes):
+            # return onset characteristics and ax
+            return onset_characteristics, ax
+        else:
+            # return onset characteristics exclusively
+            return onset_characteristics
+
 
     #
     # get maximum slope
@@ -1403,7 +1454,10 @@ class Measurement:
     
             # calculate get gradient
             data["gradient"] = pd.Series(
-                np.gradient(data[target_col].rolling(rolling).mean())
+                np.gradient(
+                    data[target_col].rolling(rolling).mean(),
+                    data[age_col]                    
+                    )
             )
     
             # get relevant points
@@ -1457,7 +1511,7 @@ class Measurement:
     
         # build overall list
         max_slope_characteristics = pd.concat(list_of_characteristics)
-    
+
         # return
         return max_slope_characteristics
 
