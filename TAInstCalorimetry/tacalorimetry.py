@@ -491,15 +491,31 @@ class Measurement:
         # process
         data = raw.copy()
 
+        # get sample mass (if available)
+        try:
+            # get mass
+            mass = float(data.iloc[3,3])
+            data.drop([3], axis=1, inplace=True)
+        except ValueError:
+            pass
+
         # remove all-Nan columns
         data = data.dropna(how="all", axis=1)
 
-        # rename
-        try:
-            data.columns = ["time_s", "heat_flow_mw"]
-        except ValueError:
-            # return empty DataFrame
-            return pd.DataFrame({"time_s": 0}, index=[0])
+        # temporary semi-dirty solution to allow for time marker to be present
+        if data.shape[1] == 2:
+            # rename
+            try:
+                data.columns = ["time_s", "heat_flow_mw"]
+            except ValueError:
+                # return empty DataFrame
+                return pd.DataFrame({"time_s": 0}, index=[0])
+        elif data.shape[1] == 3:
+            try:
+                data.columns = ["time_s", "heat_flow_mw", "time_markers"]
+            except ValueError:
+                # return empty DataFrame
+                return pd.DataFrame({"time_s": 0}, index=[0])
 
         # get data columns
         data = data.loc[3:, :]
@@ -515,10 +531,15 @@ class Measurement:
         # remove "heat_flow_w" column
         del data["heat_flow_mw"]
 
-        # float conversion
-        for _c in data.columns:
-            # convert
-            data[_c] = data[_c].astype(float)
+        # look for potential index indicating in-situ-file
+        if "time_markers" in data.columns:
+            mask = data['time_markers'].str.contains('reaction start', na=False, case=False)
+            start_index = data[mask].index[0].astype(int)
+            start_second = data.iat[start_index, 0]
+            data["time_s"] -= start_second
+
+        # calculate normalized heat flow and heat
+        data["normalized_heat_flow_w_g"] = data["heat_flow_w"] / mass
 
         # restrict to "time_s" > 0
         data = data.query("time_s >= 0").reset_index(drop=True)
