@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "TAInstCalorimetry"
-version = "0.1.13"
+version = "0.1.14"
 description = "Handling TAM Air calorimetry files made easy."
 authors = [
     "mj-hofmann <aCodingChemist@gmail.com>",
