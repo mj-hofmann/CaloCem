@@ -491,8 +491,32 @@ class Measurement:
         # process
         data = raw.copy()
 
+        # get sample mass (if available)
+        try:
+            # get mass
+            mass = float(raw.iloc[3,3].replace(",", "."))
+        except IndexError:
+            # set mass to None
+            mass = None
+            # go on
+            pass
+        
+        
+        # get "reaction start" time (if available)
+        try:
+            # get "reaction start" time in seconds
+            t0 = float(data[data[2].str.lower() == "reaction start"].head(1)[0])
+        except Exception:
+            # set t0 to None
+            t0 = None
+            # go on
+            pass
+
         # remove all-Nan columns
         data = data.dropna(how="all", axis=1)
+        
+        # restrict to first two columns
+        data = data.iloc[:,:2]
 
         # rename
         try:
@@ -502,7 +526,7 @@ class Measurement:
             return pd.DataFrame({"time_s": 0}, index=[0])
 
         # get data columns
-        data = data.loc[3:, :]
+        data = data.loc[3:, :].reset_index(drop=True)
 
         # convert data types
         data["time_s"] = data["time_s"].astype(float)
@@ -515,10 +539,13 @@ class Measurement:
         # remove "heat_flow_w" column
         del data["heat_flow_mw"]
 
-        # float conversion
-        for _c in data.columns:
-            # convert
-            data[_c] = data[_c].astype(float)
+        # take into account time offset via "reactin start" time
+        if t0:
+            data["time_s"] -= t0
+
+        # calculate normalized heat flow and heat
+        if mass:
+            data["normalized_heat_flow_w_g"] = data["heat_flow_w"] / mass
 
         # restrict to "time_s" > 0
         data = data.query("time_s >= 0").reset_index(drop=True)
