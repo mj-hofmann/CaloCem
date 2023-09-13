@@ -5,7 +5,6 @@ import pathlib
 import pickle
 import re
 
-import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1682,14 +1681,14 @@ class Measurement:
             
             if show_plot:
                 # plot
-                sns.lineplot(
-                    data=data,
-                    x="time_s",
-                    y="normalized_heat_flow_w_g",
-                    hue="helper_2",
-                    linestyle="",
-                    marker="o"
-                    )
+                for _, d in data.groupby(by="helper_2"):
+                    # plot
+                    plt.plot(
+                        d["time_s"],
+                        d["normalized_heat_flow_w_g"],
+                        linestyle="",
+                        marker="o"
+                        )
             
             # pick relevant points
             data = data[data["helper_2"] == True]
