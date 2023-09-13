@@ -39,6 +39,25 @@ for sample, data in tam.iter_samples():
 # set limit
 plt.xlim(0, 1000)
 plt.ylim(0, 1.25)
+plt.ylabel("normalized_heat_flow")
+# show plot
+plt.show()
+
+# loop samples
+for sample, data in tam.iter_samples():
+    print(sample)
+    # fig, ax = plt.subplots()
+    p = plt.plot(
+        data["time_s"], data["normalized_heat_j_g"], alpha=0.5, linestyle=":"
+    )
+    plt.plot(
+        data["time_s"], data["normalized_heat_j_g_tian"], color=p[0].get_color()
+    )
+
+# set limit
+plt.xlim(0, 1000)
+plt.ylim(0, 150)
+plt.ylabel("normalized_heat")
 # show plot
 plt.show()
 

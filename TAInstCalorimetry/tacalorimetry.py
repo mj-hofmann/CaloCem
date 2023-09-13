@@ -1963,14 +1963,23 @@ class Measurement:
             # Evaluate a B-spline or its derivatives
             dydx = splev(x, y, der=1)
             
+            # calculate corrected heatflow
+            norm_hf = dydx*tau + self._data.loc[
+                    self._data["sample"] == s, 
+                    "normalized_heat_flow_w_g"
+                    ]
+            
             self._data.loc[
                 self._data["sample"] == s,
                 "normalized_heat_flow_w_g_tian"
-                ] = dydx*tau + self._data.loc[
-                         self._data["sample"] == s, 
-                         "normalized_heat_flow_w_g"
-                     ]
-                    
+                ] = norm_hf
+            
+            # calculate corresponding cumulative heat
+            self._data.loc[
+                self._data["sample"] == s,
+                "normalized_heat_j_g_tian"
+                ] = integrate.cumulative_trapezoid(norm_hf.fillna(0), x=x, initial=0)
+    
     
     #
     # undo Tian-correction
