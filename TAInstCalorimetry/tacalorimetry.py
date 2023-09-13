@@ -5,6 +5,7 @@ import pathlib
 import pickle
 import re
 
+import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1552,6 +1553,177 @@ class Measurement:
         # return
         return max_slope_characteristics
 
+
+    #
+    # get reaction onset via maximum slope
+    #
+    def get_peak_onset_via_max_slope(self, show_plot=False):
+        """
+        get reaction onset based on tangent of maximum heat flow and heat flow
+        during the dormant period. The characteristic time is inferred from
+        the intersection of both characteristic lines
+
+        Parameters
+        ----------
+        show_plot : TYPE, optional
+            DESCRIPTION. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        # get onsets
+        max_slopes = self.get_maximum_slope()
+        # % get dormant period HFs
+        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False)
+
+        # init list
+        list_onsets = []
+        
+        # loop samples
+        for i, row in max_slopes.iterrows():
+
+            if show_plot:
+                # plot data            
+                self.plot(
+                    t_unit="s",
+                    y_unit_milli=False,
+                    regex=row["sample_short"],
+                    )
+                # max slope line
+                plt.axline(
+                    (row["time_s"], row["normalized_heat_flow_w_g"]),
+                    slope=row["gradient"],
+                    color="k"
+                    )
+                # dormant heat plot
+                plt.axhline(
+                    float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
+                    color="k"
+                )            
+                # guide to the eye line
+                plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
+            
+            # calculate y-offset
+            t = row["normalized_heat_flow_w_g"] - row["time_s"]*row["gradient"]
+            # calculate point of intersection
+            x_intersect = (
+                float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"])-t
+                )/row["gradient"]
+                
+            if show_plot:
+                # guide to the eye line
+                plt.axvline(x_intersect, color="red")               
+                # info text
+                plt.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
+                # ax limits
+                plt.xlim(0, 3e4)
+                plt.ylim(0.5*t, 1.5e-3)
+                # title
+                plt.title(row["sample_short"])            
+                # show
+                plt.show()
+            
+            # append to list
+            list_onsets.append({
+                "sample" : row["sample_short"], 
+                "onset_time_s" : x_intersect,
+                "onset_time_min" : x_intersect/60
+                })
+            
+        # build overall dataframe to be returned
+        onsets = pd.DataFrame(list_onsets)
+        
+        # return
+        return onsets
+        
+
+    #
+    # get dormant period heatflow
+    #
+    
+    def get_dormant_period_heatflow(self, regex=None, upper_dormant_thresh_w_g=0.001, maxium_gradient=1e-4, show_plot=False):
+        """
+        get heatflow during dormant period
+
+        Parameters
+        ----------
+        regex : TYPE, optional
+            DESCRIPTION. The default is None.
+        upper_dormant_thresh_w_g : TYPE, optional
+            DESCRIPTION. The default is 0.001.
+        maxium_gradient : TYPE, optional
+            DESCRIPTION. The default is 1e-4.
+        show_plot : TYPE, optional
+            DESCRIPTION. The default is False.
+
+        Returns
+        -------
+        result : TYPE
+            DESCRIPTION.
+
+        """
+        
+        
+        # init results list
+        list_dfs = []
+        
+        # loop samples
+        for sample, data in self.iter_samples(regex=regex):
+
+            # add helper column (gradient)
+            data["helper_1"] = pd.Series(
+                np.gradient(data["normalized_heat_flow_w_g"]
+            ))
+            # ascending?
+            data["helper_2"] = data["helper_1"] > 0
+            
+            if show_plot:
+                # plot
+                sns.lineplot(
+                    data=data,
+                    x="time_s",
+                    y="normalized_heat_flow_w_g",
+                    hue="helper_2",
+                    linestyle="",
+                    marker="o"
+                    )
+            
+            # pick relevant points
+            data = data[data["helper_2"] == True]
+            # take into account upper threshold in dormant period
+            data = data.query("normalized_heat_flow_w_g < @upper_dormant_thresh_w_g")
+            # restrict to maximum gradient (helper 1)
+            data = data.query("helper_1 <= @maxium_gradient")
+            # use first line
+            data = data.head(1)
+            
+            if show_plot:
+                # guide to the eye line                
+                plt.axhline(float(data["normalized_heat_flow_w_g"]), color="red")
+                # limits
+                plt.xlim(0, 30000)
+                plt.ylim(0, 1.5*upper_dormant_thresh_w_g)
+                # title
+                plt.title(pathlib.Path(sample).stem)
+                # show            
+                plt.show()
+            
+            # remove helper columns
+            del data["helper_1"], data["helper_2"]
+
+            # add to list
+            list_dfs.append(data)
+            
+        # convert to overall datafram
+        result = pd.concat(list_dfs)
+        
+        # return
+        return result
+    
+    
     #
     # get data
     #
