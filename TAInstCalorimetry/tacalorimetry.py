@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import pysnooper
 from scipy import signal
+from scipy import integrate
 from scipy.interpolate import splrep, splev
 
 from TAInstCalorimetry import utils
@@ -536,6 +537,14 @@ class Measurement:
 
         # convert to same unit
         data["heat_flow_w"] = data["heat_flow_mw"] / 1000
+        
+        # calculate cumulative heat flow
+        data["heat_j"] = integrate.cumulative_trapezoid(
+                data["heat_flow_w"],
+                x=data["time_s"], 
+                initial=0
+                )
+        
         # remove "heat_flow_w" column
         del data["heat_flow_mw"]
 
@@ -545,7 +554,8 @@ class Measurement:
 
         # calculate normalized heat flow and heat
         if mass:
-            data["normalized_heat_flow_w_g"] = data["heat_flow_w"] / mass
+            data["normalized_heat_flow_w_g"] = data["heat_flow_w"] / mass            
+            data["normalized_heat_j_g"] = data["heat_j"] / mass
 
         # restrict to "time_s" > 0
         data = data.query("time_s >= 0").reset_index(drop=True)
