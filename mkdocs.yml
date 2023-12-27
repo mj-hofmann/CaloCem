@@ -1,0 +1,10 @@
+site_name: TAInstCalorimetry
+
+theme:
+  name: "material"
+
+plugins:
+  - mkdocstrings
+
+nav:
+  - Calculation Docs: index.md
