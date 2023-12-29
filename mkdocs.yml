@@ -2,9 +2,26 @@ site_name: TAInstCalorimetry
 
 theme:
   name: "material"
+  palette:
+    scheme: slate
+    primary: deep purple
+  font:
+    text: Poppins
+    code: Bitter
+  logo: assets/icon.png
+  features:
+    - search.highlight
+    - header.autohide
+    - navigation.footer
 
 plugins:
   - mkdocstrings
+  - search
 
 nav:
   - Calculation Docs: index.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mj-hofmann

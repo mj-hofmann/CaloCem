@@ -9,6 +9,7 @@ authors = [
 license = "GNU GENERAL PUBLIC LICENSE"
 
 repository = "https://github.com/mj-hofmann/TAInstCalorimetry"
+documentation = "https://mj-hofmann.github.io/TAInstCalorimetry/"
 
 # README file(s) are used as the package description
 readme = "README.md"
