@@ -1,0 +1,24 @@
+\documentclass{standalone}
+
+% icons
+\usepackage{fontawesome}
+
+% tikz
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+
+% color
+\definecolor{tacolor}{HTML}{561234}
+
+% font
+\usepackage[default]{comfortaa}
+
+\begin{document}
+	
+	\begin{tikzpicture}
+		\node (A) at (0,0) {};
+		\node at (A) {\large\color{tacolor}\faBullseye};
+		\draw [tacolor, line width=1] (A)+(0,.05) |- +(0.2,-0.28);
+	\end{tikzpicture}
+	
+\end{document}

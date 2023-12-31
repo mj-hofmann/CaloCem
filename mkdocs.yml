@@ -1,4 +1,4 @@
-site_name: TAInstCalorimetry
+site_name: ""
 
 theme:
   name: "material"
@@ -9,6 +9,7 @@ theme:
     text: Poppins
     code: Bitter
   logo: assets/icon.png
+  favicon: assets/favicon.png
   features:
     - search.highlight
     - header.autohide
@@ -19,9 +20,16 @@ plugins:
   - search
 
 nav:
-  - Calculation Docs: index.md
+  - Docs: index.md
+  - Reference: reference.md
+  - How-To Guides: how-to-guide.md
 
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/mj-hofmann
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
