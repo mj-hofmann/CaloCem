@@ -1451,6 +1451,7 @@ class Measurement:
         show_plot=False,
         exclude_discarded_time=False,
         regex=None,
+        use_first : bool=False
     ):
         """
         get maximum slope as a characteristic value
@@ -1489,13 +1490,25 @@ class Measurement:
             # reset index
             data = data.reset_index(drop=True)
     
-            # calculate get gradient
+            # calculate gradient
             data["gradient"] = pd.Series(
                 np.gradient(
                     data[target_col].rolling(rolling).mean(),
                     data[age_col]                    
                     )
             )
+            
+            # restrict to "first" maximum slope
+            if use_first:
+                # calculate curvature
+                data["curvature"] = pd.Series(
+                    np.gradient(
+                        data["gradient"].rolling(rolling).mean(),
+                        data[age_col]                    
+                        )
+                )
+                # filter for postive curvature (left bent)
+                data = data.query("curvature >= 0")
     
             # get relevant points
             characteristics = data.copy()
