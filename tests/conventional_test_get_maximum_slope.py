@@ -21,6 +21,7 @@ tam = ta.Measurement(
 # %% plot
 
 # get peak onsets via alternative method
-onsets = tam.get_peak_onset_via_max_slope(show_plot=True)
+onsets = tam.get_maximum_slope(show_plot=True)
 
 print(onsets)
+# %%
