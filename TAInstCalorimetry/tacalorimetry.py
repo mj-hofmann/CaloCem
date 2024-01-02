@@ -1737,6 +1737,78 @@ class Measurement:
     
     
     #
+    # get ASTM C1679 characteristics
+    #
+    
+    def get_astm_c1679_characteristics(self, individual: bool = False, cutoff_min: int = 15) -> pd.DataFrame:
+        """
+        get characteristics according to ASTM C1679. Compiles a list of data
+        points at half-maximum "normalized heat flow", wherein the half maximum
+        is either determined for each individual heat flow curve individually
+        or as the mean value if the heat flow curves considered.
+
+        Parameters
+        ----------
+        individual : bool, optional
+            DESCRIPTION. The default is False.
+        cutoff_min : int, optional
+            DESCRIPTION. The default is 15.
+
+        Returns
+        -------
+        astm_times : pd.DataFrame
+            DESCRIPTION.
+
+        """
+        
+        
+        # get peaks
+        peaks = self.get_peaks(cutoff_min=cutoff_min)
+        # sort peaks by ascending normalized heat flow
+        peaks = peaks.sort_values(by="normalized_heat_flow_w_g", ascending=True)
+        # select highest peak --> ASTM C1679
+        peaks = peaks.groupby(by="sample").last()
+        
+        # get data
+        data = self.get_data()
+
+        # init empty list for collecting characteristics
+        astm_times = []
+
+        # loop samples
+        for sample, sample_data in self.iter_samples():
+            
+            # pick sample data
+            helper = data[data["sample"] == sample]
+            
+            # restrict to times before the peak
+            helper = helper[helper["time_s"]
+                            <= peaks.at[sample, "time_s"]
+                            ]
+            
+            # restrict to relevant heatflows the peak
+            if individual == True:
+                helper = helper[helper["normalized_heat_flow_w_g"]
+                                <= peaks.at[sample, "normalized_heat_flow_w_g"]*0.50
+                                ]
+            else:
+                # use half-maximum average
+                helper = helper[helper["normalized_heat_flow_w_g"]
+                                <= peaks["normalized_heat_flow_w_g"].mean()*0.50
+                                ]
+                
+            
+            # add to list of of selected points
+            astm_times.append(helper.tail(1))
+                            
+        # build overall DataFrame
+        astm_times = pd.concat(astm_times)
+        
+        # return
+        return astm_times
+        
+    
+    #
     # get data
     #
 
