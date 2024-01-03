@@ -1447,7 +1447,7 @@ class Measurement:
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
         time_discarded_s=900,
-        rolling=1,
+        rolling: str=None,
         show_plot=False,
         exclude_discarded_time=False,
         regex=None,
@@ -1463,8 +1463,12 @@ class Measurement:
             Time unit within which peak onsets are searched for. The default is "time_s"
         time_discarded_s : int | float, optional
             Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
-        rolling : int, optional
-            Width of "rolling" window within which the values of "target_col" are averaged. A higher value will introduce a stronger smoothing effect. The default is 1, i.e. no smoothing.
+        rolling : None | str, optional
+            Width of "rolling" window within which the values of "target_col" 
+            are averaged. A higher value will introduce a stronger smoothing 
+            effect. The default is The default is None., i.e. no smoothing via 
+            a rolling window but "utils.fit_univariate_spline".
+            In case of a rolling window defined using a str, use e.g. '15min'
          show_plot : bool, optional
             Flag whether or not to plot peak picking for each sample. The default is False.
         exclude_discarded_time : bool, optional
@@ -1489,15 +1493,24 @@ class Measurement:
     
             # reset index
             data = data.reset_index(drop=True)
+            
+            # define "smoothing" option
+            if type(rolling) == str:
+                # covert to timedelta to allow for "rolling"
+                data["td"] = pd.to_timedelta(data["time_s"], unit="second")
+                # filter based on timedelta
+                data["smoothed"] = data.rolling(rolling, on="td")[target_col].mean()
 
-            # fit univariate spline
-            data = utils.fit_univariate_spline(data, target_col)
+            else:
+                # fit univariate spline
+                data = utils.fit_univariate_spline(data, target_col)
+                # add smoothed column
+                data["smoothed"] = data["interpolated"]
 
             # calculate gradient
             data["gradient"] = pd.Series(
                 np.gradient(
-                    data["interpolated"],
-                    #data[target_col].rolling(rolling).mean(),
+                    data["smoothed"],
                     data[age_col]                    
                     )
             )
@@ -1507,8 +1520,7 @@ class Measurement:
                 # calculate curvature
                 data["curvature"] = pd.Series(
                     np.gradient(
-                        #data["gradient"].rolling(rolling).mean(),
-                        data["interpolated"],
+                        data["smoothed"],
                         data[age_col]                    
                         )
                 )
