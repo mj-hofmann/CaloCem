@@ -1489,11 +1489,15 @@ class Measurement:
     
             # reset index
             data = data.reset_index(drop=True)
-    
+
+            # fit univariate spline
+            data = utils.fit_univariate_spline(data, target_col)
+
             # calculate gradient
             data["gradient"] = pd.Series(
                 np.gradient(
-                    data[target_col].rolling(rolling).mean(),
+                    data["interpolated"],
+                    #data[target_col].rolling(rolling).mean(),
                     data[age_col]                    
                     )
             )
@@ -1503,7 +1507,8 @@ class Measurement:
                 # calculate curvature
                 data["curvature"] = pd.Series(
                     np.gradient(
-                        data["gradient"].rolling(rolling).mean(),
+                        #data["gradient"].rolling(rolling).mean(),
+                        data["interpolated"],
                         data[age_col]                    
                         )
                 )
