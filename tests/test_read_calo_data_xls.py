@@ -36,6 +36,6 @@ def test_last_time_entry(test_input, expected):
         assert data == expected
     else:
         # get "last time for a file
-        last_time = int(data.tail(1)["time_s"])
+        last_time = int(data.tail(1)["time_s"].values[0])
         # actual test
         assert last_time == int(expected)

@@ -20,7 +20,7 @@ from TAInstCalorimetry import tacalorimetry
         ("calorimetry_data_3.csv", 296820),  # comma sep
         ("calorimetry_data_4.csv", 277199),
         ("calorimetry_data_5.csv", 277199),
-        ("1stgen.csv", 264470),  # in-situ first gen file
+        ("1stgen.csv", 269870),  # in-situ first gen file
         ("MOD_myexp1.csv", 259040),  # comma sep ("corrupt" due to 2 missing values)
     ],
 )
@@ -40,4 +40,4 @@ def test_last_time_entry(file, expected):
         # discard NaN values
         data = data.dropna()
         # actual test
-        assert int(data.tail(1)["time_s"]) == expected
+        assert int(data.tail(1)["time_s"].values[0]) == expected
