@@ -11,7 +11,7 @@ datapath = parentfolder / "TAInstCalorimetry" / "DATA"
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
-    regex=r"myexp[1-4]",
+    regex=r"myexp[9].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
