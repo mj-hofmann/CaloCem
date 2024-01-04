@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 parentfolder = Path(__file__).cwd()
 sys.path.insert(0, parentfolder.as_posix())
@@ -21,6 +22,7 @@ tam = ta.Measurement(
 # %% plot
 
 # get peak onsets via alternative method
-onsets = tam.get_peak_onset_via_max_slope(show_plot=True)
+fig, ax = plt.subplots()
+onsets, ax = tam.get_peak_onset_via_max_slope(show_plot=True, cutoff_min=3, ax=ax)
 
 print(onsets)

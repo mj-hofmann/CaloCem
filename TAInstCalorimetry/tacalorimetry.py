@@ -1586,7 +1586,7 @@ class Measurement:
     #
     # get reaction onset via maximum slope
     #
-    def get_peak_onset_via_max_slope(self, show_plot=False):
+    def get_peak_onset_via_max_slope(self, show_plot=False, cutoff_min=None, ax=None):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
         during the dormant period. The characteristic time is inferred from
@@ -1602,11 +1602,10 @@ class Measurement:
         None.
 
         """
-        
         # get onsets
         max_slopes = self.get_maximum_slope()
         # % get dormant period HFs
-        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False)
+        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False, cutoff_min=cutoff_min)
 
         # init list
         list_onsets = []
@@ -1615,25 +1614,45 @@ class Measurement:
         for i, row in max_slopes.iterrows():
 
             if show_plot:
-                # plot data            
-                self.plot(
-                    t_unit="s",
-                    y_unit_milli=False,
-                    regex=row["sample_short"],
+                
+                if isinstance(ax, matplotlib.axes._axes.Axes):
+                    # plot data            
+                    ax = self.plot(
+                        t_unit="s",
+                        y_unit_milli=False,
+                        regex=row["sample_short"],
+                        ax=ax
+                        ) 
+                    ax.axline(
+                        (row["time_s"], row["normalized_heat_flow_w_g"]),
+                        slope=row["gradient"],
+                        color="k"
+                        )
+                    ax.axhline(
+                        float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
+                        color="k"
                     )
-                # max slope line
-                plt.axline(
-                    (row["time_s"], row["normalized_heat_flow_w_g"]),
-                    slope=row["gradient"],
-                    color="k"
-                    )
-                # dormant heat plot
-                plt.axhline(
-                    float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
-                    color="k"
-                )            
-                # guide to the eye line
-                plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
+                                
+                else:
+                    # plot data            
+                    self.plot(
+                        t_unit="s",
+                        y_unit_milli=False,
+                        regex=row["sample_short"],
+                        )
+                    # max slope line
+                    plt.axline(
+                        (row["time_s"], row["normalized_heat_flow_w_g"]),
+                        slope=row["gradient"],
+                        color="k"
+                        )
+                    # dormant heat plot
+                    plt.axhline(
+                        float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
+                        color="k"
+                    )            
+                    # guide to the eye line
+                    plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
             
             # calculate y-offset
             t = row["normalized_heat_flow_w_g"] - row["time_s"]*row["gradient"]
@@ -1665,15 +1684,21 @@ class Measurement:
         # build overall dataframe to be returned
         onsets = pd.DataFrame(list_onsets)
         
-        # return
-        return onsets
+        # return        
+        if isinstance(ax, matplotlib.axes._axes.Axes):
+            # return onset characteristics and ax
+            return onsets, ax
+        else:
+            # return onset characteristics exclusively
+            return onsets
+
         
 
     #
     # get dormant period heatflow
     #
     
-    def get_dormant_period_heatflow(self, regex=None, upper_dormant_thresh_w_g=0.001, maxium_gradient=1e-4, show_plot=False):
+    def get_dormant_period_heatflow(self, regex=None, cutoff_min=None, upper_dormant_thresh_w_g=0.001, maxium_gradient=1e-4, show_plot=False):
         """
         get heatflow during dormant period
 
@@ -1701,6 +1726,11 @@ class Measurement:
         
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
+
+            # cutoff
+            if cutoff_min:
+                # discard points at early age
+                data = data.query("time_s >= @cutoff_min * 60")
 
             # add helper column (gradient)
             data["helper_1"] = pd.Series(
