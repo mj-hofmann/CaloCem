@@ -51,4 +51,6 @@ def fit_univariate_spline(df, target_col, s=1e-6):
         df["time_s"], df[target_col], s=s
     )
     df["interpolated"] = spl(df["time_s"])
+    # cut off last 100 points to avoid large gradient detection due to potential interpolation artifacts at the end of the data
+    df = df.iloc[:-100,:]
     return df

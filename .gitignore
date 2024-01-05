@@ -164,3 +164,6 @@ cython_debug/
 
 # pickle files
 *.pickle
+
+# vscode
+.vscode/

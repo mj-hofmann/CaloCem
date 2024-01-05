@@ -1594,7 +1594,7 @@ class Measurement:
     #
     # get reaction onset via maximum slope
     #
-    def get_peak_onset_via_max_slope(self, show_plot=False):
+    def get_peak_onset_via_max_slope(self, show_plot=False, cutoff_min=None, ax=None):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
         during the dormant period. The characteristic time is inferred from
@@ -1610,11 +1610,10 @@ class Measurement:
         None.
 
         """
-        
         # get onsets
         max_slopes = self.get_maximum_slope()
         # % get dormant period HFs
-        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False)
+        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False, cutoff_min=cutoff_min)
 
         # init list
         list_onsets = []
@@ -1623,25 +1622,45 @@ class Measurement:
         for i, row in max_slopes.iterrows():
 
             if show_plot:
-                # plot data            
-                self.plot(
-                    t_unit="s",
-                    y_unit_milli=False,
-                    regex=row["sample_short"],
+                
+                if isinstance(ax, matplotlib.axes._axes.Axes):
+                    # plot data            
+                    ax = self.plot(
+                        t_unit="s",
+                        y_unit_milli=False,
+                        regex=row["sample_short"],
+                        ax=ax
+                        ) 
+                    ax.axline(
+                        (row["time_s"], row["normalized_heat_flow_w_g"]),
+                        slope=row["gradient"],
+                        color="k"
+                        )
+                    ax.axhline(
+                        float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
+                        color="k"
                     )
-                # max slope line
-                plt.axline(
-                    (row["time_s"], row["normalized_heat_flow_w_g"]),
-                    slope=row["gradient"],
-                    color="k"
-                    )
-                # dormant heat plot
-                plt.axhline(
-                    float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
-                    color="k"
-                )            
-                # guide to the eye line
-                plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
+                                
+                else:
+                    # plot data            
+                    self.plot(
+                        t_unit="s",
+                        y_unit_milli=False,
+                        regex=row["sample_short"],
+                        )
+                    # max slope line
+                    plt.axline(
+                        (row["time_s"], row["normalized_heat_flow_w_g"]),
+                        slope=row["gradient"],
+                        color="k"
+                        )
+                    # dormant heat plot
+                    plt.axhline(
+                        float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
+                        color="k"
+                    )            
+                    # guide to the eye line
+                    plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
             
             # calculate y-offset
             t = row["normalized_heat_flow_w_g"] - row["time_s"]*row["gradient"]
@@ -1673,26 +1692,33 @@ class Measurement:
         # build overall dataframe to be returned
         onsets = pd.DataFrame(list_onsets)
         
-        # return
-        return onsets
+        # return        
+        if isinstance(ax, matplotlib.axes._axes.Axes):
+            # return onset characteristics and ax
+            return onsets, ax
+        else:
+            # return onset characteristics exclusively
+            return onsets
+
         
 
     #
     # get dormant period heatflow
     #
     
-    def get_dormant_period_heatflow(self, regex=None, upper_dormant_thresh_w_g=0.001, maxium_gradient=1e-4, show_plot=False):
+    def get_dormant_period_heatflow(self, regex: str=None, cutoff_min: int=5,
+            upper_dormant_thresh_w_g: float=0.002, show_plot=False) -> pd.DataFrame:
         """
-        get heatflow during dormant period
+        get dormant period heatflow
 
         Parameters
         ----------
-        regex : TYPE, optional
+        regex : str, optional
             DESCRIPTION. The default is None.
-        upper_dormant_thresh_w_g : TYPE, optional
+        cutoff_min : int, optional
+            DESCRIPTION. The default is 5.
+        upper_dormant_thresh_w_g : float, optional
             DESCRIPTION. The default is 0.001.
-        maxium_gradient : TYPE, optional
-            DESCRIPTION. The default is 1e-4.
         show_plot : TYPE, optional
             DESCRIPTION. The default is False.
 
@@ -1701,8 +1727,7 @@ class Measurement:
         result : TYPE
             DESCRIPTION.
 
-        """
-        
+        """        
         
         # init results list
         list_dfs = []
@@ -1710,52 +1735,54 @@ class Measurement:
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
 
-            # add helper column (gradient)
-            data["helper_1"] = pd.Series(
-                np.gradient(data["normalized_heat_flow_w_g"]
-            ))
-            # ascending?
-            data["helper_2"] = data["helper_1"] > 0
+            # get peak as "right border"
+            _peaks = self.get_peaks(
+                cutoff_min=cutoff_min, 
+                regex=pathlib.Path(sample).name,
+                show_plot=False
+                )
+
+            # identify "dormant period" as range between initial spike
+            # and first reaction peak
+            
+            # discard points at early age
+            data = data.query("time_s >= @cutoff_min * 60")
+            # discard points after the first peak
+            data = data.query('time_s <= @_peaks["time_s"].min()')
+            # reset index
+            data = data.reset_index(drop=True)
             
             if show_plot:
                 # plot
-                for _, d in data.groupby(by="helper_2"):
-                    # plot
-                    plt.plot(
-                        d["time_s"],
-                        d["normalized_heat_flow_w_g"],
-                        linestyle="",
-                        marker="o"
-                        )
+                plt.plot(
+                    data["time_s"],
+                    data["normalized_heat_flow_w_g"],
+                    linestyle="",
+                    marker="o"
+                    )
             
-            # pick relevant points
-            data = data[data["helper_2"] == True]
-            # take into account upper threshold in dormant period
-            data = data.query("normalized_heat_flow_w_g < @upper_dormant_thresh_w_g")
-            # restrict to maximum gradient (helper 1)
-            data = data.query("helper_1 <= @maxium_gradient")
-            # use first line
-            data = data.head(1)
+            # pick relevant points at minimum heat flow
+            data = data.iloc[data["normalized_heat_flow_w_g"].idxmin(),:].to_frame().T
             
             if show_plot:
-                # guide to the eye line                
+                # guide to the eye lines
                 plt.axhline(float(data["normalized_heat_flow_w_g"]), color="red")
+                plt.axvline(float(data["time_s"]), color="red")
+                # indicate cutoff time
+                plt.axvspan(0, cutoff_min*60, color="black", alpha=0.5)
                 # limits
-                plt.xlim(0, 30000)
-                plt.ylim(0, 1.5*upper_dormant_thresh_w_g)
+                plt.xlim(0, _peaks["time_s"].min())
+                plt.ylim(0, upper_dormant_thresh_w_g)
                 # title
                 plt.title(pathlib.Path(sample).stem)
                 # show            
                 plt.show()
-            
-            # remove helper columns
-            del data["helper_1"], data["helper_2"]
 
             # add to list
             list_dfs.append(data)
-            
+         
         # convert to overall datafram
-        result = pd.concat(list_dfs)
+        result = pd.concat(list_dfs).reset_index(drop=True)
         
         # return
         return result
