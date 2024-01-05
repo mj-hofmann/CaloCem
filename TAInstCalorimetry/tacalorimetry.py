@@ -1144,7 +1144,7 @@ class Measurement:
         target_col="normalized_heat_flow_w_g",
         regex=None,
         cutoff_min=None,
-        prominence=0.001,
+        prominence=0.0001,
         distance=1,
         show_plot=True,
         plt_right_s=2e5,
@@ -1594,7 +1594,7 @@ class Measurement:
     #
     # get reaction onset via maximum slope
     #
-    def get_peak_onset_via_max_slope(self, show_plot=False, cutoff_min=None, ax=None):
+    def get_peak_onset_via_max_slope(self, show_plot=False, cutoff_min=None, prominence=1e-3, ax=None):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
         during the dormant period. The characteristic time is inferred from
@@ -1613,7 +1613,7 @@ class Measurement:
         # get onsets
         max_slopes = self.get_maximum_slope()
         # % get dormant period HFs
-        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False, cutoff_min=cutoff_min)
+        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False, cutoff_min=cutoff_min, prominence=prominence)
 
         # init list
         list_onsets = []
@@ -1707,7 +1707,7 @@ class Measurement:
     #
     
     def get_dormant_period_heatflow(self, regex: str=None, cutoff_min: int=5,
-            upper_dormant_thresh_w_g: float=0.002, show_plot=False) -> pd.DataFrame:
+            upper_dormant_thresh_w_g: float=0.002, prominence: float=1e-3, show_plot=False) -> pd.DataFrame:
         """
         get dormant period heatflow
 
@@ -1739,6 +1739,7 @@ class Measurement:
             _peaks = self.get_peaks(
                 cutoff_min=cutoff_min, 
                 regex=pathlib.Path(sample).name,
+                prominence=prominence,
                 show_plot=False
                 )
 
@@ -1747,8 +1748,10 @@ class Measurement:
             
             # discard points at early age
             data = data.query("time_s >= @cutoff_min * 60")
-            # discard points after the first peak
-            data = data.query('time_s <= @_peaks["time_s"].min()')
+            if not _peaks.empty:
+                # discard points after the first peak
+                data = data.query('time_s <= @_peaks["time_s"].min()')
+            
             # reset index
             data = data.reset_index(drop=True)
             
