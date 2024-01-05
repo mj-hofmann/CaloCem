@@ -506,7 +506,9 @@ class Measurement:
         # get "reaction start" time (if available)
         try:
             # get "reaction start" time in seconds
-            t0 = float(data[data[2].str.lower() == "reaction start"].head(1)[0])
+            _helper = data[data[2].str.lower() == "reaction start"].head(1)
+            # convert to float
+            t0 = float(_helper["time_s"].values[0])
         except Exception:
             # set t0 to None
             t0 = None
@@ -1065,20 +1067,20 @@ class Measurement:
         def applicable(df, target_h=4, cutoff_min=None):
             # convert target time to seconds
             target_s = 3600 * target_h
+            # helper
+            _helper = df.query("time_s >= @target_s").head(1)
             # get heat at target time
-            hf_at_target = float(
-                df.query("time_s >= @target_s").head(1)["normalized_heat_j_g"]
-            )
-            #
+            hf_at_target = float(_helper["normalized_heat_j_g"].values[0])
 
             # if cutoff time specified
             if cutoff_min:
                 # convert target time to seconds
                 target_s = 60 * cutoff_min
                 try:
-                    hf_at_cutoff = float(
-                        df.query("time_s <= @target_s").tail(1)["normalized_heat_j_g"]
-                    )
+                    # helper
+                    _helper = df.query("time_s <= @target_s").tail(1)
+                    # type conversion
+                    hf_at_cutoff = float(_helper["normalized_heat_j_g"].values[0])
                     # correct heatflow for heatflow at cutoff
                     hf_at_target = hf_at_target - hf_at_cutoff
                 except TypeError:
@@ -1531,11 +1533,17 @@ class Measurement:
             characteristics = data.copy()
             # discard initial time
             characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
-            # get index corresponding to maximum gradient
-            idx_max = characteristics["gradient"].idxmax()
-            if np.isnan(idx_max):
+            # drop NaNs
+            characteristics = characteristics.dropna(subset=["gradient"])
+            
+            # remaining non-NaN results?
+            if characteristics.empty:
                 # go to next
                 continue
+            
+            # get index corresponding to maximum gradient
+            idx_max = characteristics["gradient"].idxmax()
+                
             # consider first entry exclusively
             characteristics = characteristics.loc[idx_max,:].to_frame().T
     
