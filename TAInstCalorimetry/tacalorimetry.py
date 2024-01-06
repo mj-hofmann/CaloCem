@@ -1835,25 +1835,32 @@ class Measurement:
             
             # pick sample data
             helper = data[data["sample"] == sample]
+
+            # check if peak was found
+            if peaks[peaks["sample_short"] == sample_data.sample_short[0]].empty:
+                helper = helper.iloc[0:1]
+                # manually set time to NaN to indicate that no peak was found
+                helper["time_s"] = np.NaN
             
-            # restrict to times before the peak
-            helper = helper[helper["time_s"]
-                            <= peaks.at[sample, "time_s"]
-                            ]
-            
-            # restrict to relevant heatflows the peak
-            if individual == True:
-                helper = helper[helper["normalized_heat_flow_w_g"]
-                                <= peaks.at[sample, "normalized_heat_flow_w_g"]*0.50
-                                ]
             else:
-                # use half-maximum average
-                helper = helper[helper["normalized_heat_flow_w_g"]
-                                <= peaks["normalized_heat_flow_w_g"].mean()*0.50
+                # restrict to times before the peak
+                helper = helper[helper["time_s"]
+                                <= peaks.at[sample, "time_s"]
                                 ]
                 
-            
-            # add to list of of selected points
+                # restrict to relevant heatflows the peak
+                if individual == True:
+                    helper = helper[helper["normalized_heat_flow_w_g"]
+                                    <= peaks.at[sample, "normalized_heat_flow_w_g"]*0.50
+                                    ]
+                else:
+                    # use half-maximum average
+                    helper = helper[helper["normalized_heat_flow_w_g"]
+                                    <= peaks["normalized_heat_flow_w_g"].mean()*0.50
+                                    ]
+                    
+                
+                # add to list of of selected points
             astm_times.append(helper.tail(1))
                             
         # build overall DataFrame
