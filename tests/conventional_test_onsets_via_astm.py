@@ -1,3 +1,4 @@
+#%%
 import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ datapath = parentfolder / "TAInstCalorimetry" / "DATA"
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
-    regex=r"myexp11.*",
+    regex=r"myexp[1].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -22,8 +23,7 @@ tam = ta.Measurement(
 # %% plot
 
 # get peak onsets via alternative method
-fig, ax = plt.subplots()
-onsets, ax = tam.get_peak_onset_via_max_slope(show_plot=True, cutoff_min=15, prominence=1e-4, ax=ax)
+onsets = tam.get_astm_c1679_characteristics(cutoff_min=15)
 
 print(onsets)
 # %%
