@@ -21,8 +21,8 @@ plugins:
 
 nav:
   - Docs: index.md
-  - Reference: reference.md
   - How-To Guides: how-to-guide.md
+  - Reference: reference.md
 
 extra:
   social:
