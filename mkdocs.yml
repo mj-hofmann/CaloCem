@@ -12,12 +12,25 @@ theme:
   favicon: assets/favicon.png
   features:
     - search.highlight
+    - search.suggest
+    - search.share
     - header.autohide
+    - navigation.sections
     - navigation.footer
+    - navigation.top
+    
+repo_url: https://github.com/mj-hofmann/TAInstCalorimetry
+repo_name: mj-hofmann/TAInstCalorimetry
 
 plugins:
   - mkdocstrings
   - search
+  - offline
+  - git-revision-date-localized:
+      enable_creation_date: true
+  - git-committers:
+      repository: mj-hofmann/TAInstCalorimetry
+      branch: main
 
 nav:
   - Docs: index.md
@@ -28,8 +41,12 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/mj-hofmann
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/matthias-j-hofmann/
 
 markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  
+copyright: Copyright &copy; 2023 - present Matthias Hofmann
