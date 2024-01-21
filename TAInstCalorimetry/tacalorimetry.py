@@ -501,21 +501,13 @@ class Measurement:
             mass = None
             # go on
             pass
- 
-        # rename
-        try:
-            data.columns = ["time_s", "heat_flow_mw", "time_marker", "sample_weight_g"]
-        except ValueError:
-            # return empty DataFrame
-            return pd.DataFrame({"time_s": 0}, index=[0])
-       
-        
+
         # get "reaction start" time (if available)
         try:
             # get "reaction start" time in seconds
             _helper = data[data.iloc[:,2].str.lower() == "reaction start"].head(1)
             # convert to float
-            t0 = float(_helper["time_s"].values[0])
+            t0 = float(_helper[0].values[0])
         except Exception:
             # set t0 to None
             t0 = None
@@ -527,6 +519,13 @@ class Measurement:
         
         # restrict to first two columns
         data = data.iloc[:,:2]
+
+        # rename
+        try:
+            data.columns = ["time_s", "heat_flow_mw"]
+        except ValueError:
+            # return empty DataFrame
+            return pd.DataFrame({"time_s": 0}, index=[0])
 
         # get data columns
         data = data.loc[3:, :].reset_index(drop=True)
