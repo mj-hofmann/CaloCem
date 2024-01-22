@@ -501,14 +501,13 @@ class Measurement:
             mass = None
             # go on
             pass
-        
-        
+
         # get "reaction start" time (if available)
         try:
             # get "reaction start" time in seconds
-            _helper = data[data[2].str.lower() == "reaction start"].head(1)
+            _helper = data[data.iloc[:,2].str.lower() == "reaction start"].head(1)
             # convert to float
-            t0 = float(_helper["time_s"].values[0])
+            t0 = float(_helper[0].values[0])
         except Exception:
             # set t0 to None
             t0 = None

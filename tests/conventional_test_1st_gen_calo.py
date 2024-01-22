@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 
-parentfolder = Path(__file__).cwd().parent
+parentfolder = Path(__file__).cwd()
 sys.path.insert(0, parentfolder.as_posix())
 
 import TAInstCalorimetry.tacalorimetry as ta
+
 
 datapath = parentfolder / "TAInstCalorimetry" / "DATA"
 #datapath = parentfolder / "tmp"
@@ -22,5 +23,6 @@ tam = ta.Measurement(
 
 fig, ax = plt.subplots()
 tam.plot()
-ax.set_xlim(0, 5)
+ax.set_xlim(0, 25)
+ax.set_ylim(0, 5)
 ta.plt.show()
