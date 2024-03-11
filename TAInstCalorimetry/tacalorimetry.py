@@ -10,9 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pysnooper
-from scipy import signal
-from scipy import integrate
-from scipy.interpolate import splrep, splev
+from scipy import integrate, signal
+from scipy.interpolate import splev, splrep
 
 from TAInstCalorimetry import utils
 
@@ -415,7 +414,7 @@ class Measurement:
 
         # set
         data.columns = new_columnames
-        
+
         # validate new column names
         if not "time_s" in new_columnames:
             # stop here
@@ -495,7 +494,7 @@ class Measurement:
         # get sample mass (if available)
         try:
             # get mass
-            mass = float(raw.iloc[3,3].replace(",", "."))
+            mass = float(raw.iloc[3, 3].replace(",", "."))
         except IndexError:
             # set mass to None
             mass = None
@@ -505,7 +504,7 @@ class Measurement:
         # get "reaction start" time (if available)
         try:
             # get "reaction start" time in seconds
-            _helper = data[data.iloc[:,2].str.lower() == "reaction start"].head(1)
+            _helper = data[data.iloc[:, 2].str.lower() == "reaction start"].head(1)
             # convert to float
             t0 = float(_helper[0].values[0])
         except Exception:
@@ -516,9 +515,9 @@ class Measurement:
 
         # remove all-Nan columns
         data = data.dropna(how="all", axis=1)
-        
+
         # restrict to first two columns
-        data = data.iloc[:,:2]
+        data = data.iloc[:, :2]
 
         # rename
         try:
@@ -538,14 +537,12 @@ class Measurement:
 
         # convert to same unit
         data["heat_flow_w"] = data["heat_flow_mw"] / 1000
-        
+
         # calculate cumulative heat flow
         data["heat_j"] = integrate.cumulative_trapezoid(
-                data["heat_flow_w"],
-                x=data["time_s"], 
-                initial=0
-                )
-        
+            data["heat_flow_w"], x=data["time_s"], initial=0
+        )
+
         # remove "heat_flow_w" column
         del data["heat_flow_mw"]
 
@@ -555,7 +552,7 @@ class Measurement:
 
         # calculate normalized heat flow and heat
         if mass:
-            data["normalized_heat_flow_w_g"] = data["heat_flow_w"] / mass            
+            data["normalized_heat_flow_w_g"] = data["heat_flow_w"] / mass
             data["normalized_heat_j_g"] = data["heat_j"] / mass
 
         # restrict to "time_s" > 0
@@ -734,17 +731,20 @@ class Measurement:
 
         except Exception as e:
             if show_info:
-                print("\n\n===============================================================")
-                print(f"{e} in file \'{pathlib.Path(file).name}\'")
-                print("Please, rename the data sheet to \'Raw data\' (device default).")
-                print("===============================================================\n\n")
+                print(
+                    "\n\n==============================================================="
+                )
+                print(f"{e} in file '{pathlib.Path(file).name}'")
+                print("Please, rename the data sheet to 'Raw data' (device default).")
+                print(
+                    "===============================================================\n\n"
+                )
 
             # log
             logging.info(f"\u2716 reading {file} FAILED.")
-            
+
             # return
             return None
-
 
     #
     # iterate samples
@@ -826,7 +826,7 @@ class Measurement:
         y_unit_milli=True,
         regex=None,
         show_info=True,
-        ax=None
+        ax=None,
     ):
         """
         plot  of
@@ -875,7 +875,6 @@ class Measurement:
         else:
             y_factor = 1
 
-        
         # if specific axis to plot to is specified
         if isinstance(ax, matplotlib.axes._axes.Axes):
             # iterate samples
@@ -922,7 +921,7 @@ class Measurement:
 
             # return ax
             return ax
-        
+
         # if no specific axis to plot to is specified
         else:
             # iterate samples
@@ -933,7 +932,7 @@ class Measurement:
                         # go to next
                         continue
                 # plot
-    
+
                 # "standard" plot --> individual or averaged
                 p_mean = plt.plot(
                     d["time_s"] * x_factor,
@@ -955,18 +954,18 @@ class Measurement:
                 except Exception:
                     # do nothing
                     pass
-    
+
             # legend
             plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
-    
+
             # limits
             plt.xlim(left=0)
             plt.ylim(bottom=0)
-    
+
             # add labels
             plt.xlabel(f"Age / [{t_unit}]")
             plt.ylabel(y_label)
-    
+
             # return ax
             return plt.gca()
 
@@ -1148,7 +1147,7 @@ class Measurement:
         show_plot=True,
         plt_right_s=2e5,
         plt_top=1e-2,
-        ax=None
+        ax=None,
     ) -> pd.DataFrame:
         """
         get DataFrame of peak characteristics.
@@ -1209,9 +1208,16 @@ class Measurement:
                 # if specific axis to plot to is specified
                 if isinstance(ax, matplotlib.axes._axes.Axes):
                     # plot
-                    ax.plot(data[_age_col], data[_target_col], label=pathlib.Path(sample).stem)
                     ax.plot(
-                        data[_age_col][peaks], data[_target_col][peaks], "x", color="red"
+                        data[_age_col],
+                        data[_target_col],
+                        label=pathlib.Path(sample).stem,
+                    )
+                    ax.plot(
+                        data[_age_col][peaks],
+                        data[_target_col][peaks],
+                        "x",
+                        color="red",
                     )
                     ax.vlines(
                         x=data[_age_col][peaks],
@@ -1234,7 +1240,10 @@ class Measurement:
                     # plot
                     plt.plot(data[_age_col], data[_target_col])
                     plt.plot(
-                        data[_age_col][peaks], data[_target_col][peaks], "x", color="red"
+                        data[_age_col][peaks],
+                        data[_target_col][peaks],
+                        "x",
+                        color="red",
                     )
                     plt.vlines(
                         x=data[_age_col][peaks],
@@ -1276,7 +1285,7 @@ class Measurement:
         if isinstance(ax, matplotlib.axes._axes.Axes):
             # return peak list and ax
             return peaks, ax
-        else: # return peak list only
+        else:  # return peak list only
             return peaks
 
     #
@@ -1292,7 +1301,7 @@ class Measurement:
         show_plot=False,
         exclude_discarded_time=False,
         regex=None,
-        ax=None
+        ax=None,
     ):
         """
         get peak onsets based on a criterion of minimum gradient
@@ -1337,10 +1346,7 @@ class Measurement:
 
             # calculate get gradient
             data["gradient"] = pd.Series(
-                np.gradient(
-                    data[target_col].rolling(rolling).mean(),
-                    data[age_col]
-                    )
+                np.gradient(data[target_col].rolling(rolling).mean(), data[age_col])
             )
 
             # get relevant points
@@ -1351,22 +1357,18 @@ class Measurement:
             characteristics = characteristics.query("gradient > @gradient_threshold")
             # consider first entry exclusively
             characteristics = characteristics.head(1)
-            
+
             # optional plotting
             if show_plot:
                 # if specific axis to plot to is specified
                 if isinstance(ax, matplotlib.axes._axes.Axes):
                     # plot heat flow curve
                     p = ax.plot(data[age_col], data[target_col])
-    
+
                     # add vertical lines
                     for _idx, _row in characteristics.iterrows():
                         # vline
-                        ax.axvline(
-                            _row.at[age_col], 
-                            color=p[0].get_color(), 
-                            alpha=0.3
-                            )
+                        ax.axvline(_row.at[age_col], color=p[0].get_color(), alpha=0.3)
                         # add "slope line"
                         ax.axline(
                             (_row.at[age_col], _row.at[target_col]),
@@ -1375,15 +1377,15 @@ class Measurement:
                             # color="k",
                             # linewidth=0.2
                             alpha=0.25,
-                            linestyle="--"
-                            )
-    
+                            linestyle="--",
+                        )
+
                     # cosmetics
                     # ax.set_xscale("log")
                     ax.set_title("Onset for " + pathlib.Path(sample).stem)
                     ax.set_xlabel(age_col)
                     ax.set_ylabel(target_col)
-    
+
                     ax.fill_between(
                         [ax.get_ylim()[0], time_discarded_s],
                         [ax.get_ylim()[0]] * 2,
@@ -1391,28 +1393,28 @@ class Measurement:
                         color="black",
                         alpha=0.35,
                     )
-    
+
                     # set axis limit
                     ax.set_xlim(left=100)
-                
+
                 else:
                     # plot heat flow curve
                     plt.plot(data[age_col], data[target_col])
-    
+
                     # add vertical lines
                     for _idx, _row in characteristics.iterrows():
                         # vline
                         plt.axvline(_row.at[age_col], color="red", alpha=0.3)
-    
+
                     # cosmetics
                     # plt.xscale("log")
                     plt.title("Onset for " + pathlib.Path(sample).stem)
                     plt.xlabel(age_col)
                     plt.ylabel(target_col)
-    
+
                     # get axis
                     ax = plt.gca()
-    
+
                     plt.fill_between(
                         [ax.get_ylim()[0], time_discarded_s],
                         [ax.get_ylim()[0]] * 2,
@@ -1420,7 +1422,7 @@ class Measurement:
                         color="black",
                         alpha=0.35,
                     )
-    
+
                     # set axis limit
                     plt.xlim(left=100)
 
@@ -1430,7 +1432,7 @@ class Measurement:
         # build overall list
         onset_characteristics = pd.concat(list_of_characteristics)
 
-        # return        
+        # return
         if isinstance(ax, matplotlib.axes._axes.Axes):
             # return onset characteristics and ax
             return onset_characteristics, ax
@@ -1438,21 +1440,20 @@ class Measurement:
             # return onset characteristics exclusively
             return onset_characteristics
 
-
     #
     # get maximum slope
     #
-    
+
     def get_maximum_slope(
         self,
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
         time_discarded_s=900,
-        rolling: str=None,
+        rolling: str = None,
         show_plot=False,
         exclude_discarded_time=False,
         regex=None,
-        use_first : bool=False
+        use_first: bool = False,
     ):
         """
         get maximum slope as a characteristic value
@@ -1465,9 +1466,9 @@ class Measurement:
         time_discarded_s : int | float, optional
             Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
         rolling : None | str, optional
-            Width of "rolling" window within which the values of "target_col" 
-            are averaged. A higher value will introduce a stronger smoothing 
-            effect. The default is The default is None., i.e. no smoothing via 
+            Width of "rolling" window within which the values of "target_col"
+            are averaged. A higher value will introduce a stronger smoothing
+            effect. The default is The default is None., i.e. no smoothing via
             a rolling window but "utils.fit_univariate_spline".
             In case of a rolling window defined using a str, use e.g. '15min'
          show_plot : bool, optional
@@ -1479,22 +1480,22 @@ class Measurement:
         Returns
         -------
         pd.DataFrame holding peak onset characterisitcs for each sample.
-    
+
         """
-    
+
         # init list of characteristics
         list_of_characteristics = []
-    
+
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
-    
+
             if exclude_discarded_time:
                 # exclude
                 data = data.query(f"{age_col} >= {time_discarded_s}")
-    
+
             # reset index
             data = data.reset_index(drop=True)
-            
+
             # define "smoothing" option
             if type(rolling) == str:
                 # covert to timedelta to allow for "rolling"
@@ -1509,62 +1510,54 @@ class Measurement:
                 data["smoothed"] = data["interpolated"]
 
             # calculate gradient
-            data["gradient"] = pd.Series(
-                np.gradient(
-                    data["smoothed"],
-                    data[age_col]                    
-                    )
-            )
-            
+            data["gradient"] = pd.Series(np.gradient(data["smoothed"], data[age_col]))
+
             # restrict to "first" maximum slope
             if use_first:
                 # calculate curvature
                 data["curvature"] = pd.Series(
-                    np.gradient(
-                        data["smoothed"],
-                        data[age_col]                    
-                        )
+                    np.gradient(data["smoothed"], data[age_col])
                 )
                 # filter for postive curvature (left bent)
                 data = data.query("curvature >= 0")
-    
+
             # get relevant points
             characteristics = data.copy()
             # discard initial time
             characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
             # drop NaNs
             characteristics = characteristics.dropna(subset=["gradient"])
-            
+
             # remaining non-NaN results?
             if characteristics.empty:
                 # go to next
                 continue
-            
+
             # get index corresponding to maximum gradient
             idx_max = characteristics["gradient"].idxmax()
-                
+
             # consider first entry exclusively
-            characteristics = characteristics.loc[idx_max,:].to_frame().T
-    
+            characteristics = characteristics.loc[idx_max, :].to_frame().T
+
             # optional plotting
             if show_plot:
                 # plot heat flow curve
                 plt.plot(data[age_col], data[target_col])
-    
+
                 # add vertical lines
                 for _idx, _row in characteristics.iterrows():
                     # vline
                     plt.axvline(_row.at[age_col], color="red", alpha=0.3)
-    
+
                 # cosmetics
                 plt.xscale("log")
                 plt.title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
                 plt.xlabel(age_col)
                 plt.ylabel(target_col)
-    
+
                 # get axis
                 ax = plt.gca()
-    
+
                 plt.fill_between(
                     [ax.get_ylim()[0], time_discarded_s],
                     [ax.get_ylim()[0]] * 2,
@@ -1572,28 +1565,29 @@ class Measurement:
                     color="black",
                     alpha=0.35,
                 )
-    
+
                 # set axis limit
                 plt.xlim(left=100)
                 plt.ylim(bottom=0)
-    
+
                 # show
                 plt.show()
-    
+
             # append to list
             list_of_characteristics.append(characteristics)
-    
+
         # build overall list
         max_slope_characteristics = pd.concat(list_of_characteristics)
 
         # return
         return max_slope_characteristics
 
-
     #
     # get reaction onset via maximum slope
     #
-    def get_peak_onset_via_max_slope(self, show_plot=False, cutoff_min=None, prominence=1e-3, ax=None):
+    def get_peak_onset_via_max_slope(
+        self, show_plot=False, cutoff_min=None, prominence=1e-3, ax=None
+    ):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
         during the dormant period. The characteristic time is inferred from
@@ -1612,86 +1606,100 @@ class Measurement:
         # get onsets
         max_slopes = self.get_maximum_slope()
         # % get dormant period HFs
-        dorm_hfs = self.get_dormant_period_heatflow(show_plot=False, cutoff_min=cutoff_min, prominence=prominence)
+        dorm_hfs = self.get_dormant_period_heatflow(
+            show_plot=False, cutoff_min=cutoff_min, prominence=prominence
+        )
 
         # init list
         list_onsets = []
-        
+
         # loop samples
         for i, row in max_slopes.iterrows():
 
             if show_plot:
-                
+
                 if isinstance(ax, matplotlib.axes._axes.Axes):
-                    # plot data            
+                    # plot data
                     ax = self.plot(
-                        t_unit="s",
-                        y_unit_milli=False,
-                        regex=row["sample_short"],
-                        ax=ax
-                        ) 
+                        t_unit="s", y_unit_milli=False, regex=row["sample_short"], ax=ax
+                    )
                     ax.axline(
                         (row["time_s"], row["normalized_heat_flow_w_g"]),
                         slope=row["gradient"],
-                        color="k"
-                        )
-                    ax.axhline(
-                        float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
-                        color="k"
+                        color="k",
                     )
-                                
+                    ax.axhline(
+                        float(
+                            dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                                "normalized_heat_flow_w_g"
+                            ]
+                        ),
+                        color="k",
+                    )
+
                 else:
-                    # plot data            
+                    # plot data
                     self.plot(
                         t_unit="s",
                         y_unit_milli=False,
                         regex=row["sample_short"],
-                        )
+                    )
                     # max slope line
                     plt.axline(
                         (row["time_s"], row["normalized_heat_flow_w_g"]),
                         slope=row["gradient"],
-                        color="k"
-                        )
+                        color="k",
+                    )
                     # dormant heat plot
                     plt.axhline(
-                        float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"]),
-                        color="k"
-                    )            
+                        float(
+                            dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                                "normalized_heat_flow_w_g"
+                            ]
+                        ),
+                        color="k",
+                    )
                     # guide to the eye line
                     plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
-            
+
             # calculate y-offset
-            t = row["normalized_heat_flow_w_g"] - row["time_s"]*row["gradient"]
+            t = row["normalized_heat_flow_w_g"] - row["time_s"] * row["gradient"]
             # calculate point of intersection
             x_intersect = (
-                float(dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]]["normalized_heat_flow_w_g"])-t
-                )/row["gradient"]
-                
+                float(
+                    dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                        "normalized_heat_flow_w_g"
+                    ]
+                )
+                - t
+            ) / row["gradient"]
+
             if show_plot:
                 # guide to the eye line
-                plt.axvline(x_intersect, color="red")               
+                plt.axvline(x_intersect, color="red")
                 # info text
                 plt.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
                 # ax limits
                 plt.xlim(0, 3e4)
-                plt.ylim(0.5*t, 1.5e-3)
+                plt.ylim(0.5 * t, 1.5e-3)
                 # title
-                plt.title(row["sample_short"])            
+                plt.title(row["sample_short"])
                 # show
                 plt.show()
-            
+
             # append to list
-            list_onsets.append({
-                "sample" : row["sample_short"], 
-                "onset_time_s" : x_intersect,
-                "onset_time_min" : x_intersect/60
-                })
-            
+            list_onsets.append(
+                {
+                    "sample": row["sample_short"],
+                    "onset_time_s": x_intersect,
+                    "onset_time_min": x_intersect / 60,
+                }
+            )
+
         # build overall dataframe to be returned
         onsets = pd.DataFrame(list_onsets)
-        
-        # return        
+
+        # return
         if isinstance(ax, matplotlib.axes._axes.Axes):
             # return onset characteristics and ax
             return onsets, ax
@@ -1699,14 +1707,18 @@ class Measurement:
             # return onset characteristics exclusively
             return onsets
 
-        
-
     #
     # get dormant period heatflow
     #
-    
-    def get_dormant_period_heatflow(self, regex: str=None, cutoff_min: int=5,
-            upper_dormant_thresh_w_g: float=0.002, prominence: float=1e-3, show_plot=False) -> pd.DataFrame:
+
+    def get_dormant_period_heatflow(
+        self,
+        regex: str = None,
+        cutoff_min: int = 5,
+        upper_dormant_thresh_w_g: float = 0.002,
+        prominence: float = 1e-3,
+        show_plot=False,
+    ) -> pd.DataFrame:
         """
         get dormant period heatflow
 
@@ -1726,75 +1738,76 @@ class Measurement:
         result : TYPE
             DESCRIPTION.
 
-        """        
-        
+        """
+
         # init results list
         list_dfs = []
-        
+
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
 
             # get peak as "right border"
             _peaks = self.get_peaks(
-                cutoff_min=cutoff_min, 
+                cutoff_min=cutoff_min,
                 regex=pathlib.Path(sample).name,
                 prominence=prominence,
-                show_plot=False
-                )
+                show_plot=False,
+            )
 
             # identify "dormant period" as range between initial spike
             # and first reaction peak
-            
+
             # discard points at early age
             data = data.query("time_s >= @cutoff_min * 60")
             if not _peaks.empty:
                 # discard points after the first peak
                 data = data.query('time_s <= @_peaks["time_s"].min()')
-            
+
             # reset index
             data = data.reset_index(drop=True)
-            
+
             if show_plot:
                 # plot
                 plt.plot(
                     data["time_s"],
                     data["normalized_heat_flow_w_g"],
                     linestyle="",
-                    marker="o"
-                    )
-            
+                    marker="o",
+                )
+
             # pick relevant points at minimum heat flow
-            data = data.iloc[data["normalized_heat_flow_w_g"].idxmin(),:].to_frame().T
-            
+            data = data.iloc[data["normalized_heat_flow_w_g"].idxmin(), :].to_frame().T
+
             if show_plot:
                 # guide to the eye lines
                 plt.axhline(float(data["normalized_heat_flow_w_g"]), color="red")
                 plt.axvline(float(data["time_s"]), color="red")
                 # indicate cutoff time
-                plt.axvspan(0, cutoff_min*60, color="black", alpha=0.5)
+                plt.axvspan(0, cutoff_min * 60, color="black", alpha=0.5)
                 # limits
                 plt.xlim(0, _peaks["time_s"].min())
                 plt.ylim(0, upper_dormant_thresh_w_g)
                 # title
                 plt.title(pathlib.Path(sample).stem)
-                # show            
+                # show
                 plt.show()
 
             # add to list
             list_dfs.append(data)
-         
+
         # convert to overall datafram
         result = pd.concat(list_dfs).reset_index(drop=True)
-        
+
         # return
         return result
-    
-    
+
     #
     # get ASTM C1679 characteristics
     #
-    
-    def get_astm_c1679_characteristics(self, individual: bool = False, cutoff_min: int = 15) -> pd.DataFrame:
+
+    def get_astm_c1679_characteristics(
+        self, individual: bool = False, cutoff_min: int = 15
+    ) -> pd.DataFrame:
         """
         get characteristics according to ASTM C1679. Compiles a list of data
         points at half-maximum "normalized heat flow", wherein the half maximum
@@ -1814,15 +1827,14 @@ class Measurement:
             DESCRIPTION.
 
         """
-        
-        
+
         # get peaks
         peaks = self.get_peaks(cutoff_min=cutoff_min)
         # sort peaks by ascending normalized heat flow
         peaks = peaks.sort_values(by="normalized_heat_flow_w_g", ascending=True)
         # select highest peak --> ASTM C1679
         peaks = peaks.groupby(by="sample").last()
-        
+
         # get data
         data = self.get_data()
 
@@ -1831,7 +1843,7 @@ class Measurement:
 
         # loop samples
         for sample, sample_data in self.iter_samples():
-            
+
             # pick sample data
             helper = data[data["sample"] == sample]
 
@@ -1840,35 +1852,33 @@ class Measurement:
                 helper = helper.iloc[0:1]
                 # manually set time to NaN to indicate that no peak was found
                 helper["time_s"] = np.NaN
-            
+
             else:
                 # restrict to times before the peak
-                helper = helper[helper["time_s"]
-                                <= peaks.at[sample, "time_s"]
-                                ]
-                
+                helper = helper[helper["time_s"] <= peaks.at[sample, "time_s"]]
+
                 # restrict to relevant heatflows the peak
                 if individual == True:
-                    helper = helper[helper["normalized_heat_flow_w_g"]
-                                    <= peaks.at[sample, "normalized_heat_flow_w_g"]*0.50
-                                    ]
+                    helper = helper[
+                        helper["normalized_heat_flow_w_g"]
+                        <= peaks.at[sample, "normalized_heat_flow_w_g"] * 0.50
+                    ]
                 else:
                     # use half-maximum average
-                    helper = helper[helper["normalized_heat_flow_w_g"]
-                                    <= peaks["normalized_heat_flow_w_g"].mean()*0.50
-                                    ]
-                    
-                
+                    helper = helper[
+                        helper["normalized_heat_flow_w_g"]
+                        <= peaks["normalized_heat_flow_w_g"].mean() * 0.50
+                    ]
+
                 # add to list of of selected points
             astm_times.append(helper.tail(1))
-                            
+
         # build overall DataFrame
         astm_times = pd.concat(astm_times)
-        
+
         # return
         return astm_times
-        
-    
+
     #
     # get data
     #
@@ -2247,16 +2257,20 @@ class Measurement:
     #
     # apply_tian_correction
     #
-    def apply_tian_correction(self, tau=300, smoothing=0):
+    def apply_tian_correction(
+        self, tau=300, window=11, polynom=3, spline_smoothing: float = 1e-9
+    ) -> None:
         """
         apply_tian_correction
 
         Parameters
         ----------
         tau : TYPE, optional
-            time constant to be applied for the correction. The value has to 
+            time constant to be applied for the correction. The value has to
             be determined experimentally. The default is 300.
-        smoothing : TYPE, optional
+        window : int,
+            Window size for the Savitzky-Golay Filter. Must be odd integer. The default is 11.
+        spline_smoothing : TYPE, optional
             smoothing value for spline. A value of 0 implies no modification
             of the experimental data. The default is 0.
 
@@ -2265,7 +2279,7 @@ class Measurement:
         None.
 
         """
-        
+
         # apply the correction for each sample
         for s, d in self.iter_samples():
             # get y-data
@@ -2274,44 +2288,49 @@ class Measurement:
             y = y.fillna(0)
             # get x-data
             x = d["time_s"]
-            
-            # Find the B-spline representation of a 1-D curve.
-            y = splrep(x, y, k=3, s=smoothing)
-            # Evaluate a B-spline or its derivatives
-            dydx = splev(x, y, der=1)
-            
-            # calculate corrected heatflow
-            norm_hf = dydx*tau + self._data.loc[
-                    self._data["sample"] == s, 
-                    "normalized_heat_flow_w_g"
+
+            dydx, dy2dx2 = utils.calculate_smoothed_heatflow_derivatives(
+                d, window=window, spline_smoothing=spline_smoothing
+            )
+
+            if isinstance(tau, int) or isinstance(tau, float):
+                # calculate corrected heatflow
+                norm_hf = (
+                    dydx * tau
+                    + self._data.loc[
+                        self._data["sample"] == s, "normalized_heat_flow_w_g"
                     ]
-            
+                )
+            elif isinstance(tau, list) and len(tau) == 2:
+                # calculate corrected heatflow
+                norm_hf = (
+                    dydx * (tau[0] + tau[1])
+                    + dy2dx2 * tau[0] * tau[1]
+                    + d["normalized_heat_flow_w_g"]
+                )
+
             self._data.loc[
-                self._data["sample"] == s,
-                "normalized_heat_flow_w_g_tian"
-                ] = norm_hf
-            
+                self._data["sample"] == s, "normalized_heat_flow_w_g_tian"
+            ] = norm_hf
+
             # calculate corresponding cumulative heat
-            self._data.loc[
-                self._data["sample"] == s,
-                "normalized_heat_j_g_tian"
-                ] = integrate.cumulative_trapezoid(norm_hf.fillna(0), x=x, initial=0)
-    
-    
+            self._data.loc[self._data["sample"] == s, "normalized_heat_j_g_tian"] = (
+                integrate.cumulative_trapezoid(norm_hf.fillna(0), x=x, initial=0)
+            )
+
     #
     # undo Tian-correction
     #
     def undo_tian_correction(self):
         """
-        undo_tian_correction; i.e. restore original data 
-        
+        undo_tian_correction; i.e. restore original data
+
 
         Returns
         -------
         None.
 
         """
-        
+
         # call original restore function
         self.undo_average_by_metadata()
-                     
