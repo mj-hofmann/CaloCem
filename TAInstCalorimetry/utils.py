@@ -60,7 +60,7 @@ def fit_univariate_spline(df, target_col, s=1e-6):
 
 def calculate_smoothed_heatflow_derivatives(
     df: pd.DataFrame, window: int = 11, polynom: int = 3, spline_smoothing: float = 1e-9
-) -> tuple[pd.Series, pd.Series]:
+) -> tuple:
     """
     calculate first and second derivative of heat flow
 
