@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
 from scipy.signal import convolve, gaussian
-
+from scipy.ndimage import median_filter
 
 #
 # conversion of DataFrame to float
@@ -57,6 +57,7 @@ def fit_univariate_spline(df, target_col, s=1e-6):
     return df
 
 
+
 def calculate_smoothed_heatflow_derivatives(
     df: pd.DataFrame, window: int = 11, polynom: int = 3, spline_smoothing: float = 1e-9
 ) -> tuple[pd.Series, pd.Series]:
@@ -96,14 +97,24 @@ def calculate_smoothed_heatflow_derivatives(
     )
     df["first_derivative"] = np.gradient(df["norm_hf_smoothed"], df["time_s"])
     df["first_derivative"] = df["first_derivative"].fillna(value=0)
-    # interpolate first derivative for better smoothing
-    f = UnivariateSpline(df["time_s"], df["first_derivative"], k=3, s=spline_smoothing)
-    df["interpolated_first_derivative"] = f(df["time_s"])
+    df["first_derivative"] = median_filter(df["first_derivative"], size=7)
+
     df["second_derivative"] = np.gradient(
-        df["interpolated_first_derivative"], df["time_s"]
+        df["first_derivative"], df["time_s"]
+    )
+    df["second_derivative"] = median_filter(df["second_derivative"], size=7)
+    # interpolate first derivative for better smoothing
+    df["second_derivative"] = non_uniform_savgol(
+        df["time_s"].values,
+        df["second_derivative"].values,
+        window=window,
+        polynom=polynom,
     )
 
-    return df["first_derivative"], df["second_derivative"]
+    f = UnivariateSpline(df["time_s"], df["second_derivative"], k=3, s=spline_smoothing, ext=1)
+    df["second_derivative_smoothed"] = f(df["time_s"])
+
+    return df["first_derivative"], df["second_derivative_smoothed"]
 
 
 # https://dsp.stackexchange.com/questions/1676/savitzky-golay-smoothing-filter-for-not-equally-spaced-data

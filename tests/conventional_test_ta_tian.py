@@ -13,7 +13,7 @@ datapath = parentfolder / "TAInstCalorimetry" / "DATA"
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
-    regex=r".*(insitu).*.csv",
+    regex=r".*(insitu_bm).*.csv",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -21,10 +21,11 @@ tam = ta.Measurement(
 
 # apply Tian-correction
 tam.apply_tian_correction(
-    tau=[216, 89],
-    window=21,
+    #tau=[216, 89],
+    tau=[235, 75],
+    window=13,
     polynom=3,
-    spline_smoothing=1e-8,
+    spline_smoothing=1e-11,
 )
 
 # loop samples
@@ -37,9 +38,7 @@ for sample, data in tam.iter_samples():
     )
 
 # set limit
-plt.xlim(0, 600)
-plt.ylim(
-    -0.1,
-)
+plt.xlim(0, 240)
+plt.ylim(-.1, 1)
 plt.ylabel("normalized_heat_flow")
 plt.show()
