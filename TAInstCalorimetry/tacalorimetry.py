@@ -493,8 +493,10 @@ class Measurement:
 
         # get sample mass (if available)
         try:
-            # get mass
-            mass = float(raw.iloc[3, 3].replace(",", "."))
+            # get mass, first row in 3rd column is the title
+            # the assumption is that the sample weight is one value on top of the 3rd column
+            mass_index = raw.index[raw.iloc[:, 3].notna()]
+            mass = float(raw.iloc[mass_index[1], 3])
         except IndexError:
             # set mass to None
             mass = None
