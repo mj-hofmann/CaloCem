@@ -1701,6 +1701,22 @@ class Measurement:
         # build overall dataframe to be returned
         onsets = pd.DataFrame(list_onsets)
 
+        # merge with dorm_hfs
+        onsets = onsets.merge(
+            dorm_hfs[["sample_short", "normalized_heat_flow_w_g", "normalized_heat_j_g"]],
+            left_on="sample",
+            right_on="sample_short",
+            how="left",
+        )
+
+        # rename
+        onsets = onsets.rename(
+            columns={
+                "normalized_heat_flow_w_g": "normalized_heat_flow_w_g_at_dorm_min",
+                "normalized_heat_j_g": "normalized_heat_j_g_at_dorm_min",
+            }
+        )
+
         # return
         if isinstance(ax, matplotlib.axes._axes.Axes):
             # return onset characteristics and ax
