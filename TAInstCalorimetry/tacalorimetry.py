@@ -143,7 +143,6 @@ class Measurement:
 
         # loop folder
         for f in os.listdir(folder):
-
             if not f.endswith((".xls", ".csv")):
                 # go to next
                 continue
@@ -762,7 +761,6 @@ class Measurement:
         """
 
         for sample, data in self._data.groupby(by="sample"):
-
             if regex:
                 if not re.findall(regex, sample):
                     # go to next
@@ -1021,7 +1019,6 @@ class Measurement:
 
         # loop category values
         for selections, _ in self._metadata.groupby(by=categories):
-
             if isinstance(selections, tuple):
                 # - if multiple categories to group by are specified -
                 # init helper DataFrame
@@ -1187,7 +1184,6 @@ class Measurement:
 
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
-
             # cutoff
             if cutoff_min:
                 # discard points at early age
@@ -1338,7 +1334,6 @@ class Measurement:
 
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
-
             if exclude_discarded_time:
                 # exclude
                 data = data.query(f"{age_col} >= {time_discarded_s}")
@@ -1446,7 +1441,7 @@ class Measurement:
     # get maximum slope
     #
 
-    def get_maximum_slope(
+    def get_maximum_slope_bak(
         self,
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
@@ -1490,7 +1485,6 @@ class Measurement:
 
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
-
             if exclude_discarded_time:
                 # exclude
                 data = data.query(f"{age_col} >= {time_discarded_s}")
@@ -1518,7 +1512,7 @@ class Measurement:
             if use_first:
                 # calculate curvature
                 data["curvature"] = pd.Series(
-                    np.gradient(data["smoothed"], data[age_col])
+                    np.gradient(data["gradient"], data[age_col])
                 )
                 # filter for postive curvature (left bent)
                 data = data.query("curvature >= 0")
@@ -1585,10 +1579,201 @@ class Measurement:
         return max_slope_characteristics
 
     #
+    # get maximum slope
+    #
+
+    def get_maximum_slope(
+        self,
+        target_col="normalized_heat_flow_w_g",
+        age_col="time_s",
+        time_discarded_s=900,
+        # rolling: str = None,
+        show_plot=False,
+        exclude_discarded_time=False,
+        regex=None,
+        use_first: bool = False,
+        use_largest_width=False,
+        window=21,
+        polynom=3,
+        spline_smoothing=5e-8,
+        prominence=5e-9,
+        distance=100,
+        width=20,
+        rel_height=0.05,
+        height=1e-9,
+    ):
+        """
+        get maximum slope as a characteristic value
+        Parameters
+        ----------
+        target_col : str, optional
+            measured quantity within which peak onsets are searched for. The default is "normalized_heat_flow_w_g"
+        age_col : str, optional
+            Time unit within which peak onsets are searched for. The default is "time_s"
+        time_discarded_s : int | float, optional
+            Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
+        rolling : None | str, optional
+            Width of "rolling" window within which the values of "target_col"
+            are averaged. A higher value will introduce a stronger smoothing
+            effect. The default is The default is None., i.e. no smoothing via
+            a rolling window but "utils.fit_univariate_spline".
+            In case of a rolling window defined using a str, use e.g. '15min'
+         show_plot : bool, optional
+            Flag whether or not to plot peak picking for each sample. The default is False.
+        exclude_discarded_time : bool, optional
+            Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
+        regex : str, optional
+            regex pattern to include only certain experimental result files during initialization. The default is None.
+        Returns
+        -------
+        pd.DataFrame holding peak onset characterisitcs for each sample.
+
+        """
+
+        # init list of characteristics
+        list_of_characteristics = []
+
+        # loop samples
+        for sample, data in self.iter_samples(regex=regex):
+            if exclude_discarded_time:
+                # exclude
+                data = data.query(f"{age_col} >= {time_discarded_s}")
+
+            # reset index
+            data = data.reset_index(drop=True)
+
+            data["gradient"], data["curvature"] = (
+                utils.calculate_smoothed_heatflow_derivatives(
+                    data,
+                    window=window,
+                    polynom=polynom,
+                    spline_smoothing_1st=spline_smoothing,
+                )
+            )
+
+            # get relevant points
+            characteristics = data.copy()
+            # drop NaNs
+            characteristics = characteristics.dropna(subset=["gradient"])
+            # discard initial time
+            characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
+
+            # resample to obtain equidistant data points
+            characteristics["datetime"] = pd.to_datetime(
+                characteristics[age_col],
+                unit="s",
+            )
+            characteristics = characteristics.set_index("datetime")
+            numerics = (
+                characteristics.select_dtypes("number")
+                .resample("5s")
+                .mean()
+                .interpolate("linear")
+            )
+            strings = (
+                characteristics.select_dtypes("object").resample("5s").first().ffill()
+            )
+            characteristics = pd.concat([numerics, strings], axis=1)
+
+            # remaining non-NaN results?
+            if characteristics.empty:
+                # go to next
+                continue
+
+            peak_list = signal.find_peaks(
+                characteristics["gradient"],
+                distance=distance,
+                width=width,
+                rel_height=rel_height,
+                prominence=prominence,
+                height=height,
+            )
+            # print(peak_list)
+            if use_first:
+                # get first found index
+                idx = peak_list[0][0]
+            else:
+                # determine maximum prominence
+                # max_prominence = peak_list[1]["prominences"].max()
+                # idx = peak_list[0]#characteristics["dydx"].idxmax()
+                # print(peak_list[1])
+                idx = peak_list[0]
+
+            # get index corresponding to maximum gradient
+
+            # consider first entry exclusively
+            if use_first:
+                characteristics = characteristics.iloc[idx, :].to_frame().T
+
+            elif use_largest_width:
+                peak_widths = peak_list[1]["widths"]
+                idx_max_width = np.argmax(peak_widths)
+                idx_max = peak_list[0][idx_max_width]
+                characteristics = characteristics.iloc[idx_max, :].to_frame().T
+                # print(peak_widths)
+
+            else:
+                characteristics = characteristics.iloc[idx, :]
+
+            # optional plotting
+            if show_plot:
+                # plot heat flow curve
+                plt.plot(data[age_col], data[target_col])
+
+                # add vertical lines
+                for _idx, _row in characteristics.iterrows():
+                    # vline
+                    plt.axvline(_row.at[age_col], color="green", alpha=0.3)
+
+                # cosmetics
+                plt.xscale("log")
+                plt.title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
+                plt.xlabel(age_col)
+                plt.ylabel(target_col)
+
+                # get axis
+                ax = plt.gca()
+
+                plt.fill_between(
+                    [ax.get_ylim()[0], time_discarded_s],
+                    [ax.get_ylim()[0]] * 2,
+                    [ax.get_ylim()[1]] * 2,
+                    color="black",
+                    alpha=0.35,
+                )
+
+                # set axis limit
+                plt.xlim(left=100)
+                plt.ylim(bottom=0)
+
+                # show
+                plt.show()
+
+            # append to list
+            list_of_characteristics.append(characteristics)
+
+        # build overall list
+        max_slope_characteristics = pd.concat(list_of_characteristics)
+
+        # return
+        return max_slope_characteristics
+
+    #
     # get reaction onset via maximum slope
     #
     def get_peak_onset_via_max_slope(
-        self, show_plot=False, cutoff_min=None, prominence=1e-3, ax=None
+        self,
+        show_plot=False,
+        cutoff_min=None,
+        prominence=1e-3,
+        ax=None,
+        window=21,
+        polynom=3,
+        spline_smoothing=5e-8,
+        width=10,
+        distance=100,
+        rel_height=0.05,
+        height=1e-9,
     ):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
@@ -1606,7 +1791,18 @@ class Measurement:
 
         """
         # get onsets
-        max_slopes = self.get_maximum_slope()
+        max_slopes = self.get_maximum_slope(
+            use_first=False,
+            window=window,
+            polynom=polynom,
+            use_largest_width=True,
+            spline_smoothing=spline_smoothing,
+            width=width,
+            distance=distance,
+            rel_height=rel_height,
+            prominence=1e-9,
+            height=1e-9,
+        )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
             show_plot=False, cutoff_min=cutoff_min, prominence=prominence
@@ -1617,9 +1813,7 @@ class Measurement:
 
         # loop samples
         for i, row in max_slopes.iterrows():
-
             if show_plot:
-
                 if isinstance(ax, matplotlib.axes._axes.Axes):
                     # plot data
                     ax = self.plot(
@@ -1675,15 +1869,20 @@ class Measurement:
                 )
                 - t
             ) / row["gradient"]
-
+            # get maximum time value
+            tmax = self._data.query("sample_short == @row['sample_short']")["time_s"].max()
+            # get maximum heat flow value
+            hmax = self._data.query("time_s > 3000 & sample_short == @row['sample_short']")[
+                "normalized_heat_flow_w_g"
+            ].max()
             if show_plot:
                 # guide to the eye line
                 plt.axvline(x_intersect, color="red")
                 # info text
                 plt.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
                 # ax limits
-                plt.xlim(0, 3e4)
-                plt.ylim(0.5 * t, 1.5e-3)
+                plt.xlim(0, tmax)
+                plt.ylim(0, hmax)
                 # title
                 plt.title(row["sample_short"])
                 # show
@@ -1703,7 +1902,9 @@ class Measurement:
 
         # merge with dorm_hfs
         onsets = onsets.merge(
-            dorm_hfs[["sample_short", "normalized_heat_flow_w_g", "normalized_heat_j_g"]],
+            dorm_hfs[
+                ["sample_short", "normalized_heat_flow_w_g", "normalized_heat_j_g"]
+            ],
             left_on="sample",
             right_on="sample_short",
             how="left",
@@ -1763,7 +1964,6 @@ class Measurement:
 
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
-
             # get peak as "right border"
             _peaks = self.get_peaks(
                 cutoff_min=cutoff_min,
@@ -1861,7 +2061,6 @@ class Measurement:
 
         # loop samples
         for sample, sample_data in self.iter_samples():
-
             # pick sample data
             helper = data[data["sample"] == sample]
 
