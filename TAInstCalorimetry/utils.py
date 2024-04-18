@@ -59,7 +59,7 @@ def fit_univariate_spline(df, target_col, s=1e-6):
 
 
 def calculate_smoothed_heatflow_derivatives(
-    df: pd.DataFrame, window: int = 11, polynom: int = 3, spline_smoothing: float = 1e-9
+    df: pd.DataFrame, window: int = 11, polynom: int = 3, spline_smoothing_1st= 2e-13, spline_smoothing_2nd: float = 1e-9
 ) -> tuple:
     """
     calculate first and second derivative of heat flow
@@ -98,6 +98,8 @@ def calculate_smoothed_heatflow_derivatives(
     df["first_derivative"] = np.gradient(df["norm_hf_smoothed"], df["time_s"])
     df["first_derivative"] = df["first_derivative"].fillna(value=0)
     df["first_derivative"] = median_filter(df["first_derivative"], size=7)
+    f = UnivariateSpline(df["time_s"], df["first_derivative"], k=3, s=spline_smoothing_1st, ext=1)
+    df["first_derivative_smoothed"] = f(df["time_s"])
 
     df["second_derivative"] = np.gradient(
         df["first_derivative"], df["time_s"]
@@ -111,10 +113,10 @@ def calculate_smoothed_heatflow_derivatives(
         polynom=polynom,
     )
 
-    f = UnivariateSpline(df["time_s"], df["second_derivative"], k=3, s=spline_smoothing, ext=1)
+    f = UnivariateSpline(df["time_s"], df["second_derivative"], k=3, s=spline_smoothing_2nd, ext=1)
     df["second_derivative_smoothed"] = f(df["time_s"])
 
-    return df["first_derivative"], df["second_derivative_smoothed"]
+    return df["first_derivative_smoothed"], df["second_derivative_smoothed"]
 
 
 # https://dsp.stackexchange.com/questions/1676/savitzky-golay-smoothing-filter-for-not-equally-spaced-data
