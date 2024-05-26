@@ -14,6 +14,8 @@ import pandas as pd
 import pysnooper
 from scipy import integrate, signal
 from scipy.interpolate import splev, splrep
+from scipy.ndimage import median_filter
+from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
 
 from TAInstCalorimetry import utils
 
@@ -2560,7 +2562,7 @@ class Measurement:
     # apply_tian_correction
     #
     def apply_tian_correction(
-        self, tau=300, window=11, polynom=3, spline_smoothing_1st: float = 1e-9, spline_smoothing_2nd: float = 1e-9
+        self, tianparams,# tau=300, window=11, polynom=3, spline_smoothing_1st: float = 1e-9, spline_smoothing_2nd: float = 1e-9
     ) -> None:
         """
         apply_tian_correction
@@ -2591,23 +2593,23 @@ class Measurement:
             # get x-data
             x = d["time_s"]
 
-            dydx, dy2dx2 = utils.calculate_smoothed_heatflow_derivatives(
-                d, window=window, spline_smoothing_1st=spline_smoothing_1st, spline_smoothing_2nd=spline_smoothing_2nd
+            dydx, dy2dx2 = calculate_smoothed_heatflow_derivatives(
+                d, tianparams, #window=window, spline_smoothing_1st=spline_smoothing_1st, spline_smoothing_2nd=spline_smoothing_2nd
             )
 
-            if isinstance(tau, int) or isinstance(tau, float):
+            if tianparams.tau_values["tau2"] == None:
                 # calculate corrected heatflow
                 norm_hf = (
-                    dydx * tau
+                    dydx * tianparams.tau_values["tau1"]
                     + self._data.loc[
                         self._data["sample"] == s, "normalized_heat_flow_w_g"
                     ]
                 )
-            elif isinstance(tau, list) and len(tau) == 2:
+            else:
                 # calculate corrected heatflow
                 norm_hf = (
-                    dydx * (tau[0] + tau[1])
-                    + dy2dx2 * tau[0] * tau[1]
+                    dydx * (tianparams.tau_values["tau1"] + tianparams.tau_values["tau2"])
+                    + dy2dx2 * tianparams.tau_values["tau1"] * tianparams.tau_values["tau2"]
                     + d["normalized_heat_flow_w_g"]
                 )
 
@@ -2653,7 +2655,89 @@ class TianParameters:
         """
         # set parameters
         self.mode = "simple"
-        self.tau = {"tau1"}
+        self.tau_values = {"tau1":300, "tau2":100}
         self.savgol = {"apply": False, "window": 11, "polynom": 3}
-        self.spline_interpolation = {"apply": True, "smoothing": 1e-9}
-        self.median_filter = {"apply": False, "window": 11}
+        self.spline_interpolation = {"apply": False, "smoothing_1st_deriv": 1e-9, "smoothing_2nd_deriv": 1e-9}
+        self.median_filter = {"apply": False, "size": 7}
+
+
+
+
+def calculate_smoothed_heatflow_derivatives(
+    df: pd.DataFrame,
+    tianparams: TianParameters,
+    # window: int = 11,
+    # polynom: int = 3,
+    # spline_smoothing_1st=2e-13,
+    # spline_smoothing_2nd: float = 1e-9,
+    # apply_savgol: bool = True,
+) -> tuple:
+    """
+    calculate first and second derivative of heat flow
+
+    Parameters
+    ----------
+    df : pandas DataFrame
+        A dataframe containing the calorimetry data.
+
+    TianParameters : TianParameters
+        TianParameters object containing the parameters for the Tian correction.
+
+    Returns
+    -------
+    df["first_derivative"] : pandas Series
+        First derivative of the heat flow.
+
+    df["second_derivative"] : pandas Series
+        Second derivative of the heat flow.
+
+    """
+
+    # calculate first derivative
+    if tianparams.savgol["apply"]:
+        df["norm_hf_smoothed"] = utils.non_uniform_savgol(
+            df["time_s"].values,
+            df["normalized_heat_flow_w_g"].values,
+            window=tianparams.savgol["window"],
+            polynom=tianparams.savgol["polynom"],
+        )
+        df["first_derivative"] = np.gradient(df["norm_hf_smoothed"], df["time_s"])
+    else:
+        df["first_derivative"] = np.gradient(df["normalized_heat_flow_w_g"], df["time_s"])
+        
+    df["first_derivative"] = df["first_derivative"].fillna(value=0)
+
+    if tianparams.median_filter["apply"]:
+        df["first_derivative"] = median_filter(df["first_derivative"], tianparams.median_filter["size"])
+
+    if tianparams.spline_interpolation["apply"]:
+        f = UnivariateSpline(
+            df["time_s"], df["first_derivative"], k=3, s=tianparams.spline_interpolation["smoothing_1st_deriv"], ext=1
+        )
+        df["first_derivative_smoothed"] = f(df["time_s"])
+    else:
+        df["first_derivative_smoothed"] = df["first_derivative"]
+
+    # calculate second derivative
+    df["second_derivative"] = np.gradient(df["first_derivative"], df["time_s"])
+
+    if tianparams.median_filter["apply"]:
+        df["second_derivative"] = median_filter(df["second_derivative"], tianparams.median_filter["size"])
+    if tianparams.savgol["apply"]:
+        # interpolate first derivative for better smoothing
+        df["second_derivative"] = utils.non_uniform_savgol(
+            df["time_s"].values,
+            df["second_derivative"].values,
+            window=tianparams.savgol["window"],
+            polynom=tianparams.savgol["polynom"],
+        )
+
+    if tianparams.spline_interpolation["apply"]:
+        f = UnivariateSpline(
+            df["time_s"], df["second_derivative"], k=3, s=tianparams.spline_interpolation["smoothing_2nd_deriv"], ext=1
+        )
+        df["second_derivative_smoothed"] = f(df["time_s"])
+    else:
+        df["second_derivative_smoothed"] = df["second_derivative"]
+
+    return df["first_derivative_smoothed"], df["second_derivative_smoothed"]
