@@ -1644,6 +1644,8 @@ class Measurement:
 
     def get_maximum_slope(
         self,
+        slopeparams,
+        tianparams,
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
         time_discarded_s=900,
@@ -1721,12 +1723,13 @@ class Measurement:
             data = data.reset_index(drop=True)
 
             data["gradient"], data["curvature"] = (
-                utils.calculate_smoothed_heatflow_derivatives(
+                calculate_smoothed_heatflow_derivatives(
                     data,
-                    window=self._savgol_window,
-                    polynom=self._savgol_polynom,
-                    spline_smoothing_1st=self._spline_smoothing,
-                    apply_savgol=apply_savgol,
+                    tianparams,
+                    # window=tianparam.#self._savgol_window,
+                    # polynom=#self._savgol_polynom,
+                    # spline_smoothing_1st=#self._spline_smoothing,
+                    # apply_savgol=#apply_savgol,
                 )
             )
 
@@ -1761,11 +1764,11 @@ class Measurement:
 
             peak_list = signal.find_peaks(
                 characteristics["gradient"],
-                distance=self._peak_distance,
-                width=self._peak_width,
-                rel_height=self._peak_rel_height,
-                prominence=self._peak_prominence,
-                height=self._peak_height,
+                distance=slopeparams.peak_distance,#self._peak_distance,
+                width=slopeparams.peak_width, #self._peak_width,
+                rel_height=slopeparams.peak_rel_height, #self._peak_rel_height,
+                prominence=slopeparams.peak_prominence, #self._peak_prominence,
+                height=slopeparams.peak_height, #self._peak_height,
             )
             # print(peak_list)
             if use_first:
@@ -2661,6 +2664,24 @@ class TianParameters:
         self.median_filter = {"apply": False, "size": 7}
 
 
+class SlopeDetectionParameters:
+    """
+    SlopeDetectionParameters
+    """
+    def __init__(self):
+        """
+        SlopeDetectionParameters
+        """
+        # set parameters
+        self.number_of_peak_chosen = 0
+        self.use_largest_width = False
+        self.use_largest_width_height = False
+        self.peak_prominence = 5e-9
+        self.peak_distance = 100   
+        self.peak_width = 20
+        self.peak_rel_height = 0.05
+        self.peak_height = 1e-9
+        #self.window = 21,
 
 
 def calculate_smoothed_heatflow_derivatives(
