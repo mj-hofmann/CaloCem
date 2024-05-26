@@ -4,6 +4,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
 from scipy.signal import convolve, gaussian
 from scipy.ndimage import median_filter
 
+
 #
 # conversion of DataFrame to float
 #
@@ -57,9 +58,13 @@ def fit_univariate_spline(df, target_col, s=1e-6):
     return df
 
 
-
 def calculate_smoothed_heatflow_derivatives(
-    df: pd.DataFrame, window: int = 11, polynom: int = 3, spline_smoothing_1st= 2e-13, spline_smoothing_2nd: float = 1e-9
+    df: pd.DataFrame,
+    window: int = 11,
+    polynom: int = 3,
+    spline_smoothing_1st=2e-13,
+    spline_smoothing_2nd: float = 1e-9,
+    apply_savgol: bool = True,
 ) -> tuple:
     """
     calculate first and second derivative of heat flow
@@ -89,31 +94,38 @@ def calculate_smoothed_heatflow_derivatives(
     """
 
     #
-    df["norm_hf_smoothed"] = non_uniform_savgol(
-        df["time_s"].values,
-        df["normalized_heat_flow_w_g"].values,
-        window=window,
-        polynom=polynom,
-    )
-    df["first_derivative"] = np.gradient(df["norm_hf_smoothed"], df["time_s"])
+    if apply_savgol:
+        df["norm_hf_smoothed"] = non_uniform_savgol(
+            df["time_s"].values,
+            df["normalized_heat_flow_w_g"].values,
+            window=window,
+            polynom=polynom,
+        )
+        df["first_derivative"] = np.gradient(df["norm_hf_smoothed"], df["time_s"])
+    else:
+        df["first_derivative"] = np.gradient(df["normalized_heat_flow_w_g"], df["time_s"])
+        
     df["first_derivative"] = df["first_derivative"].fillna(value=0)
     df["first_derivative"] = median_filter(df["first_derivative"], size=7)
-    f = UnivariateSpline(df["time_s"], df["first_derivative"], k=3, s=spline_smoothing_1st, ext=1)
+    f = UnivariateSpline(
+        df["time_s"], df["first_derivative"], k=3, s=spline_smoothing_1st, ext=1
+    )
     df["first_derivative_smoothed"] = f(df["time_s"])
 
-    df["second_derivative"] = np.gradient(
-        df["first_derivative"], df["time_s"]
-    )
+    df["second_derivative"] = np.gradient(df["first_derivative"], df["time_s"])
     df["second_derivative"] = median_filter(df["second_derivative"], size=7)
-    # interpolate first derivative for better smoothing
-    df["second_derivative"] = non_uniform_savgol(
-        df["time_s"].values,
-        df["second_derivative"].values,
-        window=window,
-        polynom=polynom,
-    )
+    if apply_savgol:
+        # interpolate first derivative for better smoothing
+        df["second_derivative"] = non_uniform_savgol(
+            df["time_s"].values,
+            df["second_derivative"].values,
+            window=window,
+            polynom=polynom,
+        )
 
-    f = UnivariateSpline(df["time_s"], df["second_derivative"], k=3, s=spline_smoothing_2nd, ext=1)
+    f = UnivariateSpline(
+        df["time_s"], df["second_derivative"], k=3, s=spline_smoothing_2nd, ext=1
+    )
     df["second_derivative_smoothed"] = f(df["time_s"])
 
     return df["first_derivative_smoothed"], df["second_derivative_smoothed"]

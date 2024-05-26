@@ -7,6 +7,8 @@ import re
 
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.pyplot
+import matplotlib.axes
 import numpy as np
 import pandas as pd
 import pysnooper
@@ -1299,7 +1301,7 @@ class Measurement:
         show_plot=False,
         exclude_discarded_time=False,
         regex=None,
-        ax=None,
+        ax:plt.Axes=None,
     ):
         """
         get peak onsets based on a criterion of minimum gradient
@@ -1579,6 +1581,62 @@ class Measurement:
         return max_slope_characteristics
 
     #
+    # Set parameters for savitzky-golay filter used during differentiation
+    #
+
+    def set_savgol_parameters(
+        self,
+        window=25,
+        polynom=3,
+    ):
+        """
+        set parameters for savitzky-golay filter used during differentiation
+        """
+
+        # set parameters
+        self._savgol_window = window
+        self._savgol_polynom = polynom
+
+    #
+    # Set parameters for spline interpolation used for smoothing during differentiation
+    #
+
+    def set_spline_parameters(
+        self,
+        smoothing=1e-11,
+    ):
+        """
+        set parameters for spline interpolation used for smoothing during differentiation
+        """
+            
+        # set parameters
+        self._spline_smoothing = smoothing
+        
+
+    #
+    # Set peak detection parameters
+    #
+
+    def set_peak_detection_parameters(
+        self,
+        prominence=1e-9,
+        distance=100,
+        width=20,
+        rel_height=0.05,
+        height=1e-9,
+    ):
+        """
+        set peak detection parameters
+        """
+            
+        # set parameters
+        self._peak_prominence = prominence
+        self._peak_distance = distance
+        self._peak_width = width
+        self._peak_rel_height = rel_height
+        self._peak_height = height
+
+    #
     # get maximum slope
     #
 
@@ -1593,6 +1651,7 @@ class Measurement:
         regex=None,
         use_first: bool = False,
         use_largest_width=False,
+        use_largest_width_height=False,
         window=21,
         polynom=3,
         spline_smoothing=5e-8,
@@ -1601,6 +1660,8 @@ class Measurement:
         width=20,
         rel_height=0.05,
         height=1e-9,
+        apply_savgol=True,
+        read_start_c3s=False,
     ):
         """
         get maximum slope as a characteristic value
@@ -1635,9 +1696,24 @@ class Measurement:
 
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
+            #print(sample)
+            sample_name = pathlib.Path(sample).stem 
+            #print(sample_name)
             if exclude_discarded_time:
                 # exclude
                 data = data.query(f"{age_col} >= {time_discarded_s}")
+
+            if read_start_c3s:
+                c3s_start_time_s = self._metadata.query(
+                    f"sample_number == '{sample_name}'"
+                )["t_c3s_min_s"].values[0]
+                c3s_end_time_s = self._metadata.query(
+                    f"sample_number == '{sample_name}'"
+                )["t_c3s_max_s"].values[0]
+                data = data.query(
+                    f"{age_col} >= {c3s_start_time_s} & {age_col} <= {c3s_end_time_s}"
+                )
+            
 
             # reset index
             data = data.reset_index(drop=True)
@@ -1645,9 +1721,10 @@ class Measurement:
             data["gradient"], data["curvature"] = (
                 utils.calculate_smoothed_heatflow_derivatives(
                     data,
-                    window=window,
-                    polynom=polynom,
-                    spline_smoothing_1st=spline_smoothing,
+                    window=self._savgol_window,
+                    polynom=self._savgol_polynom,
+                    spline_smoothing_1st=self._spline_smoothing,
+                    apply_savgol=apply_savgol,
                 )
             )
 
@@ -1682,11 +1759,11 @@ class Measurement:
 
             peak_list = signal.find_peaks(
                 characteristics["gradient"],
-                distance=distance,
-                width=width,
-                rel_height=rel_height,
-                prominence=prominence,
-                height=height,
+                distance=self._peak_distance,
+                width=self._peak_width,
+                rel_height=self._peak_rel_height,
+                prominence=self._peak_prominence,
+                height=self._peak_height,
             )
             # print(peak_list)
             if use_first:
@@ -1712,13 +1789,20 @@ class Measurement:
                 characteristics = characteristics.iloc[idx_max, :].to_frame().T
                 # print(peak_widths)
 
+            elif use_largest_width_height:
+                peak_width_height = peak_list[1]["width_heights"]
+                idx_max_width_height = np.argmax(peak_width_height)
+                idx_max = peak_list[0][idx_max_width_height]
+                characteristics = characteristics.iloc[idx_max, :].to_frame().T
+
             else:
                 characteristics = characteristics.iloc[idx, :]
 
             # optional plotting
             if show_plot:
                 # plot heat flow curve
-                plt.plot(data[age_col], data[target_col])
+                plt.plot(data[age_col], data[target_col], label=target_col)
+                plt.plot(data[age_col], data["gradient"]*1e3 + 0.001, label="gradient * 1e3 + 1mW")
 
                 # add vertical lines
                 for _idx, _row in characteristics.iterrows():
@@ -1730,6 +1814,7 @@ class Measurement:
                 plt.title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
                 plt.xlabel(age_col)
                 plt.ylabel(target_col)
+                plt.legend()
 
                 # get axis
                 ax = plt.gca()
@@ -1744,7 +1829,7 @@ class Measurement:
 
                 # set axis limit
                 plt.xlim(left=100)
-                plt.ylim(bottom=0)
+                plt.ylim(bottom=0, top=0.01)
 
                 # show
                 plt.show()
@@ -2475,7 +2560,7 @@ class Measurement:
     # apply_tian_correction
     #
     def apply_tian_correction(
-        self, tau=300, window=11, polynom=3, spline_smoothing: float = 1e-9
+        self, tau=300, window=11, polynom=3, spline_smoothing_1st: float = 1e-9, spline_smoothing_2nd: float = 1e-9
     ) -> None:
         """
         apply_tian_correction
@@ -2507,7 +2592,7 @@ class Measurement:
             x = d["time_s"]
 
             dydx, dy2dx2 = utils.calculate_smoothed_heatflow_derivatives(
-                d, window=window, spline_smoothing=spline_smoothing
+                d, window=window, spline_smoothing_1st=spline_smoothing_1st, spline_smoothing_2nd=spline_smoothing_2nd
             )
 
             if isinstance(tau, int) or isinstance(tau, float):
@@ -2530,6 +2615,11 @@ class Measurement:
                 self._data["sample"] == s, "normalized_heat_flow_w_g_tian"
             ] = norm_hf
 
+            self._data.loc[
+                self._data["sample"] == s, "gradient_normalized_heat_flow_w_g"
+            ] = dydx
+            
+
             # calculate corresponding cumulative heat
             self._data.loc[self._data["sample"] == s, "normalized_heat_j_g_tian"] = (
                 integrate.cumulative_trapezoid(norm_hf.fillna(0), x=x, initial=0)
@@ -2551,3 +2641,19 @@ class Measurement:
 
         # call original restore function
         self.undo_average_by_metadata()
+
+
+class TianParameters:
+    """
+    TianParameters
+    """
+    def __init__(self):
+        """
+        TianParameters
+        """
+        # set parameters
+        self.mode = "simple"
+        self.tau = {"tau1"}
+        self.savgol = {"apply": False, "window": 11, "polynom": 3}
+        self.spline_interpolation = {"apply": True, "smoothing": 1e-9}
+        self.median_filter = {"apply": False, "window": 11}
