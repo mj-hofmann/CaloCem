@@ -1857,6 +1857,8 @@ class Measurement:
     #
     def get_peak_onset_via_max_slope(
         self,
+        slopeparams,
+        tianparams,
         show_plot=False,
         cutoff_min=None,
         prominence=1e-3,
@@ -1886,6 +1888,8 @@ class Measurement:
         """
         # get onsets
         max_slopes = self.get_maximum_slope(
+            slopeparams,
+            tianparams,
             use_first=False,
             window=window,
             polynom=polynom,
@@ -1899,7 +1903,7 @@ class Measurement:
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
-            show_plot=False, cutoff_min=cutoff_min, prominence=prominence
+            slopeparams, cutoff_min=cutoff_min, prominence=prominence
         )
 
         # init list
@@ -2028,6 +2032,7 @@ class Measurement:
 
     def get_dormant_period_heatflow(
         self,
+        slopeparams,
         regex: str = None,
         cutoff_min: int = 5,
         upper_dormant_thresh_w_g: float = 0.002,
@@ -2064,7 +2069,7 @@ class Measurement:
             _peaks = self.get_peaks(
                 cutoff_min=cutoff_min,
                 regex=pathlib.Path(sample).name,
-                prominence=prominence,
+                prominence=slopeparams.peak_prominence, # prominence,
                 show_plot=False,
             )
 

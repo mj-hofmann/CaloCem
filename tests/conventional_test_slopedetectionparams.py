@@ -40,7 +40,10 @@ ax.plot(
 ax.plot(tam._data["time_s"], tam._data["normalized_heat_flow_w_g_tian"])
 # ax.set_xlim(0, 1000)
 ax.set_ylim(0,0.005)
+plt.show()
 # %%
 
 slopes = tam.get_maximum_slope(slopeparams=slopeparams, tianparams=tianparams, show_plot=True)
+
+onsets = tam.get_peak_onset_via_max_slope(slopeparams=slopeparams, tianparams=tianparams, show_plot=True, cutoff_min=30)
 # %%
