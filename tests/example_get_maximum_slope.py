@@ -10,7 +10,7 @@ datapath = Path(__file__).parent.parent / "TAInstCalorimetry" / "DATA"
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
-    regex=".*peak_detect.*",
+    regex=".*peak_detection*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -24,6 +24,7 @@ processparams = ta.ProcessingParameters()
 
 processparams.gradient_peak_prominence = 1e-9
 processparams.use_largest_gradient_peak_width = True
+processparams.gradient_peak_height = 1e-8
 processparams.spline_interpolation = {
     "apply": True,
     "smoothing_1st_deriv": 1e-11,
@@ -32,7 +33,7 @@ processparams.spline_interpolation = {
 }
 processparams.median_filter = {
     "apply": True,
-    "size": 5,
+    "size": 25,
 }
 
 

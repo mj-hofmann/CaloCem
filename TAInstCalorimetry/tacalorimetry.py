@@ -1738,10 +1738,10 @@ class Measurement:
             # drop NaNs
             characteristics = characteristics.dropna(subset=["gradient"])
             # discard initial time
-            characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}")
+            characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}").copy()
 
             # resample to obtain equidistant data points
-            characteristics["datetime"] = pd.to_datetime(
+            characteristics.loc[:,"datetime"] = pd.to_datetime(
                 characteristics[age_col],
                 unit="s",
             )
@@ -1917,6 +1917,35 @@ class Measurement:
 
         # loop samples
         for i, row in max_slopes.iterrows():
+            # calculate y-offset
+            t = row["normalized_heat_flow_w_g"] - row["time_s"] * row["gradient"]
+            # calculate point of intersection
+            x_intersect = (
+                float(
+                    dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                        "normalized_heat_flow_w_g"
+                    ]
+                )
+                - t
+            ) / row["gradient"]
+            # get maximum time value
+            tmax = self._data.query("sample_short == @row['sample_short']")[
+                "time_s"
+            ].max()
+            # get maximum heat flow value
+            hmax = self._data.query(
+                "time_s > 3000 & sample_short == @row['sample_short']"
+            )["normalized_heat_flow_w_g"].max()
+
+            # append to list
+            list_onsets.append(
+                {
+                    "sample": row["sample_short"],
+                    "onset_time_s": x_intersect,
+                    "onset_time_min": x_intersect / 60,
+                }
+            )
+
             if show_plot:
                 if isinstance(ax, matplotlib.axes._axes.Axes):
                     # plot data
@@ -1936,6 +1965,15 @@ class Measurement:
                         ),
                         color="k",
                     )
+                    # guide to the eye line
+                    ax.axvline(x_intersect, color="red")
+                    # info text
+                    ax.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
+                    # ax limits
+                    ax.set_xlim(0, tmax)
+                    ax.set_ylim(0, hmax)
+                    # title
+                    ax.set_title(row["sample_short"])
 
                 else:
                     # plot data
@@ -1961,47 +1999,16 @@ class Measurement:
                     )
                     # guide to the eye line
                     plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
-
-            # calculate y-offset
-            t = row["normalized_heat_flow_w_g"] - row["time_s"] * row["gradient"]
-            # calculate point of intersection
-            x_intersect = (
-                float(
-                    dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                        "normalized_heat_flow_w_g"
-                    ]
-                )
-                - t
-            ) / row["gradient"]
-            # get maximum time value
-            tmax = self._data.query("sample_short == @row['sample_short']")[
-                "time_s"
-            ].max()
-            # get maximum heat flow value
-            hmax = self._data.query(
-                "time_s > 3000 & sample_short == @row['sample_short']"
-            )["normalized_heat_flow_w_g"].max()
-            if show_plot:
-                # guide to the eye line
-                plt.axvline(x_intersect, color="red")
-                # info text
-                plt.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
-                # ax limits
-                plt.xlim(0, tmax)
-                plt.ylim(0, hmax)
-                # title
-                plt.title(row["sample_short"])
-                # show
-                plt.show()
-
-            # append to list
-            list_onsets.append(
-                {
-                    "sample": row["sample_short"],
-                    "onset_time_s": x_intersect,
-                    "onset_time_min": x_intersect / 60,
-                }
-            )
+                    # guide to the eye line
+                    plt.axvline(x_intersect, color="red")
+                    # info text
+                    plt.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
+                    # ax limits
+                    plt.xlim(0, tmax)
+                    plt.ylim(0, hmax)
+                    # title
+                    plt.title(row["sample_short"])
+                    plt.show()
 
         # build overall dataframe to be returned
         onsets = pd.DataFrame(list_onsets)
