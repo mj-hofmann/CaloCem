@@ -1144,6 +1144,7 @@ class Measurement:
     #
     def get_peaks(
         self,
+        processparams,
         target_col="normalized_heat_flow_w_g",
         regex=None,
         cutoff_min=None,
@@ -1191,9 +1192,9 @@ class Measurement:
         # loop samples
         for sample, data in self.iter_samples(regex=regex):
             # cutoff
-            if cutoff_min:
+            if processparams.cutoff_min:
                 # discard points at early age
-                data = data.query("time_s >= @cutoff_min * 60")
+                data = data.query("time_s >= @processparams.cutoff_min * 60")
 
             # reset index
             data = data.reset_index(drop=True)
@@ -1204,7 +1205,7 @@ class Measurement:
 
             # find peaks
             peaks, properties = signal.find_peaks(
-                data[_target_col], prominence=prominence, distance=distance
+                data[_target_col], prominence=processparams.peak_prominence, distance=processparams.peak_distance
             )
 
             # plot?
@@ -1634,10 +1635,10 @@ class Measurement:
 
         # set parameters
         self._peak_prominence = prominence
-        self._peak_distance = distance
-        self._peak_width = width
-        self._peak_rel_height = rel_height
-        self._peak_height = height
+        self._gradient_peak_distance = distance
+        self._gradient_peak_width = width
+        self._gradient_peak_rel_height = rel_height
+        self._gradient_peak_height = height
 
     #
     # get maximum slope
@@ -1645,8 +1646,7 @@ class Measurement:
 
     def get_maximum_slope(
         self,
-        slopeparams,
-        tianparams,
+        processparams,
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
         time_discarded_s=900,
@@ -1725,7 +1725,7 @@ class Measurement:
             data["gradient"], data["curvature"] = (
                 calculate_smoothed_heatflow_derivatives(
                     data,
-                    tianparams,
+                    processparams,
                     # window=tianparam.#self._savgol_window,
                     # polynom=#self._savgol_polynom,
                     # spline_smoothing_1st=#self._spline_smoothing,
@@ -1764,11 +1764,11 @@ class Measurement:
 
             peak_list = signal.find_peaks(
                 characteristics["gradient"],
-                distance=slopeparams.peak_distance,  # self._peak_distance,
-                width=slopeparams.peak_width,  # self._peak_width,
-                rel_height=slopeparams.peak_rel_height,  # self._peak_rel_height,
-                prominence=slopeparams.peak_prominence,  # self._peak_prominence,
-                height=slopeparams.peak_height,  # self._peak_height,
+                distance=processparams.gradient_peak_distance,  # self._gradient_peak_distance,
+                width=processparams.gradient_peak_width,  # self._gradient_peak_width,
+                rel_height=processparams.gradient_peak_rel_height,  # self._gradient_peak_rel_height,
+                prominence=processparams.gradient_peak_prominence,  # self._gradient_peak_prominence,
+                height=processparams.gradient_peak_height,  # self._gradient_peak_height,
             )
             # print(peak_list)
             if use_first:
@@ -1784,19 +1784,25 @@ class Measurement:
             # get index corresponding to maximum gradient
 
             # consider first entry exclusively
-            if use_first:
+            if processparams.use_first_detected_gradient_peak:
                 characteristics = characteristics.iloc[idx, :].to_frame().T
 
-            elif use_largest_width:
-                peak_widths = peak_list[1]["widths"]
-                idx_max_width = np.argmax(peak_widths)
+            elif processparams.use_largest_gradient_peak_width:
+                if len(peak_list[1]["widths"]) == 0:
+                    print("No peak found")
+                    continue
+                gradient_peak_widths = peak_list[1]["widths"]
+                idx_max_width = np.argmax(gradient_peak_widths)
                 idx_max = peak_list[0][idx_max_width]
                 characteristics = characteristics.iloc[idx_max, :].to_frame().T
-                # print(peak_widths)
+                # print(gradient_peak_widths)
 
-            elif use_largest_width_height:
-                peak_width_height = peak_list[1]["width_heights"]
-                idx_max_width_height = np.argmax(peak_width_height)
+            elif processparams.use_largest_gradient_peak_width_height:
+                if len(peak_list[1]["widths"]) == 0:
+                    print("No peak found")
+                    continue
+                gradient_peak_width_height = peak_list[1]["width_heights"]
+                idx_max_width_height = np.argmax(gradient_peak_width_height)
                 idx_max = peak_list[0][idx_max_width_height]
                 characteristics = characteristics.iloc[idx_max, :].to_frame().T
 
@@ -1809,8 +1815,8 @@ class Measurement:
                 plt.plot(data[age_col], data[target_col], label=target_col)
                 plt.plot(
                     data[age_col],
-                    data["gradient"] * 1e3 + 0.001,
-                    label="gradient * 1e3 + 1mW",
+                    data["gradient"] * 1e4 + 0.001,
+                    label="gradient * 1e4 + 1mW",
                 )
 
                 # add vertical lines
@@ -1849,6 +1855,8 @@ class Measurement:
         # build overall list
         max_slope_characteristics = pd.concat(list_of_characteristics)
 
+        if max_slope_characteristics.empty:
+            print("No maximum slope found, check you processing parameters")
         # return
         return max_slope_characteristics
 
@@ -1857,10 +1865,9 @@ class Measurement:
     #
     def get_peak_onset_via_max_slope(
         self,
-        slopeparams,
-        tianparams,
+        processparams,
         show_plot=False,
-        cutoff_min=None,
+        cutoff_min=5,
         prominence=1e-3,
         ax=None,
         window=21,
@@ -1888,12 +1895,11 @@ class Measurement:
         """
         # get onsets
         max_slopes = self.get_maximum_slope(
-            slopeparams,
-            tianparams,
+            processparams,
             use_first=False,
             window=window,
             polynom=polynom,
-            use_largest_width=True,
+            use_largest_width=False,
             spline_smoothing=spline_smoothing,
             width=width,
             distance=distance,
@@ -1903,7 +1909,7 @@ class Measurement:
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
-            slopeparams, cutoff_min=cutoff_min, prominence=prominence
+            processparams, #cutoff_min=cutoff_min, prominence=prominence
         )
 
         # init list
@@ -2032,10 +2038,11 @@ class Measurement:
 
     def get_dormant_period_heatflow(
         self,
-        slopeparams,
+        processparams,
         regex: str = None,
         cutoff_min: int = 5,
         upper_dormant_thresh_w_g: float = 0.002,
+        plot_right_boundary = 2e5,
         prominence: float = 1e-3,
         show_plot=False,
     ) -> pd.DataFrame:
@@ -2067,17 +2074,27 @@ class Measurement:
         for sample, data in self.iter_samples(regex=regex):
             # get peak as "right border"
             _peaks = self.get_peaks(
-                cutoff_min=cutoff_min,
+                processparams,
+                #cutoff_min=cutoff_min,
                 regex=pathlib.Path(sample).name,
-                prominence=slopeparams.peak_prominence, # prominence,
-                show_plot=False,
+                #prominence=processparams.gradient_peak_prominence, # prominence,
+                show_plot=True,
             )
 
             # identify "dormant period" as range between initial spike
             # and first reaction peak
 
+            if show_plot:
+                # plot
+                plt.plot(
+                    data["time_s"],
+                    data["normalized_heat_flow_w_g"],
+                    #linestyle="",
+                    #marker="o",
+                )
+
             # discard points at early age
-            data = data.query("time_s >= @cutoff_min * 60")
+            data = data.query("time_s >= @processparams.cutoff_min * 60")
             if not _peaks.empty:
                 # discard points after the first peak
                 data = data.query('time_s <= @_peaks["time_s"].min()')
@@ -2085,14 +2102,6 @@ class Measurement:
             # reset index
             data = data.reset_index(drop=True)
 
-            if show_plot:
-                # plot
-                plt.plot(
-                    data["time_s"],
-                    data["normalized_heat_flow_w_g"],
-                    linestyle="",
-                    marker="o",
-                )
 
             # pick relevant points at minimum heat flow
             data = data.iloc[data["normalized_heat_flow_w_g"].idxmin(), :].to_frame().T
@@ -2104,7 +2113,8 @@ class Measurement:
                 # indicate cutoff time
                 plt.axvspan(0, cutoff_min * 60, color="black", alpha=0.5)
                 # limits
-                plt.xlim(0, _peaks["time_s"].min())
+                # plt.xlim(0, _peaks["time_s"].min())
+                plt.xlim(0, plot_right_boundary)
                 plt.ylim(0, upper_dormant_thresh_w_g)
                 # title
                 plt.title(pathlib.Path(sample).stem)
@@ -2125,7 +2135,7 @@ class Measurement:
     #
 
     def get_astm_c1679_characteristics(
-        self, individual: bool = False, cutoff_min: int = 15
+        self, processparams, individual: bool = False, 
     ) -> pd.DataFrame:
         """
         get characteristics according to ASTM C1679. Compiles a list of data
@@ -2148,7 +2158,7 @@ class Measurement:
         """
 
         # get peaks
-        peaks = self.get_peaks(cutoff_min=cutoff_min)
+        peaks = self.get_peaks(processparams, plt_right_s=4e5)
         # sort peaks by ascending normalized heat flow
         peaks = peaks.sort_values(by="normalized_heat_flow_w_g", ascending=True)
         # select highest peak --> ASTM C1679
@@ -2577,7 +2587,7 @@ class Measurement:
     #
     def apply_tian_correction(
         self,
-        tianparams,  # tau=300, window=11, polynom=3, spline_smoothing_1st: float = 1e-9, spline_smoothing_2nd: float = 1e-9
+        processparams,  # tau=300, window=11, polynom=3, spline_smoothing_1st: float = 1e-9, spline_smoothing_2nd: float = 1e-9
     ) -> None:
         """
         apply_tian_correction
@@ -2610,13 +2620,13 @@ class Measurement:
 
             dydx, dy2dx2 = calculate_smoothed_heatflow_derivatives(
                 d,
-                tianparams,  # window=window, spline_smoothing_1st=spline_smoothing_1st, spline_smoothing_2nd=spline_smoothing_2nd
+                processparams,  # window=window, spline_smoothing_1st=spline_smoothing_1st, spline_smoothing_2nd=spline_smoothing_2nd
             )
 
-            if tianparams.tau_values["tau2"] == None:
+            if processparams.tau_values["tau2"] == None:
                 # calculate corrected heatflow
                 norm_hf = (
-                    dydx * tianparams.tau_values["tau1"]
+                    dydx * processparams.tau_values["tau1"]
                     + self._data.loc[
                         self._data["sample"] == s, "normalized_heat_flow_w_g"
                     ]
@@ -2625,10 +2635,10 @@ class Measurement:
                 # calculate corrected heatflow
                 norm_hf = (
                     dydx
-                    * (tianparams.tau_values["tau1"] + tianparams.tau_values["tau2"])
+                    * (processparams.tau_values["tau1"] + processparams.tau_values["tau2"])
                     + dy2dx2
-                    * tianparams.tau_values["tau1"]
-                    * tianparams.tau_values["tau2"]
+                    * processparams.tau_values["tau1"]
+                    * processparams.tau_values["tau2"]
                     + d["normalized_heat_flow_w_g"]
                 )
 
@@ -2663,14 +2673,15 @@ class Measurement:
         self.undo_average_by_metadata()
 
 @dataclass
-class TianParameters:
+class ProcessingParameters:
     """
-    TianParameters
+    ProcessingParameters
     """
 
-    # set parameters
-    mode = "simple"
+    # Tian parameters
     tau_values = {"tau1": 300, "tau2": 100}
+
+    # Derivative smoothing parameters
     savgol = {"apply": False, "window": 11, "polynom": 3}
     spline_interpolation = {
         "apply": False,
@@ -2678,32 +2689,31 @@ class TianParameters:
         "smoothing_2nd_deriv": 1e-9,
     }
     median_filter = {"apply": False, "size": 7}
-
-
-@dataclass
-class SlopeDetectionParameters:
-    """
-    SlopeDetectionParameters
-    """
-
-    # def __init__(self):
-    #     """
-    #     SlopeDetectionParameters
-    # """
-    # set parameters
-    number_of_peak_chosen = 0
-    use_largest_width: bool = False
-    use_largest_width_height: bool = False
-    peak_prominence: float = 5e-9
+    
+    # Peak and Slope detection parameters for direct determination of maxima in heat flow
+    peak_prominence: float = 1e-5 
     peak_distance: float = 100
-    peak_width: float = 20
-    peak_rel_height: float = 0.05
-    peak_height: float = 1e-9
+
+    # peak detection parameters for the gradient of the heat flow
+    # this is needed to fine tune detection of the maximum slope of the C3S hydration peak (or other peaks)
+    use_first_detected_gradient_peak = False
+    use_largest_gradient_peak_width: bool = False
+    use_largest_gradient_peak_width_height: bool = False
+    gradient_peak_prominence: float = 1e-9
+    gradient_peak_distance: float = 100
+    gradient_peak_width: float = 20
+    gradient_peak_rel_height: float = 0.05
+    gradient_peak_height: float = 1e-9
+
+    # plotting and processing
+    cutoff_min: int = 30
+
+
 
 
 def calculate_smoothed_heatflow_derivatives(
     df: pd.DataFrame,
-    tianparams: TianParameters,
+    processparams: ProcessingParameters,
     # window: int = 11,
     # polynom: int = 3,
     # spline_smoothing_1st=2e-13,
@@ -2732,12 +2742,12 @@ def calculate_smoothed_heatflow_derivatives(
     """
 
     # calculate first derivative
-    if tianparams.savgol["apply"]:
+    if processparams.savgol["apply"]:
         df["norm_hf_smoothed"] = utils.non_uniform_savgol(
             df["time_s"].values,
             df["normalized_heat_flow_w_g"].values,
-            window=tianparams.savgol["window"],
-            polynom=tianparams.savgol["polynom"],
+            window=processparams.savgol["window"],
+            polynom=processparams.savgol["polynom"],
         )
         df["first_derivative"] = np.gradient(df["norm_hf_smoothed"], df["time_s"])
     else:
@@ -2747,17 +2757,17 @@ def calculate_smoothed_heatflow_derivatives(
 
     df["first_derivative"] = df["first_derivative"].fillna(value=0)
 
-    if tianparams.median_filter["apply"]:
+    if processparams.median_filter["apply"]:
         df["first_derivative"] = median_filter(
-            df["first_derivative"], tianparams.median_filter["size"]
+            df["first_derivative"], processparams.median_filter["size"]
         )
 
-    if tianparams.spline_interpolation["apply"]:
+    if processparams.spline_interpolation["apply"]:
         f = UnivariateSpline(
             df["time_s"],
             df["first_derivative"],
             k=3,
-            s=tianparams.spline_interpolation["smoothing_1st_deriv"],
+            s=processparams.spline_interpolation["smoothing_1st_deriv"],
             ext=1,
         )
         df["first_derivative_smoothed"] = f(df["time_s"])
@@ -2767,25 +2777,25 @@ def calculate_smoothed_heatflow_derivatives(
     # calculate second derivative
     df["second_derivative"] = np.gradient(df["first_derivative"], df["time_s"])
 
-    if tianparams.median_filter["apply"]:
+    if processparams.median_filter["apply"]:
         df["second_derivative"] = median_filter(
-            df["second_derivative"], tianparams.median_filter["size"]
+            df["second_derivative"], processparams.median_filter["size"]
         )
-    if tianparams.savgol["apply"]:
+    if processparams.savgol["apply"]:
         # interpolate first derivative for better smoothing
         df["second_derivative"] = utils.non_uniform_savgol(
             df["time_s"].values,
             df["second_derivative"].values,
-            window=tianparams.savgol["window"],
-            polynom=tianparams.savgol["polynom"],
+            window=processparams.savgol["window"],
+            polynom=processparams.savgol["polynom"],
         )
 
-    if tianparams.spline_interpolation["apply"]:
+    if processparams.spline_interpolation["apply"]:
         f = UnivariateSpline(
             df["time_s"],
             df["second_derivative"],
             k=3,
-            s=tianparams.spline_interpolation["smoothing_2nd_deriv"],
+            s=processparams.spline_interpolation["smoothing_2nd_deriv"],
             ext=1,
         )
         df["second_derivative_smoothed"] = f(df["time_s"])
