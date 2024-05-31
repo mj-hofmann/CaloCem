@@ -1205,7 +1205,9 @@ class Measurement:
 
             # find peaks
             peaks, properties = signal.find_peaks(
-                data[_target_col], prominence=processparams.peak_prominence, distance=processparams.peak_distance
+                data[_target_col],
+                prominence=processparams.peak_prominence,
+                distance=processparams.peak_distance,
             )
 
             # plot?
@@ -1738,10 +1740,12 @@ class Measurement:
             # drop NaNs
             characteristics = characteristics.dropna(subset=["gradient"])
             # discard initial time
-            characteristics = characteristics.query(f"{age_col} >= {time_discarded_s}").copy()
+            characteristics = characteristics.query(
+                f"{age_col} >= {time_discarded_s}"
+            ).copy()
 
             # resample to obtain equidistant data points
-            characteristics.loc[:,"datetime"] = pd.to_datetime(
+            characteristics.loc[:, "datetime"] = pd.to_datetime(
                 characteristics[age_col],
                 unit="s",
             )
@@ -1861,6 +1865,138 @@ class Measurement:
         return max_slope_characteristics
 
     #
+    # get maximum slope
+    #
+
+    def get_maximum_slope_new(
+        self,
+        processparams,
+        target_col="normalized_heat_flow_w_g",
+        age_col="time_s",
+        time_discarded_s=900,
+        # rolling: str = None,
+        show_plot=False,
+        exclude_discarded_time=False,
+        regex=None,
+        read_start_c3s=False,
+    ):
+        """
+        get maximum slope as a characteristic value
+        Parameters
+        ----------
+        target_col : str, optional
+            measured quantity within which peak onsets are searched for. The default is "normalized_heat_flow_w_g"
+        age_col : str, optional
+            Time unit within which peak onsets are searched for. The default is "time_s"
+        time_discarded_s : int | float, optional
+            Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
+        rolling : None | str, optional
+            Width of "rolling" window within which the values of "target_col"
+            are averaged. A higher value will introduce a stronger smoothing
+            effect. The default is The default is None., i.e. no smoothing via
+            a rolling window but "utils.fit_univariate_spline".
+            In case of a rolling window defined using a str, use e.g. '15min'
+         show_plot : bool, optional
+            Flag whether or not to plot peak picking for each sample. The default is False.
+        exclude_discarded_time : bool, optional
+            Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
+        regex : str, optional
+            regex pattern to include only certain experimental result files during initialization. The default is None.
+        Returns
+        -------
+        pd.DataFrame holding peak onset characterisitcs for each sample.
+
+        """
+
+        # init list of characteristics
+        list_of_characteristics = []
+
+        # loop samples
+        for sample, data in self.iter_samples(regex=regex):
+            # print(sample)
+            sample_name = pathlib.Path(sample).stem
+            # print(sample_name)
+            if exclude_discarded_time:
+                # exclude
+                data = data.query(f"{age_col} >= {time_discarded_s}")
+
+            if read_start_c3s:
+                c3s_start_time_s = self._metadata.query(
+                    f"sample_number == '{sample_name}'"
+                )["t_c3s_min_s"].values[0]
+                c3s_end_time_s = self._metadata.query(
+                    f"sample_number == '{sample_name}'"
+                )["t_c3s_max_s"].values[0]
+                data = data.query(
+                    f"{age_col} >= {c3s_start_time_s} & {age_col} <= {c3s_end_time_s}"
+                )
+
+            processor = HeatFlowProcessor(processparams)
+
+            data = processor.make_equidistant(data)
+
+            if processparams.rolling_mean["apply"]:
+                data = processor.apply_rolling_mean(data)
+
+            data["gradient"], data["curvature"] = processor.calculate_heatflow_derivatives(
+                data
+            )
+
+            characteristics = processor.get_largest_slope(data, processparams)
+            if characteristics.empty:
+                continue
+
+            # optional plotting
+            if show_plot:
+                # plot heat flow curve
+                plt.plot(data[age_col], data[target_col], label=target_col)
+                plt.plot(
+                    data[age_col],
+                    data["gradient"] * 1e4 + 0.001,
+                    label="gradient * 1e4 + 1mW",
+                )
+
+                # add vertical lines
+                for _idx, _row in characteristics.iterrows():
+                    # vline
+                    plt.axvline(_row.at[age_col], color="green", alpha=0.3)
+
+                # cosmetics
+                plt.xscale("log")
+                plt.title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
+                plt.xlabel(age_col)
+                plt.ylabel(target_col)
+                plt.legend()
+
+                # get axis
+                ax = plt.gca()
+
+                plt.fill_between(
+                    [ax.get_ylim()[0], time_discarded_s],
+                    [ax.get_ylim()[0]] * 2,
+                    [ax.get_ylim()[1]] * 2,
+                    color="black",
+                    alpha=0.35,
+                )
+
+                # set axis limit
+                plt.xlim(left=100)
+                plt.ylim(bottom=0, top=0.01)
+
+                # show
+                plt.show()
+
+            # append to list
+            list_of_characteristics.append(characteristics)
+
+        # build overall list
+        max_slope_characteristics = pd.concat(list_of_characteristics)
+
+        if max_slope_characteristics.empty:
+            print("No maximum slope found, check you processing parameters")
+        # return
+        return max_slope_characteristics
+    #
     # get reaction onset via maximum slope
     #
     def get_peak_onset_via_max_slope(
@@ -1909,7 +2045,7 @@ class Measurement:
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
-            processparams, #cutoff_min=cutoff_min, prominence=prominence
+            processparams,  # cutoff_min=cutoff_min, prominence=prominence
         )
 
         # init list
@@ -2002,7 +2138,9 @@ class Measurement:
                     # guide to the eye line
                     plt.axvline(x_intersect, color="red")
                     # info text
-                    plt.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
+                    plt.text(
+                        x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red"
+                    )
                     # ax limits
                     plt.xlim(0, tmax)
                     plt.ylim(0, hmax)
@@ -2049,7 +2187,7 @@ class Measurement:
         regex: str = None,
         cutoff_min: int = 5,
         upper_dormant_thresh_w_g: float = 0.002,
-        plot_right_boundary = 2e5,
+        plot_right_boundary=2e5,
         prominence: float = 1e-3,
         show_plot=False,
     ) -> pd.DataFrame:
@@ -2082,9 +2220,9 @@ class Measurement:
             # get peak as "right border"
             _peaks = self.get_peaks(
                 processparams,
-                #cutoff_min=cutoff_min,
+                # cutoff_min=cutoff_min,
                 regex=pathlib.Path(sample).name,
-                #prominence=processparams.gradient_peak_prominence, # prominence,
+                # prominence=processparams.gradient_peak_prominence, # prominence,
                 show_plot=True,
             )
 
@@ -2096,8 +2234,8 @@ class Measurement:
                 plt.plot(
                     data["time_s"],
                     data["normalized_heat_flow_w_g"],
-                    #linestyle="",
-                    #marker="o",
+                    # linestyle="",
+                    # marker="o",
                 )
 
             # discard points at early age
@@ -2108,7 +2246,6 @@ class Measurement:
 
             # reset index
             data = data.reset_index(drop=True)
-
 
             # pick relevant points at minimum heat flow
             data = data.iloc[data["normalized_heat_flow_w_g"].idxmin(), :].to_frame().T
@@ -2142,7 +2279,9 @@ class Measurement:
     #
 
     def get_astm_c1679_characteristics(
-        self, processparams, individual: bool = False, 
+        self,
+        processparams,
+        individual: bool = False,
     ) -> pd.DataFrame:
         """
         get characteristics according to ASTM C1679. Compiles a list of data
@@ -2642,7 +2781,10 @@ class Measurement:
                 # calculate corrected heatflow
                 norm_hf = (
                     dydx
-                    * (processparams.tau_values["tau1"] + processparams.tau_values["tau2"])
+                    * (
+                        processparams.tau_values["tau1"]
+                        + processparams.tau_values["tau2"]
+                    )
                     + dy2dx2
                     * processparams.tau_values["tau1"]
                     * processparams.tau_values["tau2"]
@@ -2679,6 +2821,7 @@ class Measurement:
         # call original restore function
         self.undo_average_by_metadata()
 
+
 @dataclass
 class ProcessingParameters:
     """
@@ -2688,6 +2831,9 @@ class ProcessingParameters:
     # Tian parameters
     tau_values = {"tau1": 300, "tau2": 100}
 
+    # Rolling mean parameters for heat flow
+    rolling_mean = {"apply": False, "window": 11}
+
     # Derivative smoothing parameters
     savgol = {"apply": False, "window": 11, "polynom": 3}
     spline_interpolation = {
@@ -2696,9 +2842,9 @@ class ProcessingParameters:
         "smoothing_2nd_deriv": 1e-9,
     }
     median_filter = {"apply": False, "size": 7}
-    
+
     # Peak and Slope detection parameters for direct determination of maxima in heat flow
-    peak_prominence: float = 1e-5 
+    peak_prominence: float = 1e-5
     peak_distance: float = 100
 
     # peak detection parameters for the gradient of the heat flow
@@ -2714,8 +2860,6 @@ class ProcessingParameters:
 
     # plotting and processing
     cutoff_min: int = 30
-
-
 
 
 def calculate_smoothed_heatflow_derivatives(
@@ -2747,6 +2891,13 @@ def calculate_smoothed_heatflow_derivatives(
         Second derivative of the heat flow.
 
     """
+
+    # apply rolling mean to heat flow
+    if processparams.rolling_mean["apply"]:
+        df["td"] = pd.to_timedelta(df["time_s"], unit="s")
+        df["normalized_heat_flow_w_g"] = df.rolling(
+            processparams.rolling_mean["window"], on="td"
+        )["normalized_heat_flow_w_g"].mean()
 
     # calculate first derivative
     if processparams.savgol["apply"]:
@@ -2810,3 +2961,117 @@ def calculate_smoothed_heatflow_derivatives(
         df["second_derivative_smoothed"] = df["second_derivative"]
 
     return df["first_derivative_smoothed"], df["second_derivative_smoothed"]
+
+
+class HeatFlowProcessor:
+    def __init__(self, processparams: ProcessingParameters):
+        self.processparams = processparams
+
+    def get_largest_slope(self, df: pd.DataFrame, processparams: ProcessingParameters) -> pd.DataFrame:
+
+        peak_list = signal.find_peaks(
+            df["gradient"],
+            distance=processparams.gradient_peak_distance,
+            width=processparams.gradient_peak_width,  
+            rel_height=processparams.gradient_peak_rel_height,
+            prominence=processparams.gradient_peak_prominence,
+            height=processparams.gradient_peak_height,  
+        )
+
+        if len(peak_list[0]) == 0:
+            print("No peak in gradient found, check your ProcessingParameters")
+            return pd.DataFrame()
+
+        if processparams.use_first_detected_gradient_peak:
+            # get first found index
+            idx = peak_list[0][0]
+        else:
+            idx = peak_list[0]
+
+        # get index corresponding to maximum gradient
+
+        # consider first entry exclusively
+        if processparams.use_first_detected_gradient_peak:
+            df = df.iloc[idx, :].to_frame().T
+
+        elif processparams.use_largest_gradient_peak_width:
+            if len(peak_list[1]["widths"]) == 0:
+                print("No peak found")
+            else:
+                gradient_peak_widths = peak_list[1]["widths"]
+                idx_max_width = np.argmax(gradient_peak_widths)
+                idx_max = peak_list[0][idx_max_width]
+                df = df.iloc[idx_max, :].to_frame().T
+
+        elif processparams.use_largest_gradient_peak_width_height:
+            if len(peak_list[1]["widths"]) == 0:
+                print("No peak found")
+            else:
+                gradient_peak_width_height = peak_list[1]["width_heights"]
+                idx_max_width_height = np.argmax(gradient_peak_width_height)
+                idx_max = peak_list[0][idx_max_width_height]
+                df = df.iloc[idx_max, :].to_frame().T
+
+        else:
+            df = df.iloc[idx, :]
+
+        return df
+
+    def make_equidistant(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = df.reset_index(drop=True)
+        df["td"] = pd.to_timedelta(df["time_s"], unit="s")
+        resample = df.resample("10s", on="td")
+        string_cols = df.select_dtypes(include="object").columns
+        num_cols = df.select_dtypes(include="number").columns
+        resampled_stringcols = resample[string_cols].first().ffill()
+        resampled_numcols = resample[num_cols].mean().interpolate()
+        df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
+        return df
+
+    def apply_rolling_mean(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = df.reset_index(drop=True)
+        df["td"] = pd.to_timedelta(df["time_s"], unit="s")
+        df["normalized_heat_flow_w_g"] = df.rolling(
+            self.processparams.rolling_mean["window"], on="td"
+        )["normalized_heat_flow_w_g"].mean()
+        return df
+
+    def apply_median_filter(self, df: pd.DataFrame, deriv_order: str) -> pd.DataFrame:
+        df[deriv_order] = median_filter(
+            df[deriv_order], self.processparams.median_filter["size"]
+        )
+        return df
+
+    def apply_spline_interpolation(self, df: pd.DataFrame, deriv_order:str) -> pd.DataFrame:
+        f = UnivariateSpline(
+            df["time_s"],
+            df[deriv_order],
+            k=3,
+            s=self.processparams.spline_interpolation["smoothing_1st_deriv"],
+            ext=1,
+        )
+        df[deriv_order] = f(df["time_s"])
+        return df
+
+    def calculate_hf_derivative(self, df: pd.DataFrame, order:str) -> pd.DataFrame:
+        deriv_order = f"{order}_derivative"
+
+        df[deriv_order] = np.gradient(
+            df["normalized_heat_flow_w_g"], df["time_s"]
+        )
+
+        if self.processparams.median_filter["apply"]:
+            df = self.apply_median_filter(df, deriv_order)
+
+        if self.processparams.spline_interpolation["apply"]:
+            df = self.apply_spline_interpolation(df, deriv_order)
+        
+        return df
+
+    def calculate_heatflow_derivatives(self, df: pd.DataFrame) -> tuple:
+
+        df = self.calculate_hf_derivative(df, "first")
+        df = self.calculate_hf_derivative(df, "second")
+        
+
+        return df["first_derivative"], df["second_derivative"]
