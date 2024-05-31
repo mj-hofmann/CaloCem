@@ -8,29 +8,29 @@ import matplotlib.pyplot as plt
 import TAInstCalorimetry.tacalorimetry as ta
 
 datapath = Path(__file__).parent.parent / "TAInstCalorimetry" / "DATA"
-
-processparams = ta.ProcessingParameters()
-processparams.tau_values = {"tau1": 230, "tau2":70}
-processparams.median_filter["apply"] = True
-processparams.median_filter["size"] = 5
-processparams.spline_interpolation["apply"] = True
-processparams.spline_interpolation["smoothing_1st_deriv"] = 1e-11
-processparams.spline_interpolation["smoothing_2nd_deriv"] = 1e-10
-
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
     regex=r".*(insitu_bm).*.csv",
     show_info=True,
     auto_clean=False,
-    cold_start=True,
+    cold_start=False,
 )
+
+#%%
+processparams = ta.ProcessingParameters()
+processparams.tau_values = {"tau1": 230, "tau2": 80}
+processparams.median_filter["apply"] = True
+processparams.median_filter["size"] = 15
+processparams.spline_interpolation["apply"] = True
+processparams.spline_interpolation["smoothing_1st_deriv"] = 1e-10
+processparams.spline_interpolation["smoothing_2nd_deriv"] = 1e-10
 
 tam.apply_tian_correction(
     processparams=processparams,
 )
 
-#%%
+
 
 fig, ax = plt.subplots()
 for name, group in tam._data.groupby("sample_short"):

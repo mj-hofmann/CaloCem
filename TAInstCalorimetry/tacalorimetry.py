@@ -1457,7 +1457,6 @@ class Measurement:
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
         time_discarded_s=900,
-        # rolling: str = None,
         show_plot=False,
         exclude_discarded_time=False,
         regex=None,
@@ -1503,6 +1502,7 @@ class Measurement:
                 # exclude
                 data = data.query(f"{age_col} >= {time_discarded_s}")
 
+            # manual definition of start time to look for c3s - in case auto peak detection becomes difficult
             if read_start_c3s:
                 c3s_start_time_s = self._metadata.query(
                     f"sample_number == '{sample_name}'"
@@ -1579,6 +1579,7 @@ class Measurement:
             print("No maximum slope found, check you processing parameters")
         # return
         return max_slope_characteristics
+
     #
     # get reaction onset via maximum slope
     #
@@ -1586,16 +1587,7 @@ class Measurement:
         self,
         processparams,
         show_plot=False,
-        cutoff_min=5,
-        prominence=1e-3,
         ax=None,
-        window=21,
-        polynom=3,
-        spline_smoothing=5e-8,
-        width=10,
-        distance=100,
-        rel_height=0.05,
-        height=1e-9,
     ):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
@@ -1615,16 +1607,6 @@ class Measurement:
         # get onsets
         max_slopes = self.get_maximum_slope(
             processparams,
-            use_first=False,
-            window=window,
-            polynom=polynom,
-            use_largest_width=False,
-            spline_smoothing=spline_smoothing,
-            width=width,
-            distance=distance,
-            rel_height=rel_height,
-            prominence=1e-9,
-            height=1e-9,
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
@@ -2346,11 +2328,10 @@ class Measurement:
             y = y.fillna(0)
             # get x-data
             x = d["time_s"]
+            
+            processor = HeatFlowProcessor(processparams)
 
-            dydx, dy2dx2 = calculate_smoothed_heatflow_derivatives(
-                d,
-                processparams,  # window=window, spline_smoothing_1st=spline_smoothing_1st, spline_smoothing_2nd=spline_smoothing_2nd
-            )
+            dydx, dy2dx2 = processor.calculate_heatflow_derivatives(d)
 
             if processparams.tau_values["tau2"] == None:
                 # calculate corrected heatflow
@@ -2538,14 +2519,20 @@ class HeatFlowProcessor:
     def calculate_hf_derivative(self, df: pd.DataFrame, order:str) -> pd.DataFrame:
         deriv_order = f"{order}_derivative"
 
-        df[deriv_order] = np.gradient(
-            df["normalized_heat_flow_w_g"], df["time_s"]
-        )
-
+        if order == "first":
+            df[deriv_order] = np.gradient(
+                df["normalized_heat_flow_w_g"], df["time_s"]
+            )
+        elif order == "second":
+            df[deriv_order] = np.gradient(
+                df["first_derivative"], df["time_s"]
+            )
+            
         if self.processparams.median_filter["apply"]:
             df = self.apply_median_filter(df, deriv_order)
 
         if self.processparams.spline_interpolation["apply"]:
+            df = df.dropna(subset=[deriv_order])
             df = self.apply_spline_interpolation(df, deriv_order)
         
         return df

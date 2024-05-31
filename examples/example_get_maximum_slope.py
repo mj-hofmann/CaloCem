@@ -39,7 +39,7 @@ processparams.median_filter = {
 
 
 # get peak onsets via alternative method
-onsets_spline = tam.get_maximum_slope_new(
+onsets_spline = tam.get_maximum_slope(
     processparams=processparams,
     show_plot=True,
 )
