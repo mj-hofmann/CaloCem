@@ -1071,7 +1071,7 @@ class Measurement:
             # convert target time to seconds
             target_s = 3600 * target_h
             # helper
-            _helper = df.query("time_s >= @target_s").head(1)
+            _helper = df.query("time_s <= @target_s").tail(1)
             # get heat at target time
             hf_at_target = float(_helper["normalized_heat_j_g"].values[0])
 
@@ -2527,7 +2527,7 @@ class HeatFlowProcessor:
             df[deriv_order] = np.gradient(
                 df["first_derivative"], df["time_s"]
             )
-            
+
         if self.processparams.median_filter["apply"]:
             df = self.apply_median_filter(df, deriv_order)
 
