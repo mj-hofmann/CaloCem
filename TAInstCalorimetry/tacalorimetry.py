@@ -1102,7 +1102,8 @@ class Measurement:
             results = (
                 self._data.groupby(by="sample")
                 .apply(
-                    lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min)
+                    lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min),
+                    include_groups=False
                 )
                 .reset_index(level=0)
             )
@@ -1123,7 +1124,8 @@ class Measurement:
                     .apply(
                         lambda x: applicable(
                             x, target_h=this_target_h, cutoff_min=cutoff_min
-                        )
+                        ),
+                        include_groups=False,
                     )
                     .reset_index(level=0)
                 )
