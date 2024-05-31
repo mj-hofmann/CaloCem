@@ -11,7 +11,7 @@ datapath = parentfolder / "TAInstCalorimetry" / "DATA"
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
-    regex=r"myexp[1-4]",
+    regex=r"myexp[1-3].csv",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -29,8 +29,6 @@ for i, grad in enumerate([5e-9, 3e-8, 7e-8]):
     # get and show onsets
     _, ax = tam.get_peak_onsets(
         ax=axs[i],
-        # ax=None,
-        # regex="c3a",
         gradient_threshold=grad,
         show_plot=True
         )
