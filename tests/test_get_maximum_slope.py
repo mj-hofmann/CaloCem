@@ -24,9 +24,10 @@ def test_get_maximum_slope():
     tam = tacalorimetry.Measurement(path, auto_clean=False, show_info=True)
     
     tacalorimetry.plt.ylim(0, 0.01)
-    
+
+    processparams = tacalorimetry.ProcessingParameters() 
     # get cumulated heats
-    max_slopes = tam.get_maximum_slope()
+    max_slopes = tam.get_maximum_slope(processparams)
     
     # check
     assert isinstance(max_slopes, tacalorimetry.pd.DataFrame)

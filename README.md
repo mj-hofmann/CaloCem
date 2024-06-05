@@ -6,6 +6,9 @@ After collecting multiple experimental results files from a TAM Air calorimeter 
 
 *Note: **TAInstCalorimetry** has been developed without involvement of **TA Instruments** and is thus independent from the company and its software.*
 
+## Documentation
+The full documentation can be found [Here](https://mj-hofmann.github.io/TAInstCalorimetry/)
+
 ## Info / Downloads
 
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/tainstcalorimetry.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry)

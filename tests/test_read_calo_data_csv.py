@@ -8,21 +8,20 @@ from TAInstCalorimetry import tacalorimetry
 @pytest.mark.parametrize(
     "file, expected",
     [
-        ("opc_3.csv", 322461),
         ("c3a.csv", 173873),
         (
-            "TEST_CALO_Gen1+2.csv",
+            "gen1_calofile.csv",
             None,
         ),  # multiples samples in one file?  --> do nothing / return 0
-        ("TEST_CALO_Gen3.csv", 172799),
+        ("gen3_calofile.csv", 172799),
         ("calorimetry_data_1.csv", 296830),  # comma sep
         ("calorimetry_data_2.csv", 277199),
         ("calorimetry_data_3.csv", 296820),  # comma sep
         ("calorimetry_data_4.csv", 277199),
         ("calorimetry_data_5.csv", 277199),
-        ("1stgen.csv", 264470),  # in-situ first gen file
-        ("1stgen_2.csv", 263750),  # in-situ first gen file
-        ("MOD_myexp1.csv", 259040),  # comma sep ("corrupt" due to 2 missing values)
+        ("gen1_calofile3.csv", 264470),  # in-situ first gen file
+        ("gen1_calofile2.csv", 263750),  # in-situ first gen file
+        ("corrupt_example.csv", 259040),  # comma sep ("corrupt" due to 2 missing values)
     ],
 )
 def test_last_time_entry(file, expected):

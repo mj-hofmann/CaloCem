@@ -16,9 +16,9 @@ from TAInstCalorimetry import tacalorimetry
 @pytest.mark.parametrize(
     "test_input,expected",
     [
-        ("MOD_OPC_1.xls", None),
-        ("OPC_1.xls", 499440),
-        ("OPC_2.xls", 336000),
+        ("excel_example1.xls", None),
+        ("excel_example2.xls", 499440),
+        ("excel_example3.xls", 336000),
     ],
 )
 @pysnooper.snoop()

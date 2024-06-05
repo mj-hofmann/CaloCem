@@ -7,6 +7,7 @@ on [PyPI](https://pypi.org/project/tainstcalorimetry/).
 The documentation consists of two separate parts:
 
 * [How-To Guides](how-to-guide.md)
+* [Example Use Cases](use-cases.md)
 * [Reference](reference.md)
 
 ???+ warning
