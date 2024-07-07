@@ -107,12 +107,26 @@ plt.show()
 
 ## Processing Paramter Considerations
 
-If only one Tau value is defined, the correction algorithm will only consider one 
+If only one Tau value is defined, the correction algorithm will only consider this $\tau$ value and the data will be corrected according to 
 
 \[
-\exp(t/\tau_1)
+P(t) = \varepsilon \left[ U(t) + \tau \frac{dU(t)}{dt} \right]
 \]
 
+If two values for $\tau$ are provided, the data will be corrected considering both values.
+
+\[
+P(t) = \varepsilon \left[ U(t) + (\tau_1+\tau_2) \frac{dU(t)}{dt} + \tau_1\tau_2 \frac{d^2U}{dt^2} \right]
+\]
+
+The actual implementation of the correction algorithm is not based on the voltage $U$ but on the heat flow. 
+In most cases, the exported data does not contain the raw voltage data but the heat flow data which has been obtained in the instrument software with the experimentally determined value for $\varepsilon$.
+
+Therefore, the second equation reads like
+
+\[
+\dot{Q}_{Tian}(t) =  \dot{Q}(t) + (\tau_1+\tau_2) \frac{\dot{Q}}{dt} + \tau_1\tau_2 \frac{d^2\dot{Q}}{dt^2} 
+\]
 
 ```python
 
