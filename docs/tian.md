@@ -1,10 +1,14 @@
 
 
+<<<<<<< HEAD
 # Tian Correction
 
 ## Example Workflow Two Tau Constants
 
 ### Load the Data
+=======
+## Tian Correction
+>>>>>>> origin/main
 
 For fast reactions, e.g., reactions occuring during the first minutes of cement hydration, the thermal inertia of the calorimeter significantly broadens the heat flow signal. 
 If the characteristic time constants are determined experimentally, a Tian correction can be applied to the heat flow data.
@@ -37,8 +41,11 @@ tam = ta.Measurement(
 
 ```
 
+<<<<<<< HEAD
 ### Define the Processing Parameters
 
+=======
+>>>>>>> origin/main
 In the next step, we need to define a few parameters which are necessary for the Tian correction. 
 Therefore we create a ProcessingParameters object which we call `processparams` in this case.
 The `processparams` object has a number of attributes which we can define.
@@ -58,8 +65,11 @@ processparams.spline_interpolation.smoothing_1st_deriv = 1e-10
 processparams.spline_interpolation.smoothing_2nd_deriv = 1e-10
 ```
 
+<<<<<<< HEAD
 ### Apply the Tian Correction
 
+=======
+>>>>>>> origin/main
 Next we apply the Tian correction by calling the method `apply_tian_correction()`.
 We pass the `processparams` object defined above to the method.
 
@@ -71,7 +81,10 @@ tam.apply_tian_correction(
 
 ```
 
+<<<<<<< HEAD
 ### Plot the Data
+=======
+>>>>>>> origin/main
 Finally, we can get the Pandas dataframe containing the calorimetric data by calling `get_data()`.
 Using the `df` DataFrame we can plot the calorimetry data using well-known Matplotlib methods.
 
