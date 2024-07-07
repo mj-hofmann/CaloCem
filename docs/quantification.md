@@ -59,3 +59,27 @@ The dataframe looks like this:
 
 ## Maximum Slope (of C3S Reaction) Detection
 
+Programmatic, automatic detection the maximum slope can be a little tricky.
+The first example is straightforward and looks a normal Portland cement hydration case.
+Assuming that the data is already loaded, we can inistantiate the ProcessingParameters object.
+The algorithm detects the maxima of the gradient of the heat flow.
+It is therefore very useful to apply a little smoothing to the first derivative.
+
+```python
+
+processparams = ta.ProcessingParameters()
+processparams.spline_interpolation.apply = True
+processparams.spline_interpolation.smoothing_1st_deriv = 1e-12
+
+# get peak onsets via alternative method
+fig, ax = ta.plt.subplots()
+onsets_spline = tam.get_maximum_slope(
+    processparams=processparams,
+    show_plot=True,
+    ax = ax
+)
+```
+If we set the parameter `show_plot` to `True`, we get a nice visual feedback on the gradient and the detected maximum slope (as a green line).
+The gradient is multiplied by a factor of 10.000 and shifted upwards.
+
+![Max Slope Detection](assets/example_detect_maximum_slope.png)

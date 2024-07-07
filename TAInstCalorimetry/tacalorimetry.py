@@ -1483,7 +1483,6 @@ class Measurement:
     def get_maximum_slope(
         self,
         processparams,
-        ax,
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
         time_discarded_s=900,
@@ -1491,6 +1490,7 @@ class Measurement:
         exclude_discarded_time=False,
         regex=None,
         read_start_c3s=False,
+        ax = None,
     ):
         """
         get maximum slope as a characteristic value

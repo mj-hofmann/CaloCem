@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import TAInstCalorimetry.tacalorimetry as ta
 
 datapath = Path(__file__).parent.parent / "TAInstCalorimetry" / "DATA"
+assetpath = Path(__file__).parent.parent / "docs" / "assets"
 
 # experiments via class
 tam = ta.Measurement(
@@ -30,5 +31,5 @@ onsets_spline = tam.get_maximum_slope(
     show_plot=True,
     ax = ax
 )
-
+ta.plt.savefig(assetpath / "example_detect_maximum_slope.png")
 # %%
