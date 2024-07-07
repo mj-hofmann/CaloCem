@@ -105,7 +105,7 @@ plt.show()
 ![Tian Correction Example](assets/tian_correction.png)
 
 
-## Processing Paramter Considerations
+## One or Two Tau Values
 
 If only one Tau value is defined, the correction algorithm will only consider this $\tau$ value and the data will be corrected according to 
 
@@ -128,11 +128,28 @@ Therefore, the second equation reads like
 \dot{Q}_{Tian}(t) =  \dot{Q}(t) + (\tau_1+\tau_2) \frac{\dot{Q}}{dt} + \tau_1\tau_2 \frac{d^2\dot{Q}}{dt^2} 
 \]
 
+In pratical terms, if only the attribute tau1 is set, only the first derivative of the heat flow will be considered.
+
 ```python
 
 # Set Proceesing Parameters
 processparams = ta.ProcessingParameters()
 processparams.time_constants.tau1 = 240
+```
+
+
+## Smoothing the Data
+
+It is important to smoothen the data. 
+Otherwise, small noise in the raw heat flow data will lead to significant noise especially in the second derivative.
+
+
+```python
+
+# Set Proceesing Parameters
+processparams = ta.ProcessingParameters()
+processparams.time_constants.tau1 = 240
+processparams.time_constants.tau2 = 80 
 processparams.median_filter.apply = True
 processparams.median_filter.size = 15
 processparams.spline_interpolation.apply = True
