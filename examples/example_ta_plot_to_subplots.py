@@ -36,3 +36,20 @@ ta.plt.savefig(plotpath / "subplot_example.png")
 
 
 # %%
+
+# Define subplot configurations more explicitly
+plot_configs = [
+    {"ycol": "normalized_heat_flow_w_g", "xlim": 1, "ylim": 0.05},
+    {"ycol": "normalized_heat_flow_w_g", "xlim": 48, "ylim": 0.005},
+    {"ycol": "normalized_heat_j_g", "xlim": 1, "ylim": 30},
+    {"ycol": "normalized_heat_j_g", "xlim": 48, "ylim": 300},
+]
+
+fig, axs = ta.plt.subplots(2, 2, layout="constrained")
+for ax, config in zip(axs.flatten(), plot_configs):
+    tam.plot(y=config["ycol"], t_unit="h", y_unit_milli=False, ax=ax)
+    ax.set_xlim(0, config["xlim"])
+    ax.set_ylim(0, config["ylim"])
+    ax.get_legend().remove()
+ta.plt.show()
+# %%

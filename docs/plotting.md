@@ -79,22 +79,21 @@ ax.legend(bbox_to_anchor=(1., 1), loc="upper right")
 Often, both the initial phase of hydration is of interest and also both the heat flow and the heat are relevant. 
 Here is code which allows plotting such data to a neat 2x2 grid.
 
-
 ```python
-
-ycols = ["normalized_heat_flow_w_g", "normalized_heat_j_g"]
-xlimits = [1, 48]
-ylimits = [0.05, 0.005, 30, 300]
-combinations = list(itertools.product(ycols, xlimits))
+plot_configs = [
+    {"ycol": "normalized_heat_flow_w_g", "xlim": 1, "ylim": 0.05},
+    {"ycol": "normalized_heat_flow_w_g", "xlim": 48, "ylim": 0.005},
+    {"ycol": "normalized_heat_j_g", "xlim": 1, "ylim": 30},
+    {"ycol": "normalized_heat_j_g", "xlim": 48, "ylim": 300},
+]
 
 fig, axs = ta.plt.subplots(2, 2, layout="constrained")
-for ax, (col, xlim), ylim in zip(axs.flatten(), combinations, ylimits):
-    tam.plot(y=col, t_unit="h", y_unit_milli=False, ax=ax)
-    ax.set_xlim(0, xlim)
-    ax.set_ylim(0, ylim)
+for ax, config in zip(axs.flatten(), plot_configs):
+    tam.plot(y=config["ycol"], t_unit="h", y_unit_milli=False, ax=ax)
+    ax.set_xlim(0, config["xlim"])
+    ax.set_ylim(0, config["ylim"])
     ax.get_legend().remove()
 ta.plt.show()
-
 ```
 
 ![Subplot Plotting](assets/subplot_example.png)
