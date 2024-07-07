@@ -1,18 +1,16 @@
-import sys
 from pathlib import Path
 import itertools
 
-parentfolder = Path(__file__).cwd().parent
-sys.path.insert(0, parentfolder.as_posix())
-
 import TAInstCalorimetry.tacalorimetry as ta
 
+parentfolder = Path(__file__).parent.parent
 datapath = parentfolder / "TAInstCalorimetry" / "DATA"
+plotpath = parentfolder / "docs" / "assets"
 
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
-    regex=r".*exp[48].csv",
+    regex=r".*bm.*.csv",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -23,15 +21,17 @@ tam = ta.Measurement(
 # # plot
 
 ycols = ["normalized_heat_flow_w_g", "normalized_heat_j_g"]
-limits = [1, 30]
-combinations = list(itertools.product(ycols, limits))
+xlimits = [1, 48]
+ylimits = [0.05, 0.005, 30, 300]
+combinations = list(itertools.product(ycols, xlimits))
 
 fig, axs = ta.plt.subplots(2, 2, layout="constrained")
-for ax, (col, lim) in zip(axs.flatten(), combinations):
-    tam.plot(y=col, t_unit="h", ax=ax)
-    ax.set_xlim(0, lim)
+for ax, (col, xlim), ylim in zip(axs.flatten(), combinations, ylimits):
+    tam.plot(y=col, t_unit="h", y_unit_milli=False, ax=ax)
+    ax.set_xlim(0, xlim)
+    ax.set_ylim(0, ylim)
     ax.get_legend().remove()
-ta.plt.show()
+ta.plt.savefig(plotpath / "subplot_example.png")
 
 
 
