@@ -1494,6 +1494,7 @@ class Measurement:
     ):
         """
         get maximum slope as a characteristic value
+
         Parameters
         ----------
         target_col : str, optional
@@ -2453,6 +2454,17 @@ class CutOffParameters:
 
 @dataclass
 class TianCorrectionParameters:
+    """
+    Parameters related to time constants used in Tian's correction method for thermal analysis. The default values are defined in the TianCorrectionParameters class.
+
+    Parameters
+    ----------
+    tau1 : int
+        Time constant for the first correction step in Tian's method. The default value is 300.
+
+    tau2 : int
+        Time constant for the second correction step in Tian's method. The default value is 100.
+    """
     tau1: int = 300
     tau2: int = 100
 
@@ -2478,6 +2490,21 @@ class NonLinSavGolParameters:
 
 @dataclass
 class SplineInterpolationParameters:
+    """Parameters for spline interpolation of heat flow data.
+
+    Parameters
+    ----------
+
+    apply : 
+        Flag indicating whether spline interpolation should be applied to the heat flow data. The default value is False.
+
+    smoothing_1st_deriv : 
+        Smoothing parameter for the first derivative of the heat flow data. The default value is 1e-9.
+
+    smoothing_2nd_deriv : 
+        Smoothing parameter for the second derivative of the heat flow data. The default value is 1e-9.
+    
+    """
     apply: bool = False
     smoothing_1st_deriv: float = 1e-9
     smoothing_2nd_deriv: float = 1e-9
@@ -2504,7 +2531,37 @@ class GradientPeakDetectionParameters:
 @dataclass
 class ProcessingParameters:
     """
-    ProcessingParameters
+    A data class for storing all processing parameters for calorimetry data.
+
+    This class aggregates various processing parameters, including cutoff criteria, time constants for the Tian correction, and parameters for peak detection and gradient peak detection. 
+
+    Attributes
+    ----------
+
+    cutoff :
+        Parameters defining the cutoff criteria for the analysis. 
+        Currently only cutoff_min is implemented, which defines the minimum time in minutes for the analysis. The default value is defined in the CutOffParameters class.
+        
+    time_constants : TianCorrectionParameters
+        Parameters related to time constants used in Tian's correction method for thermal analysis. he default values are defined in the 
+        TianCorrectionParameters class.
+        
+    peakdetection : PeakDetectionParameters
+        Parameters for detecting peaks in the thermal analysis data. This includes settings such as the minimum 
+        prominence and distance between peaks. The default values are defined in the PeakDetectionParameters class.
+        
+    gradient_peakdetection : GradientPeakDetectionParameters
+        Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more 
+        nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks 
+        (e.g., first peak, largest width). The default values are defined in the GradientPeakDetectionParameters class.
+
+    Examples
+    --------
+
+    Define a set of processing parameters for thermal analysis data.
+
+    >>> processparams = ProcessingParameters()
+    >>> processparams.cutoff.cutoff_min = 30
     """
 
     cutoff: CutOffParameters = field(default_factory=CutOffParameters)
