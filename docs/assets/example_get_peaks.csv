@@ -1,0 +1,3 @@
+time_s,temperature_ambientt_therm3t_c,temperature_temperature_c,heat_flow_w,heat_j,normalized_heat_flow_w_g,normalized_heat_j_g,sample,sample_short,prominence,peak_nr
+35784.211728811264,21.884665358439047,19.999573726926503,0.018453273417898066,437.20907797366306,0.00422368354724149,100.07074341351867,/home/torben/LRZ Sync+Share/0_TUM/10_Coding/packages/TAInstCalorimetry/TAInstCalorimetry/DATA/peak_detection_example3.csv,peak_detection_example3,0.0035778498168588056,0
+48262.773175001144,21.795853018655606,19.999542195355446,0.017661615258605167,657.4007630256796,0.004042484609431259,150.4693895687067,/home/torben/LRZ Sync+Share/0_TUM/10_Coding/packages/TAInstCalorimetry/TAInstCalorimetry/DATA/peak_detection_example3.csv,peak_detection_example3,0.00012886237689167107,1

@@ -41,3 +41,15 @@ ta.plt.show()
 
 ```
 ![Peak Detection](assets/example_get_peaks.png)
+
+`peaks_found` is a tuple. 
+The first element contains the Dataframe with the parameters of the detected peaks.
+It could be exported to a csv file via
+
+```python
+
+peaks_found[0].to_csv(plotpath / "example_get_peaks.csv", index=False)
+```
+The dataframe looks like this:
+
+{{ read_csv('assets/example_get_peaks.csv') }}

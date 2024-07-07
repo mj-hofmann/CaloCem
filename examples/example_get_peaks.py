@@ -25,4 +25,6 @@ ax.set_xlim(0, 100000)
 ta.plt.savefig(plotpath / "example_get_peaks.png", dpi=300)
 
 
+peaks_found[0].to_csv(plotpath / "example_get_peaks.csv", index=False)
+
 # %%
