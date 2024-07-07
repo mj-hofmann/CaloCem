@@ -1004,6 +1004,23 @@ files = [
 ]
 
 [[package]]
+name = "mkdocs-table-reader-plugin"
+version = "2.2.2"
+description = "MkDocs plugin to directly insert tables from files into markdown."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "mkdocs_table_reader_plugin-2.2.2-py3-none-any.whl", hash = "sha256:fed04dc54ddb1269893171098f3464a5f85f96b8160c065cd4f7e536012611f2"},
+    {file = "mkdocs_table_reader_plugin-2.2.2.tar.gz", hash = "sha256:198e3f556a59b4c66b227bbe3a2714cde8161b2ff33903de8611b89c04e1e014"},
+]
+
+[package.dependencies]
+mkdocs = ">=1.0"
+pandas = ">=1.1"
+PyYAML = ">=5.4.1"
+tabulate = ">=0.8.7"
+
+[[package]]
 name = "mkdocstrings"
 version = "0.25.1"
 description = "Automatic documentation from sources, for MkDocs."
@@ -1789,6 +1806,20 @@ files = [
 ]
 
 [[package]]
+name = "tabulate"
+version = "0.9.0"
+description = "Pretty-print tabular data"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f"},
+    {file = "tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c"},
+]
+
+[package.extras]
+widechars = ["wcwidth"]
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -1963,4 +1994,4 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-it
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.1,<3.13"
-content-hash = "20825354a90835035ad2f2458a5e95faa4e6a3c91685f470cb2a5dc43f39f88b"
+content-hash = "83438eed389f5ede9d5bab4f561c5ce8e6e5595edaf9de1d74a63f9237fe91c3"
