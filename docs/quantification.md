@@ -48,8 +48,10 @@ It could be exported to a csv file via
 
 ```python
 
-peaks_found[0].to_csv(plotpath / "example_get_peaks.csv", index=False)
+df = peaks_found[0].iloc[:,[0,5,6,9]]
+df.to_csv(plotpath / "example_get_peaks.csv", index=False)
 ```
+
 The dataframe looks like this:
 
 {{ read_csv('assets/example_get_peaks.csv') }}

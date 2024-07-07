@@ -24,7 +24,9 @@ peaks_found = tam.get_peaks(processparams, plt_right_s=3e5, ax=ax, show_plot=Tru
 ax.set_xlim(0, 100000)
 ta.plt.savefig(plotpath / "example_get_peaks.png", dpi=300)
 
+df = peaks_found[0]
+df = df.iloc[:,[0,5,6,9]]
 
-peaks_found[0].to_csv(plotpath / "example_get_peaks.csv", index=False)
+df.to_csv(plotpath / "example_get_peaks.csv", index=False)
 
 # %%
