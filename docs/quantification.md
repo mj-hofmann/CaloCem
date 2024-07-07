@@ -55,3 +55,7 @@ df.to_csv(plotpath / "example_get_peaks.csv", index=False)
 The dataframe looks like this:
 
 {{ read_csv('assets/example_get_peaks.csv') }}
+
+
+## Maximum Slope (of C3S Reaction) Detection
+

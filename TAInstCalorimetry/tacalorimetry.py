@@ -1058,6 +1058,48 @@ class Measurement:
             # yield latest plot
             yield selections, ax
 
+
+    def plot_peak_positions(self, data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s):
+        """
+        Plot data using a given Axes object.
+        """
+        if isinstance(ax, matplotlib.axes._axes.Axes):
+            # Plot data
+            ax.plot(data[_age_col], data[_target_col])
+            new_ax = False
+        else:
+            new_ax = True
+            fig, ax = plt.subplots()
+            ax.plot(data[_age_col], data[_target_col])
+        
+        ax.plot(
+            data[_age_col][peaks],
+            data[_target_col][peaks],
+            "x",
+            color="red",
+        )
+
+        ax.vlines(
+            x=data[_age_col][peaks],
+            ymin=0,
+            ymax=data[_target_col][peaks],
+            color="red",
+        )
+        # add "barrier"
+        ax.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
+        # figure cosmetics
+        ax.legend(loc="best")
+        ax.set_xlim(left=0)
+        ax.set_xlim(right=plt_right_s)
+        ax.set_ylim(bottom=0)
+        ax.set_ylim(top=plt_top)
+        ax.set_xlabel(_age_col)
+        ax.set_ylabel(_target_col)
+        ax.set_title("Peak plot for " + pathlib.Path(sample).stem)
+
+        if new_ax:
+            plt.show()
+
     #
     # get the cumulated heat flow a at a certain age
     #
@@ -1214,64 +1256,7 @@ class Measurement:
 
             # plot?
             if show_plot:
-                # if specific axis to plot to is specified
-                if isinstance(ax, matplotlib.axes._axes.Axes):
-                    # plot
-                    ax.plot(
-                        data[_age_col],
-                        data[_target_col],
-                        label=pathlib.Path(sample).stem,
-                    )
-                    ax.plot(
-                        data[_age_col][peaks],
-                        data[_target_col][peaks],
-                        "x",
-                        color="red",
-                    )
-                    ax.vlines(
-                        x=data[_age_col][peaks],
-                        ymin=0,
-                        ymax=data[_target_col][peaks],
-                        color="red",
-                    )
-                    # add "barrier"
-                    ax.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
-                    # figure cosmetics
-                    ax.legend(loc="best")
-                    ax.set_xlim(left=0)
-                    ax.set_xlim(right=plt_right_s)
-                    ax.set_ylim(bottom=0)
-                    ax.set_ylim(top=plt_top)
-                    ax.set_xlabel(_age_col)
-                    ax.set_ylabel(_target_col)
-                    ax.set_title("Peak plot for " + pathlib.Path(sample).stem)
-                else:
-                    # plot
-                    plt.plot(data[_age_col], data[_target_col])
-                    plt.plot(
-                        data[_age_col][peaks],
-                        data[_target_col][peaks],
-                        "x",
-                        color="red",
-                    )
-                    plt.vlines(
-                        x=data[_age_col][peaks],
-                        ymin=0,
-                        ymax=data[_target_col][peaks],
-                        color="red",
-                    )
-                    # add "barrier"
-                    plt.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
-                    # figure cosmetics
-                    plt.xlim(left=0)
-                    plt.xlim(right=plt_right_s)
-                    plt.ylim(bottom=0)
-                    plt.ylim(top=plt_top)
-                    plt.xlabel(_age_col)
-                    plt.ylabel(_target_col)
-                    plt.title("Peak plot for " + pathlib.Path(sample).stem)
-                    # show
-                    plt.show()
+                self.plot_peak_positions(data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s)
 
             # compile peak characteristics
             peak_characteristics = pd.concat(
