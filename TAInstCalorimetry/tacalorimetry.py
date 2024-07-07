@@ -1059,19 +1059,20 @@ class Measurement:
             yield selections, ax
 
 
-    def plot_peak_positions(self, data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s):
+    def plot_peak_positions(
+        self, data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
+    ):
         """
-        Plot data using a given Axes object.
+        Plot detected peaks.
         """
         if isinstance(ax, matplotlib.axes._axes.Axes):
-            # Plot data
             ax.plot(data[_age_col], data[_target_col])
             new_ax = False
         else:
             new_ax = True
             fig, ax = plt.subplots()
             ax.plot(data[_age_col], data[_target_col])
-        
+
         ax.plot(
             data[_age_col][peaks],
             data[_target_col][peaks],
@@ -1096,6 +1097,52 @@ class Measurement:
         ax.set_xlabel(_age_col)
         ax.set_ylabel(_target_col)
         ax.set_title("Peak plot for " + pathlib.Path(sample).stem)
+
+        if new_ax:
+            plt.show()
+
+    
+    def plot_maximum_slope(self, data, ax, age_col, target_col, sample, characteristics, time_discarded_s):
+        
+        if isinstance(ax, matplotlib.axes._axes.Axes):
+            new_ax = False
+        else:
+            new_ax = True
+            fig, ax = plt.subplots()
+
+        ax.plot(data[age_col], data[target_col], label=target_col)
+        ax.plot(
+            data[age_col],
+            data["gradient"] * 1e4 + 0.001,
+            label="gradient * 1e4 + 1mW",
+        )
+
+        # add vertical lines
+        for _idx, _row in characteristics.iterrows():
+            # vline
+            ax.axvline(_row.at[age_col], color="green", alpha=0.3)
+
+        # cosmetics
+        ax.set_xscale("log")
+        ax.set_title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
+        ax.set_xlabel(age_col)
+        ax.set_ylabel(target_col)
+        ax.legend()
+
+        # # get axis
+        # ax = plt.gca()
+
+        ax.fill_between(
+            [ax.get_ylim()[0], time_discarded_s],
+            [ax.get_ylim()[0]] * 2,
+            [ax.get_ylim()[1]] * 2,
+            color="black",
+            alpha=0.35,
+        )
+
+        # set axis limit
+        ax.set_xlim(left=100)
+        ax.set_ylim(bottom=0, top=0.01)
 
         if new_ax:
             plt.show()
@@ -1192,8 +1239,6 @@ class Measurement:
         target_col="normalized_heat_flow_w_g",
         regex=None,
         cutoff_min=None,
-        prominence=0.0001,
-        distance=1,
         show_plot=True,
         plt_right_s=2e5,
         plt_top=1e-2,
@@ -1211,10 +1256,6 @@ class Measurement:
             during initialization. The default is None.
         cutoff_min : int | float, optional
             Time in minutes below which collected data points are discarded for peak picking
-        prominence : float, optional
-            Paek prominence characteristic for the identification of peaks. For a lower promince value, more peaks are found. The default is 0.001.
-        distance : int, optional
-            count experimental data points between accepted peaks
         show_plot : bool, optional
             Flag whether or not to plot peak picking for each sample. The default is True.
         plt_right_s : int | float, optional
@@ -1256,7 +1297,9 @@ class Measurement:
 
             # plot?
             if show_plot:
-                self.plot_peak_positions(data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s)
+                self.plot_peak_positions(
+                    data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
+                )
 
             # compile peak characteristics
             peak_characteristics = pd.concat(
@@ -1440,6 +1483,7 @@ class Measurement:
     def get_maximum_slope(
         self,
         processparams,
+        ax,
         target_col="normalized_heat_flow_w_g",
         age_col="time_s",
         time_discarded_s=900,
@@ -1515,43 +1559,52 @@ class Measurement:
 
             # optional plotting
             if show_plot:
+                self.plot_maximum_slope(
+                    data,
+                    ax,
+                    age_col,
+                    target_col,
+                    sample,
+                    characteristics,
+                    time_discarded_s,
+                )
                 # plot heat flow curve
-                plt.plot(data[age_col], data[target_col], label=target_col)
-                plt.plot(
-                    data[age_col],
-                    data["gradient"] * 1e4 + 0.001,
-                    label="gradient * 1e4 + 1mW",
-                )
+                # plt.plot(data[age_col], data[target_col], label=target_col)
+                # plt.plot(
+                #     data[age_col],
+                #     data["gradient"] * 1e4 + 0.001,
+                #     label="gradient * 1e4 + 1mW",
+                # )
 
-                # add vertical lines
-                for _idx, _row in characteristics.iterrows():
-                    # vline
-                    plt.axvline(_row.at[age_col], color="green", alpha=0.3)
+                # # add vertical lines
+                # for _idx, _row in characteristics.iterrows():
+                #     # vline
+                #     plt.axvline(_row.at[age_col], color="green", alpha=0.3)
 
-                # cosmetics
-                plt.xscale("log")
-                plt.title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
-                plt.xlabel(age_col)
-                plt.ylabel(target_col)
-                plt.legend()
+                # # cosmetics
+                # plt.xscale("log")
+                # plt.title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
+                # plt.xlabel(age_col)
+                # plt.ylabel(target_col)
+                # plt.legend()
 
-                # get axis
-                ax = plt.gca()
+                # # get axis
+                # ax = plt.gca()
 
-                plt.fill_between(
-                    [ax.get_ylim()[0], time_discarded_s],
-                    [ax.get_ylim()[0]] * 2,
-                    [ax.get_ylim()[1]] * 2,
-                    color="black",
-                    alpha=0.35,
-                )
+                # plt.fill_between(
+                #     [ax.get_ylim()[0], time_discarded_s],
+                #     [ax.get_ylim()[0]] * 2,
+                #     [ax.get_ylim()[1]] * 2,
+                #     color="black",
+                #     alpha=0.35,
+                # )
 
-                # set axis limit
-                plt.xlim(left=100)
-                plt.ylim(bottom=0, top=0.01)
+                # # set axis limit
+                # plt.xlim(left=100)
+                # plt.ylim(bottom=0, top=0.01)
 
-                # show
-                plt.show()
+                # # show
+                # plt.show()
 
             # append to list
             list_of_characteristics.append(characteristics)
@@ -2205,7 +2258,11 @@ class Measurement:
         df = self._data
 
         # make data equidistant grouped by sample_short
-        df = df.groupby(data_id).apply(lambda x: apply_resampling(x, resampling_s)).reset_index(drop=True)
+        df = (
+            df.groupby(data_id)
+            .apply(lambda x: apply_resampling(x, resampling_s))
+            .reset_index(drop=True)
+        )
 
         # rename sample in "data" by metadata grouping options
         for value, group in meta.groupby(group_by):
@@ -2236,7 +2293,7 @@ class Measurement:
             )
 
         if "BIN" in df.columns:
-        # calculate average and std
+            # calculate average and std
             df = (
                 df.groupby([data_id, "BIN"])
                 .agg(
@@ -2388,24 +2445,29 @@ class Measurement:
         # call original restore function
         self.undo_average_by_metadata()
 
+
 @dataclass
 class CutOffParameters:
     cutoff_min: int = 30
+
 
 @dataclass
 class TianCorrectionParameters:
     tau1: int = 300
     tau2: int = 100
 
+
 @dataclass
 class RollingMeanParameters:
     apply: bool = False
     window: int = 11
 
+
 @dataclass
 class MedianFilterParameters:
     apply: bool = False
     size: int = 7
+
 
 @dataclass
 class NonLinSavGolParameters:
@@ -2413,16 +2475,19 @@ class NonLinSavGolParameters:
     window: int = 11
     polynom: int = 3
 
+
 @dataclass
 class SplineInterpolationParameters:
     apply: bool = False
     smoothing_1st_deriv: float = 1e-9
     smoothing_2nd_deriv: float = 1e-9
 
+
 @dataclass
 class PeakDetectionParameters:
     prominence: float = 1e-5
     distance: int = 100
+
 
 @dataclass
 class GradientPeakDetectionParameters:
@@ -2435,6 +2500,7 @@ class GradientPeakDetectionParameters:
     use_largest_width: bool = False
     use_largest_width_height: bool = False
 
+
 @dataclass
 class ProcessingParameters:
     """
@@ -2442,17 +2508,29 @@ class ProcessingParameters:
     """
 
     cutoff: CutOffParameters = field(default_factory=CutOffParameters)
-    time_constants: TianCorrectionParameters = field(default_factory=TianCorrectionParameters)
+    time_constants: TianCorrectionParameters = field(
+        default_factory=TianCorrectionParameters
+    )
 
     # peak detection params
-    peakdetection: PeakDetectionParameters = field(default_factory=PeakDetectionParameters)
-    gradient_peakdetection: GradientPeakDetectionParameters = field(default_factory=GradientPeakDetectionParameters)
+    peakdetection: PeakDetectionParameters = field(
+        default_factory=PeakDetectionParameters
+    )
+    gradient_peakdetection: GradientPeakDetectionParameters = field(
+        default_factory=GradientPeakDetectionParameters
+    )
 
     # smoothing params
     rolling_mean: RollingMeanParameters = field(default_factory=RollingMeanParameters)
-    median_filter: MedianFilterParameters = field(default_factory=MedianFilterParameters)
-    nonlin_savgol: NonLinSavGolParameters = field(default_factory=NonLinSavGolParameters)
-    spline_interpolation: SplineInterpolationParameters = field(default_factory=SplineInterpolationParameters)
+    median_filter: MedianFilterParameters = field(
+        default_factory=MedianFilterParameters
+    )
+    nonlin_savgol: NonLinSavGolParameters = field(
+        default_factory=NonLinSavGolParameters
+    )
+    spline_interpolation: SplineInterpolationParameters = field(
+        default_factory=SplineInterpolationParameters
+    )
 
 
 class HeatFlowProcessor:
@@ -2487,7 +2565,9 @@ class HeatFlowProcessor:
         if processparams.gradient_peakdetection.use_first:
             df = df.iloc[idx, :].to_frame().T
 
-        elif processparams.gradient_peakdetection.use_largest_width: # use_largest_gradient_peak_width:
+        elif (
+            processparams.gradient_peakdetection.use_largest_width
+        ):  # use_largest_gradient_peak_width:
             if len(peak_list[1]["widths"]) == 0:
                 print("No peak found")
             else:
@@ -2510,7 +2590,6 @@ class HeatFlowProcessor:
 
         return df
 
-
     def apply_rolling_mean(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.reset_index(drop=True)
         df["td"] = pd.to_timedelta(df["time_s"], unit="s")
@@ -2520,7 +2599,7 @@ class HeatFlowProcessor:
         return df
 
     def apply_median_filter(self, df: pd.DataFrame, deriv_order: str) -> pd.DataFrame:
-        df.loc[:,deriv_order] = median_filter(
+        df.loc[:, deriv_order] = median_filter(
             df[deriv_order], self.processparams.median_filter.size
         )
         return df
@@ -2536,16 +2615,18 @@ class HeatFlowProcessor:
             s=self.processparams.spline_interpolation.smoothing_1st_deriv,
             ext=1,
         )
-        df.loc[:,deriv_order] = f(df["time_s"])
+        df.loc[:, deriv_order] = f(df["time_s"])
         return df
 
     def calculate_hf_derivative(self, df: pd.DataFrame, order: str) -> pd.DataFrame:
         deriv_order = f"{order}_derivative"
 
         if order == "first":
-            df.loc[:,deriv_order] = np.gradient(df["normalized_heat_flow_w_g"], df["time_s"])
+            df.loc[:, deriv_order] = np.gradient(
+                df["normalized_heat_flow_w_g"], df["time_s"]
+            )
         elif order == "second":
-            df.loc[:,deriv_order] = np.gradient(df["first_derivative"], df["time_s"])
+            df.loc[:, deriv_order] = np.gradient(df["first_derivative"], df["time_s"])
 
         if self.processparams.median_filter.apply:
             df = self.apply_median_filter(df, deriv_order)
@@ -2563,7 +2644,6 @@ class HeatFlowProcessor:
         return df["first_derivative"], df["second_derivative"]
 
 
-
 def make_equidistant(df: pd.DataFrame) -> pd.DataFrame:
     df = df.reset_index(drop=True)
     df["td"] = pd.to_timedelta(df["time_s"], unit="s")
@@ -2577,7 +2657,9 @@ def make_equidistant(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
-    resampler = df.set_index(pd.to_datetime(df["time_s"], unit="s")).resample(resampling_s)
+    resampler = df.set_index(pd.to_datetime(df["time_s"], unit="s")).resample(
+        resampling_s
+    )
     string_cols = df.select_dtypes(include="object").columns
     num_cols = df.select_dtypes(include="number").columns
     resampled_stringcols = resampler[string_cols].first().ffill()
