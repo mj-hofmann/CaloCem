@@ -23,8 +23,13 @@ repo_url: https://github.com/mj-hofmann/TAInstCalorimetry
 repo_name: mj-hofmann/TAInstCalorimetry
 
 plugins:
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
   - search
+  - table-reader
   - offline
   - git-revision-date-localized:
       enable_creation_date: true
@@ -35,6 +40,9 @@ plugins:
 nav:
   - Docs: index.md
   - How-To Guides: how-to-guide.md
+  - Plotting: plotting.md
+  - Quantification: quantification.md
+  - Tian Correction: tian.md
   - Reference: reference.md
 
 extra:
@@ -48,5 +56,16 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
-  
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/katex.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+
+extra_css:
+  - https://unpkg.com/katex@0/dist/katex.min.css
+
+
 copyright: Copyright &copy; 2023 - present Matthias Hofmann

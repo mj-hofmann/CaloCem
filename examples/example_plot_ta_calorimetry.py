@@ -4,13 +4,14 @@ from TAInstCalorimetry import tacalorimetry
 from pathlib import Path
 
 datapath = Path(__file__).parent.parent / "TAInstCalorimetry" / "DATA"
+plotpath = Path(__file__).parent.parent / "docs" / "assets"
 
 # %% use class based approach
 
 # experiments via class
 tam = tacalorimetry.Measurement(
     folder=datapath,
-    regex="myexp[1-2].csv",
+    regex="peak_detection_example[3,5].csv",
     show_info=True,
     auto_clean=False,
 )
@@ -21,13 +22,13 @@ info = tam.get_information()
 
 
 # %% basic plotting
-tam.plot(y="heat_flow_w")
-# show plot
-tacalorimetry.plt.show()
+tam.plot()
+# save plot
+tacalorimetry.plt.savefig(plotpath / "basic_plot.png")
 
 
 # %% basic plotting
-tam.plot(y="heat_j")
+tam.plot(y="normalized_heat_j_g")
 # show plot
 tacalorimetry.plt.show()
 
@@ -36,18 +37,18 @@ tacalorimetry.plt.show()
 
 ax = tam.plot(
     y="normalized_heat_flow_w_g",
-    t_unit="d",  # time axis in hours
+    t_unit="h",  # time axis in hours
     y_unit_milli=True,
-    regex="2",  # regex expression for filtering
 )
 
 # set upper limits
-ax.set_ylim(top=5)
-ax.set_xlim(right=2)
+ax.set_ylim(0, 6)
+ax.set_xlim(0, 48)
+ax.legend(bbox_to_anchor=(1., 1), loc="upper right")
 tacalorimetry.plt.show()
 
 
-#%% get table of cumulated heat at certain age
+# %% get table of cumulated heat at certain age
 
 # define target time
 target_h = 5
@@ -64,7 +65,6 @@ ax.axvline(target_h, color="gray", alpha=0.5, linestyle=":")
 ax.set_ylim(top=100)
 ax.set_xlim(right=12)
 tacalorimetry.plt.show()
-
 
 
 # %%
