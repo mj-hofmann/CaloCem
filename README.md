@@ -7,23 +7,14 @@ After collecting multiple experimental results files from a TAM Air calorimeter 
 *Note: **TAInstCalorimetry** has been developed without involvement of **TA Instruments** and is thus independent from the company and its software.*
 
 ## Documentation
-The full documentation can be found [Here](https://mj-hofmann.github.io/TAInstCalorimetry/)
+The full documentation can be found [here](https://mj-hofmann.github.io/TAInstCalorimetry/).
 
-## Info / Downloads
+## Download Stats
 
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/tainstcalorimetry.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry)
 [![PyPI - Downloads](https://static.pepy.tech/personalized-badge/tainstcalorimetry?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/tainstcalorimetry/) 
 
-## Table of Contents  
-- [Example Usage](#example-usage)<br>
-  - [Basic plotting](#basic-plotting)<br>
-  - [Getting cumulated heat values](#getting-cumulated-heat-values)<br>
-  - [Identifying peaks](#identifying-peaks)<br>
-  - [Identifying peak onsets](#identifying-peak-onsets)<br>
-  - [Plotting by Category](#plotting-by-category)<br>
-- [Installation](#installation)<br>
-- [Contributing](#contributing)
 
 ## Example Usage
 
@@ -97,111 +88,15 @@ The following plot is obtained:
 
 ![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-19%20085928.png?raw=true)
 
-### Getting cumulated heat values
+### Feature Extraction
 
-The cumulated heat after a certain period of time ```target_h``` from starting the measurement is a relevant quantity for answering different types of questions. For this purpose, the method ```get_cumulated_heat_at_hours``` returns an overview of this parameter for all the samples in the specified folder.
+Additionally, the package allows among others for streamlining routine tasks such as
 
-```python
-# get table of cumulated heat at certain age
-cumulated_heats = tam.get_cumulated_heat_at_hours(
-          target_h=target_h,
-          cutoff_min=10
-          )
-          
-# show result
-print(cumulated_heats)
-```
-
-The return value of the method, ```cumulated_heats``` is a ```pd.DataFrame```.
-
-### Identifying peaks
-
-Next to cumulated heat values detected after a certain time frame from starting the reaction, peaks characteristics can be obtained from the experimental data via the ```get_peaks```-method.
-
-```python
-# get peaks
-peaks = tam.get_peaks(
-    show_plot=True,
-    prominence=0.00001,  # "sensitivity of peak picking"
-    cutoff_min=60,  # how much to discard at the beginning of the measurement
-    plt_right_s=4e5,
-    plt_top=1e-2,
-    regex=".*_\d"  # filter samples
-    )
-```
-
-Tweaking some of the available keyword arguments, the following plot is obtained:
-
-![Identified peaks for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-25%20193222.png?raw=true)
-
-Please keep in mind, that in particular for samples of ordinary Portland cement (OPC) a clear and unambiguous identification/assigment of peaks remains a challenging task which cannot be achieved in each and every case by **TAInstCalorimetry**. It is left to the user draw meaningful scientific conclusions from the characteristics derived from this method.
-
-### Identifying peak onsets
-
-Similarly, the peak onset characteristics are accessible via the ```get_peak_onsets```-method. The resulting plot is shown below.
-
-```python
-# get onsets
-onsets = tam.get_peak_onsets(
-    gradient_threshold=0.000001,
-    rolling=10,
-    exclude_discarded_time=True,
-    show_plot=True,
-    regex="OPC"
-)
-```
-![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-26%20174524.png?raw=true)
-
-### Plotting by Category
-
-For introducing the idea of plotting calorimetry data "by category" another set of experimental data will be introduced. Next to the calorimetry data alone, information on investigated samples is supplied via an additional source file. In the present example via the file ```mini_metadata.csv```.
-
-To begin with, a ```TAInstCalorimetry.tacalorimetry.Measurement```-object is initialized for selected files from the specified ````path```.
-
-```python
-import pathlib
-from TAInstCalorimetry import tacalorimetry
-
-# path to experimental calorimetry files
-path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
-
-# initialize TAInstCalorimetry.tacalorimetry.Measurement object
-tam_II = tacalorimetry.Measurement(
-    path, regex="myexp.*", show_info=True, cold_start=True, auto_clean=False
-)
-```
-
-Next, we need to connect the previously defined object to our metadata provided by the ```mini_metadata.csv```-file. To establish this mapping between experimental results and metadata, the file location, i.e. path, and the column name containing the exact(!) names of the calorimetry files needs to be passed to the ```add_metadata_source```-method. In our case, we declare the column ```experiment_nr``` for this purpose
-
-```python
-# add metadata
-tam.add_metadata_source("mini_metadata.csv", "experiment_nr")
-```
-
-Finally, a plotting by category can be carried out by one or multiple categories as shown in the following.
-
-```python
-# define action by one category
-categorize_by = "cement_name"  # 'date', 'cement_amount_g', 'water_amount_g'
-
-# # define action by two or more categories
-categorize_by = ["date", "cement_name"]
-
-# loop through plots via generator
-for this_plot in tam.plot_by_category(categorize_by):
-    # extract parts obtained from generator
-    category_value, ax = this_plot
-    # fine tuning of plot/cosmetics
-    ax.set_ylim(0, 3)
-    # show plot
-    tacalorimetry.plt.show()
-```
-
-This yields plots of the following kind.
-
-![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170659.png?raw=true)
-
-![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170711.png?raw=true)
+- getting cumulated heat values,
+- identifying peaks positions and characteristics,
+- identifying peak onsets,
+- Plotting by Category,
+- ...
 
 ## Installation
 
