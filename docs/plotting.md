@@ -13,7 +13,9 @@ Assume that your calorimetry data is found inside a folder called `calo_data` an
     └── calofile2.csv
 ```
 
-It is very easy to load the calorimetry files and to plot them. The file `myscript.py` could read like this. First, we create a Path object `datapath` using the pathlib package that is directed at the folder which contains the raw instrument data. Then we pass the the `datapath` object to `ta.Measurement()`. The option `show_info=True` prints the names of the calo files being loaded in the terminal.
+It is very easy to load the calorimetry files and to plot them. The file `myscript.py` could read like this. First, we create a Path object `datapath` using the [pathlib package](https://docs.python.org/3/library/pathlib.html) that is directed at the folder which contains the raw instrument data (`calo_data` in this example). The advantage of using the `pathlib` package is that we do not have to worry if the user of our code is running Linux, MacOS, or Windows. The `Path()` object ensures that the path definition always works. In our example, `Path(__file__).parent` contains the absolute path to the folder in which the script (here `myscript.py`) is located, independent of the operating system. By writing `Path(__file__).parent / "calo_data" ` we create a `Path()` object which contains the absolute path to `calo_data`.
+
+After we have obtained the path, we pass it to `ta.Measurement()`. Besides the `Path` object, we can pass further arguments such as the option `show_info=True` which prints the names of the calo files being loaded in the terminal.
 
 ```python
 from TAInstCalorimetry import tacalorimetry as ta

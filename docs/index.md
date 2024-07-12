@@ -4,10 +4,12 @@ on [PyPI](https://pypi.org/project/tainstcalorimetry/).
 
 ## Table Of Contents
 
-The documentation consists of two separate parts:
+The documentation consists of the following parts:
 
-* [How-To Guides](how-to-guide.md)
-* [Use Cases](use-cases.md)
+* [How to Plot](plotting.md)
+* [How to do a Tian Correction](tian.md)
+* [How to calculate characteristic values](quantification.md)
+* [An Older How-To Guide](how-to-guide.md)
 * [Reference](reference.md)
 
 ???+ warning

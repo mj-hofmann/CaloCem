@@ -39,10 +39,10 @@ plugins:
 
 nav:
   - Docs: index.md
-  - How-To Guides: how-to-guide.md
   - Plotting: plotting.md
   - Quantification: quantification.md
   - Tian Correction: tian.md
+  - How-To Guides: how-to-guide.md
   - Reference: reference.md
 
 extra:
