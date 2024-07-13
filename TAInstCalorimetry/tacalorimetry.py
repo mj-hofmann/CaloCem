@@ -853,17 +853,36 @@ class Measurement:
         ax=None,
     ):
         """
-        plot  of
-            - normalizedheatflow
-            - normalizedheat
 
-        in SI-units and "practical" units
+        Plot the calorimetry data.
 
-        with time units of
-            - s
-            - min
-            - h
-            - d
+        Parameters
+        ----------
+        t_unit : str, optional
+            time unit. The default is "h". Options are "s", "min", "h", "d".
+        y : str, optional
+            y-axis. The default is "normalized_heat_flow_w_g". Options are
+            "normalized_heat_flow_w_g", "heat_flow_w", "normalized_heat_j_g",
+            "heat_j".
+        y_unit_milli : bool, optional
+            whether or not to plot y-axis in Milliwatt. The default is True.
+        regex : str, optional
+            regex pattern to include only certain samples during plotting. The
+            default is None.
+        show_info : bool, optional
+            whether or not to show information. The default is True.
+        ax : matplotlib.axes._axes.Axes, optional
+            axis to plot to. The default is None.
+
+        Examples
+        --------
+        >>> import TAInstCalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> calodatapath = Path(__file__).parent
+        >>> tam = ta.Measurement(folder=calodatapath, show_info=True)
+        >>> tam.plot(t_unit="h", y="normalized_heat_flow_w_g", y_unit_milli=False)
+
         """
 
         # y-value
@@ -1016,6 +1035,16 @@ class Measurement:
         y_unit_milli : TYPE, optional
             see "self.plot". The default is True.
 
+        Examples
+        --------
+        >>> import TAInstCalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> calodatapath = Path(__file__).parent
+        >>> tam = ta.Measurement(folder=calodatapath, show_info=True)
+        >>> tam.plot_by_category(categories="sample")
+
+
         Returns
         -------
         None.
@@ -1076,19 +1105,15 @@ class Measurement:
             # yield latest plot
             yield selections, ax
 
-    def plot_peak_positions(
-        self, data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
+    @staticmethod
+    def _plot_peak_positions(
+        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
     ):
         """
         Plot detected peaks.
         """
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            ax.plot(data[_age_col], data[_target_col])
-            new_ax = False
-        else:
-            new_ax = True
-            fig, ax = plt.subplots()
-            ax.plot(data[_age_col], data[_target_col])
+
+        ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col)
 
         ax.plot(
             data[_age_col][peaks],
@@ -1103,32 +1128,20 @@ class Measurement:
             ymax=data[_target_col][peaks],
             color="red",
         )
-        # add "barrier"
-        ax.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
-        # figure cosmetics
-        ax.legend(loc="best")
-        ax.set_xlim(left=0)
-        ax.set_xlim(right=plt_right_s)
-        ax.set_ylim(bottom=0)
-        ax.set_ylim(top=plt_top)
-        ax.set_xlabel(_age_col)
-        ax.set_ylabel(_target_col)
-        ax.set_title("Peak plot for " + pathlib.Path(sample).stem)
+
+        ax = utils.style_base_plot(
+            ax, _target_col, _age_col, sample, plt_top, plt_right_s
+        )
 
         if new_ax:
             plt.show()
 
-    def plot_maximum_slope(
-        self, data, ax, age_col, target_col, sample, characteristics, time_discarded_s
+    @staticmethod
+    def _plot_maximum_slope(
+        data, ax, age_col, target_col, sample, characteristics, time_discarded_s
     ):
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col)
 
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            new_ax = False
-        else:
-            new_ax = True
-            fig, ax = plt.subplots()
-
-        ax.plot(data[age_col], data[target_col], label=target_col)
         ax.plot(
             data[age_col],
             data["gradient"] * 1e4 + 0.001,
@@ -1140,27 +1153,14 @@ class Measurement:
             # vline
             ax.axvline(_row.at[age_col], color="green", alpha=0.3)
 
-        # cosmetics
-        ax.set_xscale("log")
-        ax.set_title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
-        ax.set_xlabel(age_col)
-        ax.set_ylabel(target_col)
-        ax.legend()
-
-        # # get axis
-        # ax = plt.gca()
-
-        ax.fill_between(
-            [ax.get_ylim()[0], time_discarded_s],
-            [ax.get_ylim()[0]] * 2,
-            [ax.get_ylim()[1]] * 2,
-            color="black",
-            alpha=0.35,
+        ax = utils.style_base_plot(
+            ax, target_col, age_col, sample, time_discarded_s=time_discarded_s
         )
 
-        # set axis limit
+        # # set axis limit
         ax.set_xlim(left=100)
         ax.set_ylim(bottom=0, top=0.01)
+        ax.set_xscale("log")
 
         if new_ax:
             plt.show()
@@ -1315,7 +1315,7 @@ class Measurement:
 
             # plot?
             if show_plot:
-                self.plot_peak_positions(
+                self._plot_peak_positions(
                     data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
                 )
 
@@ -1360,6 +1360,7 @@ class Measurement:
     ):
         """
         get peak onsets based on a criterion of minimum gradient
+
         Parameters
         ----------
         target_col : str, optional
@@ -1572,7 +1573,7 @@ class Measurement:
 
             # optional plotting
             if show_plot:
-                self.plot_maximum_slope(
+                self._plot_maximum_slope(
                     data,
                     ax,
                     age_col,
