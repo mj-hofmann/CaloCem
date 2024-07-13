@@ -23,7 +23,7 @@ def create_base_plot(data, ax, _age_col, _target_col):
 
 
 def style_base_plot(
-    ax, _target_col, _age_col, sample, plt_top=None, plt_right_s=None, time_discarded_s=None
+    ax, _target_col, _age_col, sample, limits, time_discarded_s=None
 ):
     """
     style base plot
@@ -31,10 +31,6 @@ def style_base_plot(
     ax.set_ylabel(_target_col)
     ax.set_xlabel(_age_col)
     ax.set_title(f"Sample: {Path(sample).stem}")
-    if plt_top is not None:
-        ax.set_ylim(0, plt_top)
-    if plt_right_s is not None:
-        ax.set_xlim(0, plt_right_s)
     if time_discarded_s is not None:
         print("time_discarded_s", time_discarded_s)
         ax.fill_between(
@@ -44,7 +40,9 @@ def style_base_plot(
             color="black",
             alpha=0.35,
         )
-    ax.set_ylim(0, plt_top)
+    ax.set_xlim(limits["left"], limits["right"])
+    ax.set_ylim(limits["bottom"], limits["top"])
+   # ax.set_ylim(0, plt_top)
     ax.legend()
     return ax
 

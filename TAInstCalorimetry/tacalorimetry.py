@@ -1129,9 +1129,14 @@ class Measurement:
             color="red",
         )
 
-        ax = utils.style_base_plot(
-            ax, _target_col, _age_col, sample, plt_top, plt_right_s
-        )
+        limits = {
+            "left": ax.get_xlim()[0],
+            "right": plt_right_s,
+            "bottom": 0,
+            "top": plt_top,
+        }
+
+        ax = utils.style_base_plot(ax, _target_col, _age_col, sample, limits)
 
         if new_ax:
             plt.show()
@@ -1153,13 +1158,12 @@ class Measurement:
             # vline
             ax.axvline(_row.at[age_col], color="green", alpha=0.3)
 
+        limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
+
         ax = utils.style_base_plot(
-            ax, target_col, age_col, sample, time_discarded_s=time_discarded_s
+            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s
         )
 
-        # # set axis limit
-        ax.set_xlim(left=100)
-        ax.set_ylim(bottom=0, top=0.01)
         ax.set_xscale("log")
 
         if new_ax:
