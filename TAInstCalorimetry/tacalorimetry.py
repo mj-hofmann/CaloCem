@@ -4,20 +4,23 @@ import os
 import pathlib
 import pickle
 import re
-
 from dataclasses import dataclass, field
 
 import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.pyplot
 import matplotlib.axes
+import matplotlib.pyplot
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pysnooper
 from scipy import integrate, signal
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import (
+    InterpolatedUnivariateSpline,
+    UnivariateSpline,
+    splev,
+    splrep,
+)
 from scipy.ndimage import median_filter
-from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
 
 from TAInstCalorimetry import utils
 
@@ -62,7 +65,7 @@ class Measurement:
 
     Currently supported file formats are .xls and .csv files.
     Only TA Instruments data files are supported at the moment.
-    
+
     Parameters
     ----------
     folder : str, optional
@@ -86,11 +89,11 @@ class Measurement:
     --------
 
     >>> import TAInstCalorimetry as ta
-    >>> from pathlib import Path   
+    >>> from pathlib import Path
     >>>
     >>> calodatapath = Path(__file__).parent
     >>> tam = ta.Measurement(folder=calodatapath, show_info=True)
-    
+
     We can use a regex pattern to only include certain files in the datafolder. Here we assume that we only want to load .csv files which contain the string "bm".
 
     >>> tam = ta.Measurement(folder=calodatapath, regex=r".*bm.*.csv", show_info=True)
@@ -771,7 +774,7 @@ class Measurement:
     #
     # iterate samples
     #
-    def iter_samples(self, regex=None):
+    def _iter_samples(self, regex=None):
         """
         iterate samples and return corresponding data
 
@@ -899,7 +902,7 @@ class Measurement:
         # if specific axis to plot to is specified
         if isinstance(ax, matplotlib.axes._axes.Axes):
             # iterate samples
-            for s, d in self.iter_samples():
+            for s, d in self._iter_samples():
                 # define pattern
                 if regex:
                     if not re.findall(rf"{regex}", os.path.basename(s)):
@@ -946,7 +949,7 @@ class Measurement:
         # if no specific axis to plot to is specified
         else:
             # iterate samples
-            for s, d in self.iter_samples():
+            for s, d in self._iter_samples():
                 # define pattern
                 if regex:
                     if not re.findall(rf"{regex}", os.path.basename(s)):
@@ -1073,7 +1076,6 @@ class Measurement:
             # yield latest plot
             yield selections, ax
 
-
     def plot_peak_positions(
         self, data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
     ):
@@ -1116,9 +1118,10 @@ class Measurement:
         if new_ax:
             plt.show()
 
-    
-    def plot_maximum_slope(self, data, ax, age_col, target_col, sample, characteristics, time_discarded_s):
-        
+    def plot_maximum_slope(
+        self, data, ax, age_col, target_col, sample, characteristics, time_discarded_s
+    ):
+
         if isinstance(ax, matplotlib.axes._axes.Axes):
             new_ax = False
         else:
@@ -1290,7 +1293,7 @@ class Measurement:
         list_of_peaks_dfs = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             # cutoff
             if processparams.cutoff.cutoff_min:
                 # discard points at early age
@@ -1387,7 +1390,7 @@ class Measurement:
         list_of_characteristics = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             if exclude_discarded_time:
                 # exclude
                 data = data.query(f"{age_col} >= {time_discarded_s}")
@@ -1505,7 +1508,7 @@ class Measurement:
         exclude_discarded_time=False,
         regex=None,
         read_start_c3s=False,
-        ax = None,
+        ax=None,
     ):
         """
         get maximum slope as a characteristic value
@@ -1534,7 +1537,7 @@ class Measurement:
         list_of_characteristics = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             sample_name = pathlib.Path(sample).stem
             if exclude_discarded_time:
                 # exclude
@@ -1828,7 +1831,7 @@ class Measurement:
         list_dfs = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             # get peak as "right border"
             _peaks = self.get_peaks(
                 processparams,
@@ -1927,7 +1930,7 @@ class Measurement:
         astm_times = []
 
         # loop samples
-        for sample, sample_data in self.iter_samples():
+        for sample, sample_data in self._iter_samples():
             # pick sample data
             helper = data[data["sample"] == sample]
 
@@ -2029,7 +2032,7 @@ class Measurement:
         """
 
         # get list
-        samples = [pathlib.Path(s).stem for s, _ in self.iter_samples()]
+        samples = [pathlib.Path(s).stem for s, _ in self._iter_samples()]
 
         # return
         return samples
@@ -2099,7 +2102,7 @@ class Measurement:
         list_of_dfs = []
 
         # loop samples
-        for sample, roi in self.iter_samples():
+        for sample, roi in self._iter_samples():
             # check whether a "native" "heat_j"-column is available
             try:
                 if not roi["heat_j"].isna().all():
@@ -2373,7 +2376,7 @@ class Measurement:
         Parameters
         ----------
 
-        processparams : 
+        processparams :
             ProcessingParameters object containing all processing parameters for calorimetry data.
         Returns
         -------
@@ -2382,7 +2385,7 @@ class Measurement:
         """
 
         # apply the correction for each sample
-        for s, d in self.iter_samples():
+        for s, d in self._iter_samples():
             # get y-data
             y = d["normalized_heat_flow_w_g"]
             # NaN-handling in y-data
@@ -2465,6 +2468,7 @@ class TianCorrectionParameters:
     tau2 : int
         Time constant for the second correction step in Tian's method. The default value is 100.
     """
+
     tau1: int = 300
     tau2: int = 100
 
@@ -2495,16 +2499,17 @@ class SplineInterpolationParameters:
     Parameters
     ----------
 
-    apply : 
+    apply :
         Flag indicating whether spline interpolation should be applied to the heat flow data. The default value is False.
 
-    smoothing_1st_deriv : 
+    smoothing_1st_deriv :
         Smoothing parameter for the first derivative of the heat flow data. The default value is 1e-9.
 
-    smoothing_2nd_deriv : 
+    smoothing_2nd_deriv :
         Smoothing parameter for the second derivative of the heat flow data. The default value is 1e-9.
-    
+
     """
+
     apply: bool = False
     smoothing_1st_deriv: float = 1e-9
     smoothing_2nd_deriv: float = 1e-9
@@ -2533,26 +2538,26 @@ class ProcessingParameters:
     """
     A data class for storing all processing parameters for calorimetry data.
 
-    This class aggregates various processing parameters, including cutoff criteria, time constants for the Tian correction, and parameters for peak detection and gradient peak detection. 
+    This class aggregates various processing parameters, including cutoff criteria, time constants for the Tian correction, and parameters for peak detection and gradient peak detection.
 
     Attributes
     ----------
 
     cutoff :
-        Parameters defining the cutoff criteria for the analysis. 
+        Parameters defining the cutoff criteria for the analysis.
         Currently only cutoff_min is implemented, which defines the minimum time in minutes for the analysis. The default value is defined in the CutOffParameters class.
-        
+
     time_constants : TianCorrectionParameters
-        Parameters related to time constants used in Tian's correction method for thermal analysis. he default values are defined in the 
+        Parameters related to time constants used in Tian's correction method for thermal analysis. he default values are defined in the
         TianCorrectionParameters class.
-        
+
     peakdetection : PeakDetectionParameters
-        Parameters for detecting peaks in the thermal analysis data. This includes settings such as the minimum 
+        Parameters for detecting peaks in the thermal analysis data. This includes settings such as the minimum
         prominence and distance between peaks. The default values are defined in the PeakDetectionParameters class.
-        
+
     gradient_peakdetection : GradientPeakDetectionParameters
-        Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more 
-        nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks 
+        Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more
+        nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks
         (e.g., first peak, largest width). The default values are defined in the GradientPeakDetectionParameters class.
 
     Examples
@@ -2721,6 +2726,9 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     num_cols = df.select_dtypes(include="number").columns
     resampled_stringcols = resampler[string_cols].first().ffill()
     resampled_numcols = resampler[num_cols].mean().interpolate()
+    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
+    df["time_s"] = (df.index - df.index[0]).total_seconds()
+    return df
     df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
     df["time_s"] = (df.index - df.index[0]).total_seconds()
     return df

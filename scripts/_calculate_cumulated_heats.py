@@ -2,7 +2,6 @@ import pathlib
 
 from TAInstCalorimetry import tacalorimetry
 
-
 # %% use class based approach
 
 # define data path
@@ -28,7 +27,7 @@ data = tam.get_data()
 list_of_dfs = []
 
 # % loop
-for sample, roi in tam.iter_samples():
+for sample, roi in tam._iter_samples():
     print(sample)
 
     try:
