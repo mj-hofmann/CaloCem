@@ -62,6 +62,25 @@ class Measurement:
 
     Currently supported file formats are .xls and .csv files.
     Only TA Instruments data files are supported at the moment.
+    
+    Parameters
+    ----------
+    folder : str, optional
+        path to folder containing .xls and/or .csv experimental result
+        files. The default is None.
+    show_info : bool, optional
+        whether or not to print some informative lines during code
+        execution. The default is True.
+    regex : str, optional
+        regex pattern to include only certain experimental result files
+        during initialization. The default is None.
+    auto_clean : bool, optional
+        whether or not to exclude NaN values contained in the original
+        files and combine data from differently names temperature columns.
+        The default is False.
+    cold_start : bool, optional
+        whether or not to use "pickled" files for initialization; save time
+        on reading
 
     Examples
     --------
@@ -75,6 +94,7 @@ class Measurement:
     We can use a regex pattern to only include certain files in the datafolder. Here we assume that we only want to load .csv files which contain the string "bm".
 
     >>> tam = ta.Measurement(folder=calodatapath, regex=r".*bm.*.csv", show_info=True)
+
     """
 
     # init
@@ -96,32 +116,11 @@ class Measurement:
     # init
     #
     def __init__(
-        self, folder=None, show_info=False, regex=None, auto_clean=False, cold_start=True
+        self, folder=None, show_info=True, regex=None, auto_clean=False, cold_start=True
     ):
         """
         intialize measurements from folder
 
-        Parameters
-        ----------
-        folder : str, optional
-            path to folder containing .xls and/or .csv experimental result
-            files. The default is None.
-        show_info : bool, optional
-            whether or not to print some informative lines during code
-            execution. The default is False.
-        regex : str, optional
-            regex pattern to include only certain experimental result files
-            during initialization. The default is None.
-        auto_clean : bool, optional
-            whether or not to exclude NaN values contained in the original
-            files and combine data from differently names temperature columns.
-            The default is True.
-        cold_start : bool, optional
-            whether or not to use "pickled" files for initialization; save time
-            on reading
-        Returns
-        -------
-        None.
 
         """
 
@@ -129,12 +128,12 @@ class Measurement:
         if folder:
             if cold_start:
                 # get data and parameters
-                self.get_data_and_parameters_from_folder(
+                self._get_data_and_parameters_from_folder(
                     folder, regex=regex, show_info=show_info
                 )
             else:
                 # get data and parameters from pickled files
-                self.get_data_and_parameters_from_pickle()
+                self._get_data_and_parameters_from_pickle()
             try:
                 if auto_clean:
                     # remove NaN values and merge time columns
@@ -154,7 +153,7 @@ class Measurement:
     #
     # get_data_and_parameters_from_folder
     #
-    def get_data_and_parameters_from_folder(self, folder, regex=None, show_info=True):
+    def _get_data_and_parameters_from_folder(self, folder, regex=None, show_info=True):
         """
         get_data_and_parameters_from_folder
         """
@@ -263,7 +262,7 @@ class Measurement:
     #
     # get data and information from pickled files
     #
-    def get_data_and_parameters_from_pickle(self):
+    def _get_data_and_parameters_from_pickle(self):
         """
         get data and information from pickled files
 
