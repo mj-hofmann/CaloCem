@@ -58,7 +58,23 @@ class AddMetaDataSourceException(Exception):
 #
 class Measurement:
     """
-    Base class of "tacalorimetry"
+    A base class for handling and processing isothermal heat flow calorimetry data.
+
+    Currently supported file formats are .xls and .csv files.
+    Only TA Instruments data files are supported at the moment.
+
+    Examples
+    --------
+
+    >>> import TAInstCalorimetry as ta
+    >>> from pathlib import Path   
+    >>>
+    >>> calodatapath = Path(__file__).parent
+    >>> tam = ta.Measurement(folder=calodatapath, show_info=True)
+    
+    We can use a regex pattern to only include certain files in the datafolder. Here we assume that we only want to load .csv files which contain the string "bm".
+
+    >>> tam = ta.Measurement(folder=calodatapath, regex=r".*bm.*.csv", show_info=True)
     """
 
     # init
@@ -80,7 +96,7 @@ class Measurement:
     # init
     #
     def __init__(
-        self, folder=None, show_info=False, regex=None, auto_clean=True, cold_start=True
+        self, folder=None, show_info=False, regex=None, auto_clean=False, cold_start=True
     ):
         """
         intialize measurements from folder
@@ -988,7 +1004,7 @@ class Measurement:
 
         Parameters
         ----------
-        category : str, list[str]
+        categories : str, list[str]
             category (from "self.get_metadata_grouping_options") to group by.
             specify a string or a list of strings here
         t_unit : TYPE, optional
@@ -1503,13 +1519,7 @@ class Measurement:
             Time unit within which peak onsets are searched for. The default is "time_s"
         time_discarded_s : int | float, optional
             Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
-        rolling : None | str, optional
-            Width of "rolling" window within which the values of "target_col"
-            are averaged. A higher value will introduce a stronger smoothing
-            effect. The default is The default is None., i.e. no smoothing via
-            a rolling window but "utils.fit_univariate_spline".
-            In case of a rolling window defined using a str, use e.g. '15min'
-         show_plot : bool, optional
+        show_plot : bool, optional
             Flag whether or not to plot peak picking for each sample. The default is False.
         exclude_discarded_time : bool, optional
             Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
@@ -1896,8 +1906,6 @@ class Measurement:
         ----------
         individual : bool, optional
             DESCRIPTION. The default is False.
-        cutoff_min : int, optional
-            DESCRIPTION. The default is 15.
 
         Returns
         -------
@@ -2165,7 +2173,7 @@ class Measurement:
         ----------
         file : str
             path to additonal metadata source file.
-        sample_id_colum : str
+        sample_id_column : str
             column name in the additional source file matching self._data["sample_short"].
 
         Returns
@@ -2243,8 +2251,7 @@ class Measurement:
         get_time_from : TYPE, optional
             DESCRIPTION. The default is "left". further options: # "mid" "right"
 
-        time_average_log_bin_count: number of bins if even spacing in logarithmic
-        scale is applied
+        time_average_log_bin_count: number of bins if even spacing in logarithmic scale is applied
 
         Returns
         -------
@@ -2366,15 +2373,9 @@ class Measurement:
 
         Parameters
         ----------
-        tau : TYPE, optional
-            time constant to be applied for the correction. The value has to
-            be determined experimentally. The default is 300.
-        window : int,
-            Window size for the Savitzky-Golay Filter. Must be odd integer. The default is 11.
-        spline_smoothing : TYPE, optional
-            smoothing value for spline. A value of 0 implies no modification
-            of the experimental data. The default is 0.
 
+        processparams : 
+            ProcessingParameters object containing all processing parameters for calorimetry data.
         Returns
         -------
         None.
