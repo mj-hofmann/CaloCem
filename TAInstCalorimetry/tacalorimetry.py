@@ -918,100 +918,16 @@ class Measurement:
         else:
             y_factor = 1
 
-        # if specific axis to plot to is specified
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            # iterate samples
-            for s, d in self._iter_samples():
-                # define pattern
-                if regex:
-                    if not re.findall(rf"{regex}", os.path.basename(s)):
-                        # go to next
-                        continue
-                # plot
-
-                # "standard" plot --> individual or averaged
-                p_mean = ax.plot(
-                    d["time_s"] * x_factor,
-                    d[y_column] * y_factor,
-                    label=os.path.basename(d["sample"].tolist()[0])
-                    .split(".xls")[0]
-                    .split(".csv")[0],
-                )
-                try:
-                    # std plot of "fill_between" type
-                    ax.fill_between(
-                        d["time_s"] * x_factor,
-                        (d[y_column] - d[f"{y_column}_std"]) * y_factor,
-                        (d[y_column] + d[f"{y_column}_std"]) * y_factor,
-                        color=p_mean[0].get_color(),
-                        alpha=0.4,
-                        label=None,
-                    )
-                except Exception:
-                    # do nothing
-                    pass
-
-            # legend
-            ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
-
-            # limits
-            ax.set_xlim(left=0)
-            ax.set_ylim(bottom=0)
-
-            # add labels
-            ax.set_xlabel(f"Age / [{t_unit}]")
-            ax.set_ylabel(y_label)
-
-            # return ax
-            return ax
-
-        # if no specific axis to plot to is specified
-        else:
-            # iterate samples
-            for s, d in self._iter_samples():
-                # define pattern
-                if regex:
-                    if not re.findall(rf"{regex}", os.path.basename(s)):
-                        # go to next
-                        continue
-                # plot
-
-                # "standard" plot --> individual or averaged
-                p_mean = plt.plot(
-                    d["time_s"] * x_factor,
-                    d[y_column] * y_factor,
-                    label=os.path.basename(d["sample"].tolist()[0])
-                    .split(".xls")[0]
-                    .split(".csv")[0],
-                )
-                try:
-                    # std plot of "fill_between" type
-                    plt.fill_between(
-                        d["time_s"] * x_factor,
-                        (d[y_column] - d[f"{y_column}_std"]) * y_factor,
-                        (d[y_column] + d[f"{y_column}_std"]) * y_factor,
-                        color=p_mean[0].get_color(),
-                        alpha=0.4,
-                        label=None,
-                    )
-                except Exception:
-                    # do nothing
-                    pass
-
-            # legend
-            plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
-
-            # limits
-            plt.xlim(left=0)
-            plt.ylim(bottom=0)
-
-            # add labels
-            plt.xlabel(f"Age / [{t_unit}]")
-            plt.ylabel(y_label)
-
-            # return ax
-            return plt.gca()
-
+        for sample, data in self._iter_samples():
+            if regex:
+                if not re.findall(rf"{regex}", os.path.basename(sample)):
+                    continue
+            data["time_s"] = data["time_s"] * x_factor
+            data[y_column] = data[y_column] * y_factor
+            ax, _ = utils.create_base_plot(data, ax, "time_s", y_column, sample)
+            ax = utils.style_base_plot(ax, y_label, t_unit, sample, )
+        return ax
+       
     #
     # plot by category
     #
@@ -2737,3 +2653,5 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
     df["time_s"] = (df.index - df.index[0]).total_seconds()
     return df
+
+

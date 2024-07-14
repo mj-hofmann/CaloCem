@@ -8,7 +8,7 @@ from scipy.ndimage import median_filter
 from pathlib import Path
 
 
-def create_base_plot(data, ax, _age_col, _target_col):
+def create_base_plot(data, ax, _age_col, _target_col, sample):
     """
     create base plot
     """
@@ -18,12 +18,12 @@ def create_base_plot(data, ax, _age_col, _target_col):
         new_ax = True
         _, ax = plt.subplots()
 
-    ax.plot(data[_age_col], data[_target_col])
+    ax.plot(data[_age_col], data[_target_col], label=Path(sample).stem)
     return ax, new_ax
 
 
 def style_base_plot(
-    ax, _target_col, _age_col, sample, limits, time_discarded_s=None
+    ax, _target_col, _age_col, sample, limits=None, time_discarded_s=None
 ):
     """
     style base plot
@@ -40,12 +40,24 @@ def style_base_plot(
             color="black",
             alpha=0.35,
         )
-    ax.set_xlim(limits["left"], limits["right"])
-    ax.set_ylim(limits["bottom"], limits["top"])
+    if limits is not None:
+        ax.set_xlim(limits["left"], limits["right"])
+        ax.set_ylim(limits["bottom"], limits["top"])
    # ax.set_ylim(0, plt_top)
     ax.legend()
     return ax
 
+def get_data_limits(data, _age_col, _target_col):
+    """
+    get data limits
+    """
+    limits = {
+        "left": data[_age_col].min(),
+        "right": data[_age_col].max(),
+        "bottom": data[_target_col].min(),
+        "top": data[_target_col].max(),
+    }
+    return limits
 
 #
 # conversion of DataFrame to float
