@@ -4,17 +4,19 @@ from TAInstCalorimetry import tacalorimetry
 
 
 # path
-path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
+path = pathlib.Path(__file__).parent.parent 
+datapath = path / "TAInstCalorimetry" / "DATA"
+metadatapath = path / "tests"
 
 # get data
 tam = tacalorimetry.Measurement(
-    path, regex="myexp.*", show_info=True, cold_start=True, auto_clean=False
+    datapath, regex="calorimetry_data_[1-5].*", show_info=True, cold_start=True, auto_clean=False
 )
 # %%
 data = tam.get_data()
 
 # add metadata
-tam.add_metadata_source("mini_metadata.csv", "experiment_nr")
+tam.add_metadata_source(metadatapath / "mini_metadata.csv", "experiment_nr")
 
 # get meta
 meta, meta_id = tam.get_metadata()
@@ -22,17 +24,15 @@ meta, meta_id = tam.get_metadata()
 
 # %% plot by category
 
-# define action by one category
-categorize_by = "cement_name"  # 'date', 'cement_amount_g', 'water_amount_g'
-
 # # define action by two or more categories
-categorize_by = ["date", "cement_name"]
+categorize_by = ["cement_name", "date"]
 
 # changes data!!!
 tam.average_by_metadata(categorize_by)
 
 # plot
-tam.plot()
+ax = tam.plot(y_unit_milli=False)
+ax.set_xlim(0,1)
 
 
 # %% revert aggregation
@@ -44,4 +44,7 @@ tam.undo_average_by_metadata()
 # %% plot de-aggregated data
 
 # plot
-tam.plot()
+ax = tam.plot()
+ax.set_xlim(0, 1.5)
+
+# %%

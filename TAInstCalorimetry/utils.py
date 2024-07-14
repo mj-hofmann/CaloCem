@@ -19,6 +19,16 @@ def create_base_plot(data, ax, _age_col, _target_col, sample):
         _, ax = plt.subplots()
 
     ax.plot(data[_age_col], data[_target_col], label=Path(sample).stem)
+
+    # check if std deviation is available
+    std_present = [s for s in data.columns if "std" in s]
+    if std_present:
+        ax.fill_between(
+            data[_age_col],
+            data[_target_col] - data[_target_col + "_std"],
+            data[_target_col] + data[_target_col + "_std"],
+            alpha=0.5,
+        )
     return ax, new_ax
 
 

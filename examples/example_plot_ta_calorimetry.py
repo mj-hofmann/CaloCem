@@ -11,7 +11,7 @@ plotpath = Path(__file__).parent.parent / "docs" / "assets"
 # experiments via class
 tam = tacalorimetry.Measurement(
     folder=datapath,
-    regex="peak_detection_example[3,5].csv",
+    regex="calorimetry_data_[1].csv",
     show_info=True,
     auto_clean=False,
 )
