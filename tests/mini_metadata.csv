@@ -1,9 +1,6 @@
 experiment_nr,date,cement_name,cement_amount_g,water_amount_g
-myexp1,01.01.2023,cem_a,100,50
-myexp2,01.01.2023,cem_a,100,40
-myexp3,05.02.2023,cem_a,100,35
-myexp4,05.02.2023,cem_a,120,50
-myexp5,05.02.2023,cem_b,100,50
-myexp6,10.03.2023,cem_b,100,40
-myexp7,10.03.2023,cem_b,100,35
-myexp8,10.03.2023,cem_b,120,50
+calorimetry_data_1,01.01.2023,cem_a,100,50
+calorimetry_data_2,01.01.2023,cem_b,100,40
+calorimetry_data_3,01.01.2023,cem_a,100,35
+calorimetry_data_4,01.01.2023,cem_b,120,50
+calorimetry_data_5,05.02.2023,cem_b,100,45

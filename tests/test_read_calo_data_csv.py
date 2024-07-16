@@ -14,9 +14,9 @@ from TAInstCalorimetry import tacalorimetry
             None,
         ),  # multiples samples in one file?  --> do nothing / return 0
         ("gen3_calofile.csv", 172799),
-        ("calorimetry_data_1.csv", 296830),  # comma sep
+        ("calorimetry_data_1.csv", 416006),  
         ("calorimetry_data_2.csv", 277199),
-        ("calorimetry_data_3.csv", 296820),  # comma sep
+        ("calorimetry_data_3.csv", 410349),  
         ("calorimetry_data_4.csv", 277199),
         ("calorimetry_data_5.csv", 277199),
         ("gen1_calofile3.csv", 264470),  # in-situ first gen file

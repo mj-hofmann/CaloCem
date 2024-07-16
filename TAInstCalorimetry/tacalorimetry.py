@@ -4,20 +4,23 @@ import os
 import pathlib
 import pickle
 import re
-
 from dataclasses import dataclass, field
 
 import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.pyplot
 import matplotlib.axes
+import matplotlib.pyplot
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pysnooper
 from scipy import integrate, signal
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import (
+    InterpolatedUnivariateSpline,
+    UnivariateSpline,
+    splev,
+    splrep,
+)
 from scipy.ndimage import median_filter
-from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
 
 from TAInstCalorimetry import utils
 
@@ -58,7 +61,43 @@ class AddMetaDataSourceException(Exception):
 #
 class Measurement:
     """
-    Base class of "tacalorimetry"
+    A base class for handling and processing isothermal heat flow calorimetry data.
+
+    Currently supported file formats are .xls and .csv files.
+    Only TA Instruments data files are supported at the moment.
+
+    Parameters
+    ----------
+    folder : str, optional
+        path to folder containing .xls and/or .csv experimental result
+        files. The default is None.
+    show_info : bool, optional
+        whether or not to print some informative lines during code
+        execution. The default is True.
+    regex : str, optional
+        regex pattern to include only certain experimental result files
+        during initialization. The default is None.
+    auto_clean : bool, optional
+        whether or not to exclude NaN values contained in the original
+        files and combine data from differently names temperature columns.
+        The default is False.
+    cold_start : bool, optional
+        whether or not to use "pickled" files for initialization; save time
+        on reading
+
+    Examples
+    --------
+
+    >>> import TAInstCalorimetry as ta
+    >>> from pathlib import Path
+    >>>
+    >>> calodatapath = Path(__file__).parent
+    >>> tam = ta.Measurement(folder=calodatapath, show_info=True)
+
+    We can use a regex pattern to only include certain files in the datafolder. Here we assume that we only want to load .csv files which contain the string "bm".
+
+    >>> tam = ta.Measurement(folder=calodatapath, regex=r".*bm.*.csv", show_info=True)
+
     """
 
     # init
@@ -80,32 +119,11 @@ class Measurement:
     # init
     #
     def __init__(
-        self, folder=None, show_info=False, regex=None, auto_clean=True, cold_start=True
+        self, folder=None, show_info=True, regex=None, auto_clean=False, cold_start=True
     ):
         """
         intialize measurements from folder
 
-        Parameters
-        ----------
-        folder : str, optional
-            path to folder containing .xls and/or .csv experimental result
-            files. The default is None.
-        show_info : bool, optional
-            whether or not to print some informative lines during code
-            execution. The default is False.
-        regex : str, optional
-            regex pattern to include only certain experimental result files
-            during initialization. The default is None.
-        auto_clean : bool, optional
-            whether or not to exclude NaN values contained in the original
-            files and combine data from differently names temperature columns.
-            The default is True.
-        cold_start : bool, optional
-            whether or not to use "pickled" files for initialization; save time
-            on reading
-        Returns
-        -------
-        None.
 
         """
 
@@ -113,12 +131,12 @@ class Measurement:
         if folder:
             if cold_start:
                 # get data and parameters
-                self.get_data_and_parameters_from_folder(
+                self._get_data_and_parameters_from_folder(
                     folder, regex=regex, show_info=show_info
                 )
             else:
                 # get data and parameters from pickled files
-                self.get_data_and_parameters_from_pickle()
+                self._get_data_and_parameters_from_pickle()
             try:
                 if auto_clean:
                     # remove NaN values and merge time columns
@@ -138,7 +156,7 @@ class Measurement:
     #
     # get_data_and_parameters_from_folder
     #
-    def get_data_and_parameters_from_folder(self, folder, regex=None, show_info=True):
+    def _get_data_and_parameters_from_folder(self, folder, regex=None, show_info=True):
         """
         get_data_and_parameters_from_folder
         """
@@ -247,7 +265,7 @@ class Measurement:
     #
     # get data and information from pickled files
     #
-    def get_data_and_parameters_from_pickle(self):
+    def _get_data_and_parameters_from_pickle(self):
         """
         get data and information from pickled files
 
@@ -756,7 +774,7 @@ class Measurement:
     #
     # iterate samples
     #
-    def iter_samples(self, regex=None):
+    def _iter_samples(self, regex=None):
         """
         iterate samples and return corresponding data
 
@@ -835,17 +853,36 @@ class Measurement:
         ax=None,
     ):
         """
-        plot  of
-            - normalizedheatflow
-            - normalizedheat
 
-        in SI-units and "practical" units
+        Plot the calorimetry data.
 
-        with time units of
-            - s
-            - min
-            - h
-            - d
+        Parameters
+        ----------
+        t_unit : str, optional
+            time unit. The default is "h". Options are "s", "min", "h", "d".
+        y : str, optional
+            y-axis. The default is "normalized_heat_flow_w_g". Options are
+            "normalized_heat_flow_w_g", "heat_flow_w", "normalized_heat_j_g",
+            "heat_j".
+        y_unit_milli : bool, optional
+            whether or not to plot y-axis in Milliwatt. The default is True.
+        regex : str, optional
+            regex pattern to include only certain samples during plotting. The
+            default is None.
+        show_info : bool, optional
+            whether or not to show information. The default is True.
+        ax : matplotlib.axes._axes.Axes, optional
+            axis to plot to. The default is None.
+
+        Examples
+        --------
+        >>> import TAInstCalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> calodatapath = Path(__file__).parent
+        >>> tam = ta.Measurement(folder=calodatapath, show_info=True)
+        >>> tam.plot(t_unit="h", y="normalized_heat_flow_w_g", y_unit_milli=False)
+
         """
 
         # y-value
@@ -881,100 +918,16 @@ class Measurement:
         else:
             y_factor = 1
 
-        # if specific axis to plot to is specified
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            # iterate samples
-            for s, d in self.iter_samples():
-                # define pattern
-                if regex:
-                    if not re.findall(rf"{regex}", os.path.basename(s)):
-                        # go to next
-                        continue
-                # plot
-
-                # "standard" plot --> individual or averaged
-                p_mean = ax.plot(
-                    d["time_s"] * x_factor,
-                    d[y_column] * y_factor,
-                    label=os.path.basename(d["sample"].tolist()[0])
-                    .split(".xls")[0]
-                    .split(".csv")[0],
-                )
-                try:
-                    # std plot of "fill_between" type
-                    ax.fill_between(
-                        d["time_s"] * x_factor,
-                        (d[y_column] - d[f"{y_column}_std"]) * y_factor,
-                        (d[y_column] + d[f"{y_column}_std"]) * y_factor,
-                        color=p_mean[0].get_color(),
-                        alpha=0.4,
-                        label=None,
-                    )
-                except Exception:
-                    # do nothing
-                    pass
-
-            # legend
-            ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
-
-            # limits
-            ax.set_xlim(left=0)
-            ax.set_ylim(bottom=0)
-
-            # add labels
-            ax.set_xlabel(f"Age / [{t_unit}]")
-            ax.set_ylabel(y_label)
-
-            # return ax
-            return ax
-
-        # if no specific axis to plot to is specified
-        else:
-            # iterate samples
-            for s, d in self.iter_samples():
-                # define pattern
-                if regex:
-                    if not re.findall(rf"{regex}", os.path.basename(s)):
-                        # go to next
-                        continue
-                # plot
-
-                # "standard" plot --> individual or averaged
-                p_mean = plt.plot(
-                    d["time_s"] * x_factor,
-                    d[y_column] * y_factor,
-                    label=os.path.basename(d["sample"].tolist()[0])
-                    .split(".xls")[0]
-                    .split(".csv")[0],
-                )
-                try:
-                    # std plot of "fill_between" type
-                    plt.fill_between(
-                        d["time_s"] * x_factor,
-                        (d[y_column] - d[f"{y_column}_std"]) * y_factor,
-                        (d[y_column] + d[f"{y_column}_std"]) * y_factor,
-                        color=p_mean[0].get_color(),
-                        alpha=0.4,
-                        label=None,
-                    )
-                except Exception:
-                    # do nothing
-                    pass
-
-            # legend
-            plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), frameon=False)
-
-            # limits
-            plt.xlim(left=0)
-            plt.ylim(bottom=0)
-
-            # add labels
-            plt.xlabel(f"Age / [{t_unit}]")
-            plt.ylabel(y_label)
-
-            # return ax
-            return plt.gca()
-
+        for sample, data in self._iter_samples():
+            if regex:
+                if not re.findall(rf"{regex}", os.path.basename(sample)):
+                    continue
+            data["time_s"] = data["time_s"] * x_factor
+            data[y_column] = data[y_column] * y_factor
+            ax, _ = utils.create_base_plot(data, ax, "time_s", y_column, sample)
+            ax = utils.style_base_plot(ax, y_label, t_unit, sample, )
+        return ax
+       
     #
     # plot by category
     #
@@ -988,7 +941,7 @@ class Measurement:
 
         Parameters
         ----------
-        category : str, list[str]
+        categories : str, list[str]
             category (from "self.get_metadata_grouping_options") to group by.
             specify a string or a list of strings here
         t_unit : TYPE, optional
@@ -997,6 +950,16 @@ class Measurement:
             see "self.plot". The default is "normalized_heat_flow_w_g".
         y_unit_milli : TYPE, optional
             see "self.plot". The default is True.
+
+        Examples
+        --------
+        >>> import TAInstCalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> calodatapath = Path(__file__).parent
+        >>> tam = ta.Measurement(folder=calodatapath, show_info=True)
+        >>> tam.plot_by_category(categories="sample")
+
 
         Returns
         -------
@@ -1058,20 +1021,15 @@ class Measurement:
             # yield latest plot
             yield selections, ax
 
-
-    def plot_peak_positions(
-        self, data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
+    @staticmethod
+    def _plot_peak_positions(
+        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
     ):
         """
         Plot detected peaks.
         """
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            ax.plot(data[_age_col], data[_target_col])
-            new_ax = False
-        else:
-            new_ax = True
-            fig, ax = plt.subplots()
-            ax.plot(data[_age_col], data[_target_col])
+
+        ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col)
 
         ax.plot(
             data[_age_col][peaks],
@@ -1086,31 +1044,25 @@ class Measurement:
             ymax=data[_target_col][peaks],
             color="red",
         )
-        # add "barrier"
-        ax.axvline(15 * 60, color="green", linestyle=":", linewidth=3)
-        # figure cosmetics
-        ax.legend(loc="best")
-        ax.set_xlim(left=0)
-        ax.set_xlim(right=plt_right_s)
-        ax.set_ylim(bottom=0)
-        ax.set_ylim(top=plt_top)
-        ax.set_xlabel(_age_col)
-        ax.set_ylabel(_target_col)
-        ax.set_title("Peak plot for " + pathlib.Path(sample).stem)
+
+        limits = {
+            "left": ax.get_xlim()[0],
+            "right": plt_right_s,
+            "bottom": 0,
+            "top": plt_top,
+        }
+
+        ax = utils.style_base_plot(ax, _target_col, _age_col, sample, limits)
 
         if new_ax:
             plt.show()
 
-    
-    def plot_maximum_slope(self, data, ax, age_col, target_col, sample, characteristics, time_discarded_s):
-        
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            new_ax = False
-        else:
-            new_ax = True
-            fig, ax = plt.subplots()
+    @staticmethod
+    def _plot_maximum_slope(
+        data, ax, age_col, target_col, sample, characteristics, time_discarded_s
+    ):
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col)
 
-        ax.plot(data[age_col], data[target_col], label=target_col)
         ax.plot(
             data[age_col],
             data["gradient"] * 1e4 + 0.001,
@@ -1122,27 +1074,13 @@ class Measurement:
             # vline
             ax.axvline(_row.at[age_col], color="green", alpha=0.3)
 
-        # cosmetics
-        ax.set_xscale("log")
-        ax.set_title(f"Maximum slope plot for {pathlib.Path(sample).stem}")
-        ax.set_xlabel(age_col)
-        ax.set_ylabel(target_col)
-        ax.legend()
+        limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
 
-        # # get axis
-        # ax = plt.gca()
-
-        ax.fill_between(
-            [ax.get_ylim()[0], time_discarded_s],
-            [ax.get_ylim()[0]] * 2,
-            [ax.get_ylim()[1]] * 2,
-            color="black",
-            alpha=0.35,
+        ax = utils.style_base_plot(
+            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s
         )
 
-        # set axis limit
-        ax.set_xlim(left=100)
-        ax.set_ylim(bottom=0, top=0.01)
+        ax.set_xscale("log")
 
         if new_ax:
             plt.show()
@@ -1275,7 +1213,7 @@ class Measurement:
         list_of_peaks_dfs = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             # cutoff
             if processparams.cutoff.cutoff_min:
                 # discard points at early age
@@ -1297,7 +1235,7 @@ class Measurement:
 
             # plot?
             if show_plot:
-                self.plot_peak_positions(
+                self._plot_peak_positions(
                     data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
                 )
 
@@ -1342,6 +1280,7 @@ class Measurement:
     ):
         """
         get peak onsets based on a criterion of minimum gradient
+
         Parameters
         ----------
         target_col : str, optional
@@ -1372,7 +1311,7 @@ class Measurement:
         list_of_characteristics = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             if exclude_discarded_time:
                 # exclude
                 data = data.query(f"{age_col} >= {time_discarded_s}")
@@ -1490,7 +1429,7 @@ class Measurement:
         exclude_discarded_time=False,
         regex=None,
         read_start_c3s=False,
-        ax = None,
+        ax=None,
     ):
         """
         get maximum slope as a characteristic value
@@ -1503,13 +1442,7 @@ class Measurement:
             Time unit within which peak onsets are searched for. The default is "time_s"
         time_discarded_s : int | float, optional
             Time in seconds below which collected data points are discarded for peak onset picking. The default is 900.
-        rolling : None | str, optional
-            Width of "rolling" window within which the values of "target_col"
-            are averaged. A higher value will introduce a stronger smoothing
-            effect. The default is The default is None., i.e. no smoothing via
-            a rolling window but "utils.fit_univariate_spline".
-            In case of a rolling window defined using a str, use e.g. '15min'
-         show_plot : bool, optional
+        show_plot : bool, optional
             Flag whether or not to plot peak picking for each sample. The default is False.
         exclude_discarded_time : bool, optional
             Whether or not to discard the experimental values obtained before "time_discarded_s" also in the visualization. The default is False.
@@ -1525,7 +1458,7 @@ class Measurement:
         list_of_characteristics = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             sample_name = pathlib.Path(sample).stem
             if exclude_discarded_time:
                 # exclude
@@ -1560,7 +1493,7 @@ class Measurement:
 
             # optional plotting
             if show_plot:
-                self.plot_maximum_slope(
+                self._plot_maximum_slope(
                     data,
                     ax,
                     age_col,
@@ -1819,7 +1752,7 @@ class Measurement:
         list_dfs = []
 
         # loop samples
-        for sample, data in self.iter_samples(regex=regex):
+        for sample, data in self._iter_samples(regex=regex):
             # get peak as "right border"
             _peaks = self.get_peaks(
                 processparams,
@@ -1896,8 +1829,6 @@ class Measurement:
         ----------
         individual : bool, optional
             DESCRIPTION. The default is False.
-        cutoff_min : int, optional
-            DESCRIPTION. The default is 15.
 
         Returns
         -------
@@ -1920,7 +1851,7 @@ class Measurement:
         astm_times = []
 
         # loop samples
-        for sample, sample_data in self.iter_samples():
+        for sample, sample_data in self._iter_samples():
             # pick sample data
             helper = data[data["sample"] == sample]
 
@@ -2022,7 +1953,7 @@ class Measurement:
         """
 
         # get list
-        samples = [pathlib.Path(s).stem for s, _ in self.iter_samples()]
+        samples = [pathlib.Path(s).stem for s, _ in self._iter_samples()]
 
         # return
         return samples
@@ -2092,7 +2023,7 @@ class Measurement:
         list_of_dfs = []
 
         # loop samples
-        for sample, roi in self.iter_samples():
+        for sample, roi in self._iter_samples():
             # check whether a "native" "heat_j"-column is available
             try:
                 if not roi["heat_j"].isna().all():
@@ -2165,7 +2096,7 @@ class Measurement:
         ----------
         file : str
             path to additonal metadata source file.
-        sample_id_colum : str
+        sample_id_column : str
             column name in the additional source file matching self._data["sample_short"].
 
         Returns
@@ -2243,8 +2174,7 @@ class Measurement:
         get_time_from : TYPE, optional
             DESCRIPTION. The default is "left". further options: # "mid" "right"
 
-        time_average_log_bin_count: number of bins if even spacing in logarithmic
-        scale is applied
+        time_average_log_bin_count: number of bins if even spacing in logarithmic scale is applied
 
         Returns
         -------
@@ -2366,15 +2296,9 @@ class Measurement:
 
         Parameters
         ----------
-        tau : TYPE, optional
-            time constant to be applied for the correction. The value has to
-            be determined experimentally. The default is 300.
-        window : int,
-            Window size for the Savitzky-Golay Filter. Must be odd integer. The default is 11.
-        spline_smoothing : TYPE, optional
-            smoothing value for spline. A value of 0 implies no modification
-            of the experimental data. The default is 0.
 
+        processparams :
+            ProcessingParameters object containing all processing parameters for calorimetry data.
         Returns
         -------
         None.
@@ -2382,7 +2306,7 @@ class Measurement:
         """
 
         # apply the correction for each sample
-        for s, d in self.iter_samples():
+        for s, d in self._iter_samples():
             # get y-data
             y = d["normalized_heat_flow_w_g"]
             # NaN-handling in y-data
@@ -2465,6 +2389,7 @@ class TianCorrectionParameters:
     tau2 : int
         Time constant for the second correction step in Tian's method. The default value is 100.
     """
+
     tau1: int = 300
     tau2: int = 100
 
@@ -2495,16 +2420,17 @@ class SplineInterpolationParameters:
     Parameters
     ----------
 
-    apply : 
+    apply :
         Flag indicating whether spline interpolation should be applied to the heat flow data. The default value is False.
 
-    smoothing_1st_deriv : 
+    smoothing_1st_deriv :
         Smoothing parameter for the first derivative of the heat flow data. The default value is 1e-9.
 
-    smoothing_2nd_deriv : 
+    smoothing_2nd_deriv :
         Smoothing parameter for the second derivative of the heat flow data. The default value is 1e-9.
-    
+
     """
+
     apply: bool = False
     smoothing_1st_deriv: float = 1e-9
     smoothing_2nd_deriv: float = 1e-9
@@ -2533,26 +2459,26 @@ class ProcessingParameters:
     """
     A data class for storing all processing parameters for calorimetry data.
 
-    This class aggregates various processing parameters, including cutoff criteria, time constants for the Tian correction, and parameters for peak detection and gradient peak detection. 
+    This class aggregates various processing parameters, including cutoff criteria, time constants for the Tian correction, and parameters for peak detection and gradient peak detection.
 
     Attributes
     ----------
 
     cutoff :
-        Parameters defining the cutoff criteria for the analysis. 
+        Parameters defining the cutoff criteria for the analysis.
         Currently only cutoff_min is implemented, which defines the minimum time in minutes for the analysis. The default value is defined in the CutOffParameters class.
-        
+
     time_constants : TianCorrectionParameters
-        Parameters related to time constants used in Tian's correction method for thermal analysis. he default values are defined in the 
+        Parameters related to time constants used in Tian's correction method for thermal analysis. he default values are defined in the
         TianCorrectionParameters class.
-        
+
     peakdetection : PeakDetectionParameters
-        Parameters for detecting peaks in the thermal analysis data. This includes settings such as the minimum 
+        Parameters for detecting peaks in the thermal analysis data. This includes settings such as the minimum
         prominence and distance between peaks. The default values are defined in the PeakDetectionParameters class.
-        
+
     gradient_peakdetection : GradientPeakDetectionParameters
-        Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more 
-        nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks 
+        Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more
+        nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks
         (e.g., first peak, largest width). The default values are defined in the GradientPeakDetectionParameters class.
 
     Examples
@@ -2724,3 +2650,8 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
     df["time_s"] = (df.index - df.index[0]).total_seconds()
     return df
+    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
+    df["time_s"] = (df.index - df.index[0]).total_seconds()
+    return df
+
+

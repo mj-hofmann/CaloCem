@@ -1,8 +1,73 @@
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
 from scipy.signal import convolve, gaussian
 from scipy.ndimage import median_filter
+from pathlib import Path
+
+
+def create_base_plot(data, ax, _age_col, _target_col, sample):
+    """
+    create base plot
+    """
+    if isinstance(ax, matplotlib.axes._axes.Axes):
+        new_ax = False
+    else:
+        new_ax = True
+        _, ax = plt.subplots()
+
+    ax.plot(data[_age_col], data[_target_col], label=Path(sample).stem)
+
+    # check if std deviation is available
+    std_present = [s for s in data.columns if "std" in s]
+    if std_present:
+        ax.fill_between(
+            data[_age_col],
+            data[_target_col] - data[_target_col + "_std"],
+            data[_target_col] + data[_target_col + "_std"],
+            alpha=0.5,
+        )
+    return ax, new_ax
+
+
+def style_base_plot(
+    ax, _target_col, _age_col, sample, limits=None, time_discarded_s=None
+):
+    """
+    style base plot
+    """
+    ax.set_ylabel(_target_col)
+    ax.set_xlabel(_age_col)
+    ax.set_title(f"Sample: {Path(sample).stem}")
+    if time_discarded_s is not None:
+        print("time_discarded_s", time_discarded_s)
+        ax.fill_between(
+            [ax.get_ylim()[0], time_discarded_s],
+            [ax.get_ylim()[0]] ,
+            [ax.get_ylim()[1]] ,
+            color="black",
+            alpha=0.35,
+        )
+    if limits is not None:
+        ax.set_xlim(limits["left"], limits["right"])
+        ax.set_ylim(limits["bottom"], limits["top"])
+   # ax.set_ylim(0, plt_top)
+    ax.legend()
+    return ax
+
+def get_data_limits(data, _age_col, _target_col):
+    """
+    get data limits
+    """
+    limits = {
+        "left": data[_age_col].min(),
+        "right": data[_age_col].max(),
+        "bottom": data[_target_col].min(),
+        "top": data[_target_col].max(),
+    }
+    return limits
 
 #
 # conversion of DataFrame to float
@@ -104,7 +169,7 @@ def fit_univariate_spline(df, target_col, s=1e-6):
 #         df["first_derivative"] = np.gradient(df["norm_hf_smoothed"], df["time_s"])
 #     else:
 #         df["first_derivative"] = np.gradient(df["normalized_heat_flow_w_g"], df["time_s"])
-        
+
 #     df["first_derivative"] = df["first_derivative"].fillna(value=0)
 
 #     if tianparams.median_filter["apply"]:
