@@ -20,16 +20,16 @@ tam = ta.Measurement(
 
 
 #%%
-tam.add_metadata_source(
-    testpath / "mini_metadata.csv", sample_id_column="experiment_nr"
-)
-
 fig, ax = plt.subplots()
 tam.plot(ax=ax)
 ax.set_xlim(0,24)
 ax.set_ylim(0,5)
 plt.show()
 
+# add metadata and average
+tam.add_metadata_source(
+    testpath / "mini_metadata.csv", sample_id_column="experiment_nr"
+)
 tam.average_by_metadata(group_by="cement_name")
 
 fig, ax = plt.subplots()
