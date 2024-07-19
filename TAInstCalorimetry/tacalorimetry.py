@@ -787,10 +787,8 @@ class Measurement:
         for sample, data in self._data.groupby(by="sample"):
             if regex:
                 if not re.findall(regex, sample):
-                    # go to next
                     continue
 
-            # "return"
             yield sample, data
 
     #
@@ -923,7 +921,9 @@ class Measurement:
                 if not re.findall(rf"{regex}", os.path.basename(sample)):
                     continue
             data["time_s"] = data["time_s"] * x_factor
-            data[y_column] = data[y_column] * y_factor
+            # all columns containing heat
+            heatcols = [s for s in data.columns if "heat" in s]
+            data[heatcols] = data[heatcols] * y_factor
             ax, _ = utils.create_base_plot(data, ax, "time_s", y_column, sample)
             ax = utils.style_base_plot(ax, y_label, t_unit, sample, )
         return ax
