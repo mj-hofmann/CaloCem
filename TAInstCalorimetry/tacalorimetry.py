@@ -1061,7 +1061,7 @@ class Measurement:
     def _plot_maximum_slope(
         data, ax, age_col, target_col, sample, characteristics, time_discarded_s
     ):
-        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col)
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
         ax.plot(
             data[age_col],
