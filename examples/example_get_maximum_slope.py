@@ -25,11 +25,12 @@ processparams.spline_interpolation.apply = True
 processparams.spline_interpolation.smoothing_1st_deriv = 1e-12
 
 # get peak onsets via alternative method
-fig, ax = ta.plt.subplots()
+# fig, ax = ta.plt.subplots()
 onsets_spline = tam.get_maximum_slope(
     processparams=processparams,
     show_plot=True,
-    ax = ax
+    save_path=assetpath,
+    #ax = ax
 )
-ta.plt.savefig(assetpath / "example_detect_maximum_slope.png")
+# ta.plt.savefig(assetpath / "example_detect_maximum_slope.png")
 # %%

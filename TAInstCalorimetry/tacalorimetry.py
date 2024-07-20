@@ -1059,7 +1059,7 @@ class Measurement:
 
     @staticmethod
     def _plot_maximum_slope(
-        data, ax, age_col, target_col, sample, characteristics, time_discarded_s
+        data, ax, age_col, target_col, sample, characteristics, time_discarded_s, save_path = None
     ):
         ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
@@ -1083,7 +1083,12 @@ class Measurement:
         ax.set_xscale("log")
 
         if new_ax:
-            plt.show()
+            
+            if save_path:
+                sample_name = pathlib.Path(sample).stem
+                plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.png")
+            else:
+                plt.show()
 
     #
     # get the cumulated heat flow a at a certain age
@@ -1431,6 +1436,7 @@ class Measurement:
         regex=None,
         read_start_c3s=False,
         ax=None,
+        save_path=None,
     ):
         """
         get maximum slope as a characteristic value
@@ -1495,7 +1501,6 @@ class Measurement:
             if characteristics.empty:
                 continue
 
-
             # optional plotting
             if show_plot:
                 self._plot_maximum_slope(
@@ -1506,6 +1511,7 @@ class Measurement:
                     sample,
                     characteristics,
                     time_discarded_s,
+                    save_path = save_path,
                 )
                 # plot heat flow curve
                 # plt.plot(data[age_col], data[target_col], label=target_col)
