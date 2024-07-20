@@ -1426,6 +1426,7 @@ class Measurement:
         age_col="time_s",
         time_discarded_s=900,
         show_plot=False,
+        show_info=True,
         exclude_discarded_time=False,
         regex=None,
         read_start_c3s=False,
@@ -1476,6 +1477,9 @@ class Measurement:
                     f"{age_col} >= {c3s_start_time_s} & {age_col} <= {c3s_end_time_s}"
                 )
 
+            if show_info:
+                print(f"Determineing maximum slope of {pathlib.Path(sample).stem}")
+                
             processor = HeatFlowProcessor(processparams)
 
             data = make_equidistant(data)
@@ -1490,6 +1494,7 @@ class Measurement:
             characteristics = processor.get_largest_slope(data, processparams)
             if characteristics.empty:
                 continue
+
 
             # optional plotting
             if show_plot:
@@ -1543,13 +1548,13 @@ class Measurement:
             # append to list
             list_of_characteristics.append(characteristics)
 
-        # build overall list
-        max_slope_characteristics = pd.concat(list_of_characteristics)
-
-        if max_slope_characteristics.empty:
+        if not list_of_characteristics:
             print("No maximum slope found, check you processing parameters")
-        # return
-        return max_slope_characteristics
+        # build overall list
+        else: 
+            max_slope_characteristics = pd.concat(list_of_characteristics)
+           # return
+            return max_slope_characteristics
 
     #
     # get reaction onset via maximum slope

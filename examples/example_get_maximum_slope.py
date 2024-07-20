@@ -13,7 +13,7 @@ tam = ta.Measurement(
     regex=".*calorimetry_data_5.*",
     show_info=True,
     auto_clean=False,
-    cold_start=False,
+    cold_start=True,
 )
 
 
