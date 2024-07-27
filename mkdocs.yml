@@ -19,8 +19,8 @@ theme:
     - navigation.footer
     - navigation.top
     
-repo_url: https://github.com/mj-hofmann/TAInstCalorimetry
-repo_name: mj-hofmann/TAInstCalorimetry
+repo_url: https://github.com/mj-hofmann/CaloCem
+repo_name: mj-hofmann/CaloCem
 
 plugins:
   - mkdocstrings:
@@ -34,7 +34,7 @@ plugins:
   - git-revision-date-localized:
       enable_creation_date: true
   - git-committers:
-      repository: mj-hofmann/TAInstCalorimetry
+      repository: mj-hofmann/CaloCem
       branch: main
 
 nav:
