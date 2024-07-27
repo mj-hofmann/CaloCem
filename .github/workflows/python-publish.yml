@@ -37,9 +37,8 @@ jobs:
 
     - name: Publish package to PyPI
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: poetry publish --username $TWINE_USERNAME --password $TWINE_PASSWORD
+        POETRY_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      run: poetry publish --username __token__ --password $POETRY_PYPI_TOKEN
 
     - name: Clean up
       run: rm -rf dist build *.egg-info
