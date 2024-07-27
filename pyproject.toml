@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "TAInstCalorimetry"
+name = "CaloCem"
 version = "0.1.16"
 description = "Handling TAM Air calorimetry files made easy."
 authors = [
@@ -14,7 +14,7 @@ documentation = "https://mj-hofmann.github.io/TAInstCalorimetry/"
 # README file(s) are used as the package description
 readme = "README.md"
 
-packages = [{include = "TAInstCalorimetry"}]
+packages = [{include = "CaloCem"}]
 
 # Keywords (translated to tags on the package index)
 keywords = ["calorimetry", "TAM Air", "TA Instruments", "analysis", "vizualisation"]
