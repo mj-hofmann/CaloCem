@@ -14,7 +14,7 @@ documentation = "https://mj-hofmann.github.io/TAInstCalorimetry/"
 # README file(s) are used as the package description
 readme = "README.md"
 
-packages = [{include = "CaloCem"}]
+packages = [{include = "TAInstCalorimetry"}]
 
 # Keywords (translated to tags on the package index)
 keywords = ["calorimetry", "TAM Air", "TA Instruments", "analysis", "vizualisation"]
