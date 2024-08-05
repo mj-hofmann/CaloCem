@@ -19,7 +19,7 @@ theme:
     - navigation.footer
     - navigation.top
     
-repo_url: https://github.com/mj-hofmann/TAInstCalorimetry
+repo_url: https://github.com/mj-hofmann/CaloCem
 repo_name: mj-hofmann/CaloCem
 
 plugins:
