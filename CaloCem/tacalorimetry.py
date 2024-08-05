@@ -25,7 +25,7 @@ from scipy.ndimage import median_filter
 from CaloCem import utils
 
 logging.basicConfig(
-    filename="TAInstCalorimetry.log",
+    filename="CaloCem.log",
     encoding="utf-8",
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%m/%d/%Y %I:%M:%S",
