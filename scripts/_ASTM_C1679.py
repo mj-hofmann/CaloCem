@@ -2,7 +2,7 @@ import os
 import pathlib
 import sys
 
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 
 # get path of script and set it as current path
 pathname = os.path.dirname(sys.argv[0])
@@ -12,7 +12,7 @@ pathname = os.path.dirname(sys.argv[0])
 
 # define data path
 path_to_data = (
-    pathname + os.sep + os.pardir + os.sep + "TAInstCalorimetry" + os.sep + "DATA"
+    pathname + os.sep + os.pardir + os.sep + "CaloCem" + os.sep + "DATA"
 )
 
 # experiments via class

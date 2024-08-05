@@ -22,7 +22,7 @@ from scipy.interpolate import (
 )
 from scipy.ndimage import median_filter
 
-from TAInstCalorimetry import utils
+from CaloCem import utils
 
 logging.basicConfig(
     filename="TAInstCalorimetry.log",
@@ -88,7 +88,7 @@ class Measurement:
     Examples
     --------
 
-    >>> import TAInstCalorimetry as ta
+    >>> import CaloCem as ta
     >>> from pathlib import Path
     >>>
     >>> calodatapath = Path(__file__).parent
@@ -874,7 +874,7 @@ class Measurement:
 
         Examples
         --------
-        >>> import TAInstCalorimetry as ta
+        >>> import CaloCem as ta
         >>> from pathlib import Path
         >>>
         >>> calodatapath = Path(__file__).parent
@@ -953,7 +953,7 @@ class Measurement:
 
         Examples
         --------
-        >>> import TAInstCalorimetry as ta
+        >>> import CaloCem as ta
         >>> from pathlib import Path
         >>>
         >>> calodatapath = Path(__file__).parent

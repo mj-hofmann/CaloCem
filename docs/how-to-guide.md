@@ -29,7 +29,7 @@ Import the ```tacalorimetry``` module from **TAInstCalorimetry**.
 ```python
 # import
 import os
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 ```
 
 Next, we define where the exported files are stored. With this information at hand, a ```Measurement``` is initialized. Experimental raw data and the metadata passed in the course of the measurement are retrieved by the methods ```get_data()``` and ```get_information()```, respectively.
@@ -157,12 +157,12 @@ To begin with, a ```TAInstCalorimetry.tacalorimetry.Measurement```-object is ini
 
 ```python
 import pathlib
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 
 # path to experimental calorimetry files
-path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
+path = pathlib.Path().cwd().parent / "CaloCem" / "DATA"
 
-# initialize TAInstCalorimetry.tacalorimetry.Measurement object
+# initialize CaloCem.tacalorimetry.Measurement object
 tam_II = tacalorimetry.Measurement(
     path, regex="myexp.*", show_info=True, cold_start=True, auto_clean=False
 )
@@ -205,7 +205,7 @@ This yields plots of the following kind.
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install TAInstCalorimetry.
 
 ```bash
-pip install TAInstCalorimetry
+pip install CaloCem
 ```
 
 ## Contributing

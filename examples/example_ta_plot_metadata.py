@@ -2,10 +2,10 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-import TAInstCalorimetry.tacalorimetry as ta
+import CaloCem.tacalorimetry as ta
 
 parentfolder = Path(__file__).parent.parent
-datapath = parentfolder / "TAInstCalorimetry" / "DATA"
+datapath = parentfolder / "CaloCem" / "DATA"
 plotpath = parentfolder / "docs" / "assets"
 testpath = parentfolder / "tests"
 

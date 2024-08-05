@@ -3,7 +3,7 @@ import pathlib
 import pysnooper
 import pytest
 
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 
 
 #
@@ -18,7 +18,7 @@ from TAInstCalorimetry import tacalorimetry
 def test_get_maximum_slope():
 
     # path
-    path = pathlib.Path().cwd() / "TAInstCalorimetry" / "DATA"
+    path = pathlib.Path().cwd() / "CaloCem" / "DATA"
     
     # init object
     tam = tacalorimetry.Measurement(path, auto_clean=False, show_info=True)

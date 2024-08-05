@@ -1,9 +1,9 @@
 # %%
 
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 from pathlib import Path
 
-datapath = Path(__file__).parent.parent / "TAInstCalorimetry" / "DATA"
+datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
 plotpath = Path(__file__).parent.parent / "docs" / "assets"
 
 # %% use class based approach
