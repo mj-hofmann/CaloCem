@@ -1,11 +1,11 @@
 import pathlib
 
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 
 
 # path
 path = pathlib.Path(__file__).parent.parent 
-datapath = path / "TAInstCalorimetry" / "DATA"
+datapath = path / "CaloCem" / "DATA"
 metadatapath = path / "tests"
 
 # get data

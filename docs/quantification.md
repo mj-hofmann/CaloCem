@@ -7,7 +7,7 @@ First we load the data
 ```python
 # %%
 from pathlib import Path
-import TAInstCalorimetry.tacalorimetry as ta
+import CaloCem.tacalorimetry as ta
 
 # define the Path of the folder with the calorimetry data
 datapath = Path()

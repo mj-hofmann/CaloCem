@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 
 import sys
 from pathlib import Path
-import TAInstCalorimetry.tacalorimetry as ta
+import CaloCem.tacalorimetry as ta
 
 
-datapath = Path(__file__).parent.parent / "TAInstCalorimetry" / "DATA"
+datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
 #datapath = parentfolder / "tmp"
 
 # experiments via class

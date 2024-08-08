@@ -1,10 +1,10 @@
 import pathlib
 
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 
 
 # path
-path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
+path = pathlib.Path().cwd().parent / "CaloCem" / "DATA"
 
 # get data
 tam = tacalorimetry.Measurement(

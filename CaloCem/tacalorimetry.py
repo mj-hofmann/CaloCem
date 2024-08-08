@@ -22,7 +22,7 @@ from scipy.interpolate import (
 )
 from scipy.ndimage import median_filter
 
-from TAInstCalorimetry import utils
+from CaloCem import utils
 
 logging.basicConfig(
     filename="TAInstCalorimetry.log",
@@ -88,7 +88,7 @@ class Measurement:
     Examples
     --------
 
-    >>> import TAInstCalorimetry as ta
+    >>> import CaloCem as ta
     >>> from pathlib import Path
     >>>
     >>> calodatapath = Path(__file__).parent
@@ -787,10 +787,8 @@ class Measurement:
         for sample, data in self._data.groupby(by="sample"):
             if regex:
                 if not re.findall(regex, sample):
-                    # go to next
                     continue
 
-            # "return"
             yield sample, data
 
     #
@@ -876,7 +874,7 @@ class Measurement:
 
         Examples
         --------
-        >>> import TAInstCalorimetry as ta
+        >>> import CaloCem as ta
         >>> from pathlib import Path
         >>>
         >>> calodatapath = Path(__file__).parent
@@ -923,7 +921,9 @@ class Measurement:
                 if not re.findall(rf"{regex}", os.path.basename(sample)):
                     continue
             data["time_s"] = data["time_s"] * x_factor
-            data[y_column] = data[y_column] * y_factor
+            # all columns containing heat
+            heatcols = [s for s in data.columns if "heat" in s]
+            data[heatcols] = data[heatcols] * y_factor
             ax, _ = utils.create_base_plot(data, ax, "time_s", y_column, sample)
             ax = utils.style_base_plot(ax, y_label, t_unit, sample, )
         return ax
@@ -953,7 +953,7 @@ class Measurement:
 
         Examples
         --------
-        >>> import TAInstCalorimetry as ta
+        >>> import CaloCem as ta
         >>> from pathlib import Path
         >>>
         >>> calodatapath = Path(__file__).parent
@@ -1059,9 +1059,9 @@ class Measurement:
 
     @staticmethod
     def _plot_maximum_slope(
-        data, ax, age_col, target_col, sample, characteristics, time_discarded_s
+        data, ax, age_col, target_col, sample, characteristics, time_discarded_s, save_path = None
     ):
-        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col)
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
         ax.plot(
             data[age_col],
@@ -1083,7 +1083,12 @@ class Measurement:
         ax.set_xscale("log")
 
         if new_ax:
-            plt.show()
+            
+            if save_path:
+                sample_name = pathlib.Path(sample).stem
+                plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.png")
+            else:
+                plt.show()
 
     #
     # get the cumulated heat flow a at a certain age
@@ -1426,10 +1431,12 @@ class Measurement:
         age_col="time_s",
         time_discarded_s=900,
         show_plot=False,
+        show_info=True,
         exclude_discarded_time=False,
         regex=None,
         read_start_c3s=False,
         ax=None,
+        save_path=None,
     ):
         """
         get maximum slope as a characteristic value
@@ -1476,6 +1483,9 @@ class Measurement:
                     f"{age_col} >= {c3s_start_time_s} & {age_col} <= {c3s_end_time_s}"
                 )
 
+            if show_info:
+                print(f"Determineing maximum slope of {pathlib.Path(sample).stem}")
+                
             processor = HeatFlowProcessor(processparams)
 
             data = make_equidistant(data)
@@ -1501,6 +1511,7 @@ class Measurement:
                     sample,
                     characteristics,
                     time_discarded_s,
+                    save_path = save_path,
                 )
                 # plot heat flow curve
                 # plt.plot(data[age_col], data[target_col], label=target_col)
@@ -1543,13 +1554,13 @@ class Measurement:
             # append to list
             list_of_characteristics.append(characteristics)
 
-        # build overall list
-        max_slope_characteristics = pd.concat(list_of_characteristics)
-
-        if max_slope_characteristics.empty:
+        if not list_of_characteristics:
             print("No maximum slope found, check you processing parameters")
-        # return
-        return max_slope_characteristics
+        # build overall list
+        else: 
+            max_slope_characteristics = pd.concat(list_of_characteristics)
+           # return
+            return max_slope_characteristics
 
     #
     # get reaction onset via maximum slope

@@ -1,10 +1,10 @@
 from pathlib import Path
 import itertools
 
-import TAInstCalorimetry.tacalorimetry as ta
+import CaloCem.tacalorimetry as ta
 
 parentfolder = Path(__file__).parent.parent
-datapath = parentfolder / "TAInstCalorimetry" / "DATA"
+datapath = parentfolder / "CaloCem" / "DATA"
 plotpath = parentfolder / "docs" / "assets"
 
 # experiments via class
@@ -17,8 +17,7 @@ tam = ta.Measurement(
 )
 
 
-#%%
-# # plot
+#%% # plot
 
 ycols = ["normalized_heat_flow_w_g", "normalized_heat_j_g"]
 xlimits = [1, 48]

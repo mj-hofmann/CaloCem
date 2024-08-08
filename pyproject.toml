@@ -8,13 +8,13 @@ authors = [
 ]
 license = "GNU GENERAL PUBLIC LICENSE"
 
-repository = "https://github.com/mj-hofmann/TAInstCalorimetry"
-documentation = "https://mj-hofmann.github.io/TAInstCalorimetry/"
+repository = "https://github.com/mj-hofmann/CaloCem"
+documentation = "https://mj-hofmann.github.io/CaloCem/"
 
 # README file(s) are used as the package description
 readme = "README.md"
 
-packages = [{include = "TAInstCalorimetry"}]
+packages = [{include = "CaloCem"}]
 
 # Keywords (translated to tags on the package index)
 keywords = ["calorimetry", "TAM Air", "TA Instruments", "analysis", "vizualisation"]

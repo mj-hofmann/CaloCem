@@ -23,6 +23,7 @@ def create_base_plot(data, ax, _age_col, _target_col, sample):
     # check if std deviation is available
     std_present = [s for s in data.columns if "std" in s]
     if std_present:
+        #data = data.query("normalized_heat_flow_w_g_std.notnull()", engine="python")
         ax.fill_between(
             data[_age_col],
             data[_target_col] - data[_target_col + "_std"],

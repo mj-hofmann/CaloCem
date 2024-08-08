@@ -3,7 +3,7 @@ import pathlib
 import pysnooper
 import pytest
 
-from TAInstCalorimetry import tacalorimetry
+from CaloCem import tacalorimetry
 
 
 #
@@ -24,7 +24,7 @@ from TAInstCalorimetry import tacalorimetry
 # def test_last_time_entry(test_input, expected):
 
 # path
-path = pathlib.Path().cwd().parent / "TAInstCalorimetry" / "DATA"
+path = pathlib.Path().cwd().parent / "CaloCem" / "DATA"
 
 # get data
 tam = tacalorimetry.Measurement(
@@ -50,9 +50,9 @@ sns.barplot(data=h, hue="sample", y="cumulated_heat_at_hours", x="target_h")
 
 # %%
 
-# kk = tacalorimetry.Measurement()._read_calo_data_csv_comma_sep(r"C:\Users\LocalAdmin\Documents\GitHub\TAInstCalorimetry\TAInstCalorimetry\DATA\TEST_CALO_Gen1+2.csv")
-# data = tacalorimetry.Measurement()._read_calo_data_csv_comma_sep(r"C:\Users\LocalAdmin\Documents\GitHub\TAInstCalorimetry\TAInstCalorimetry\DATA\TEST_CALO_Gen3.csv")
-# data = tacalorimetry.Measurement()._read_calo_data_csv(r"C:\Users\LocalAdmin\Documents\GitHub\TAInstCalorimetry\TAInstCalorimetry\DATA\calorimetry_data_1.csv")
+# kk = tacalorimetry.Measurement()._read_calo_data_csv_comma_sep(r"C:\Users\LocalAdmin\Documents\GitHub\CaloCem\CaloCem\DATA\TEST_CALO_Gen1+2.csv")
+# data = tacalorimetry.Measurement()._read_calo_data_csv_comma_sep(r"C:\Users\LocalAdmin\Documents\GitHub\CaloCem\CaloCem\DATA\TEST_CALO_Gen3.csv")
+# data = tacalorimetry.Measurement()._read_calo_data_csv(r"C:\Users\LocalAdmin\Documents\GitHub\CaloCem\CaloCem\DATA\calorimetry_data_1.csv")
 
 tam.plot(regex="calorimetry_data_.*")
 
