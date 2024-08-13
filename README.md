@@ -1,17 +1,15 @@
-![Logo](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/icon/icon.png?raw=true)
+![Logo](https://github.com/mj-hofmann/CaloCem/blob/main/icon/icon.png?raw=true)
 
 # Interfacing with experimental results file from TAM Air calorimeters made easy.
 
 After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **TAInstCalorimetry** is here to get this done smoothly.
-
-*Note: **TAInstCalorimetry** has been developed without involvement of **TA Instruments** and is thus independent from the company and its software.*
 
 ## Documentation
 The full documentation can be found [here](https://mj-hofmann.github.io/TAInstCalorimetry/).
 
 ## Download Stats
 
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/tainstcalorimetry.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/calocem.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry)
 [![PyPI - Downloads](https://static.pepy.tech/personalized-badge/tainstcalorimetry?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/tainstcalorimetry/) 
 
