@@ -1,3 +1,3 @@
-time_s,normalized_heat_flow_w_g,normalized_heat_j_g,prominence
-35784.211728811264,0.00422368354724149,100.07074341351867,0.0035778498168588056
-48262.773175001144,0.004042484609431259,150.4693895687067,0.00012886237689167107
+time_s,normalized_heat_j_g,sample,temperature_temperature_c
+29565.15634036064,75.70022059418822,/home/torben/LRZ Sync+Share/0_TUM/10_Coding/packages/CaloCem/CaloCem/DATA/peak_detection_example4.csv,
+82364.82125735283,162.9844341901763,/home/torben/LRZ Sync+Share/0_TUM/10_Coding/packages/CaloCem/CaloCem/DATA/peak_detection_example4.csv,

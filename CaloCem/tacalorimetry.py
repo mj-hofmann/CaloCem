@@ -1029,7 +1029,7 @@ class Measurement:
         Plot detected peaks.
         """
 
-        ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col)
+        ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col, sample)
 
         ax.plot(
             data[_age_col][peaks],
