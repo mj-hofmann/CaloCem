@@ -28,7 +28,7 @@ axs[1].set_xlim(0, 100000)
 ta.plt.savefig(plotpath / "example_get_peaks.png", dpi=300)
 
 df = peaks_found[0]
-df = df.iloc[:,[0,5,6,9]]
+df = df.iloc[:,[0,4,5,10]]
 
 df.to_csv(plotpath / "example_get_peaks.csv", index=False)
 
