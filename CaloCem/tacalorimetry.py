@@ -25,7 +25,7 @@ from scipy.ndimage import median_filter
 from CaloCem import utils
 
 logging.basicConfig(
-    filename="TAInstCalorimetry.log",
+    filename="CaloCem.log",
     encoding="utf-8",
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%m/%d/%Y %I:%M:%S",
@@ -1029,7 +1029,7 @@ class Measurement:
         Plot detected peaks.
         """
 
-        ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col)
+        ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col, sample)
 
         ax.plot(
             data[_age_col][peaks],
