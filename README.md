@@ -2,21 +2,21 @@
 
 # Interfacing with experimental results file from TAM Air calorimeters made easy.
 
-After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **TAInstCalorimetry** is here to get this done smoothly.
+After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **CaloCem** is here to get this done smoothly.
 
 ## Documentation
-The full documentation can be found [here](https://mj-hofmann.github.io/TAInstCalorimetry/).
+The full documentation can be found [here](https://mj-hofmann.github.io/CaloCem/index.html).
 
 ## Download Stats
 
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/calocem.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry)
-[![PyPI - Downloads](https://static.pepy.tech/personalized-badge/tainstcalorimetry?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/tainstcalorimetry/) 
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/calocem.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/calocem)
+[![PyPI - Downloads](https://static.pepy.tech/personalized-badge/calocem?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/calocem.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/calocem/) 
 
 
 ## Example Usage
 
-Import the ```tacalorimetry``` module from **TAInstCalorimetry**.
+Import the ```tacalorimetry``` module from **CaloCem**.
 
 ```python
 # import
