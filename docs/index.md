@@ -14,6 +14,6 @@ The documentation consists of the following parts:
 
 ???+ warning
 
-    `TAInstCalorimetry` has been developed without involvement
+    `CaloCem` has been developed without involvement
     of *TA Instruments* and is thus independent from the company 
     and its software.
