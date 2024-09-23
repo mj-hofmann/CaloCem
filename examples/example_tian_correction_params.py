@@ -81,14 +81,14 @@ for (name, group), (name2, group2) in zip(df_tau.groupby("sample_short"), df.gro
         label="no Tian, original"
     )
     ax.plot(
-        group2["time_s"] / 60,
-        group2["normalized_heat_flow_w_g_tian"],
+        group["time_s"] / 60,
+        group["normalized_heat_flow_w_g_tian"],
         #color="black",
         label="one tau",
     )
     ax.plot(
-        group["time_s"] / 60,
-        group["normalized_heat_flow_w_g_tian"],
+        group2["time_s"] / 60,
+        group2["normalized_heat_flow_w_g_tian"],
         #color=ax.get_lines()[-1].get_color(),
         # label=name[-2:] + " Tian",
         label="tau1, tau2"
