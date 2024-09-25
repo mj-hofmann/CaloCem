@@ -2417,16 +2417,20 @@ class Measurement:
         for s, d in self._iter_samples():
             d = d.dropna(subset=["normalized_heat_flow_w_g"])
             # apply adaptive downsampling
-            d = adaptive_downsample(
-                d,
-                x_col="time_s",
-                y_col="normalized_heat_flow_w_g",
-                num_points=self.processparams.downsample.num_points,
-                smoothing_factor=self.processparams.downsample.smoothing_factor,
-                baseline_weight=self.processparams.downsample.baseline_weight,
-            )
-            # append to temporary DataFrame
-            # print(d)
+            if not self.processparams.downsample.section_split:
+                d = adaptive_downsample(
+                    d,
+                    x_col="time_s",
+                    y_col="normalized_heat_flow_w_g",
+                    processparams=self.processparams,
+                )
+            else:
+                d = downsample_sections(
+                    d,
+                    x_col="time_s",
+                    y_col="normalized_heat_flow_w_g",
+                    processparams=self.processparams,
+                )
             df = pd.concat([df, d])
 
         # set data to downsampled data
@@ -2522,6 +2526,8 @@ class DownSamplingParameters:
     num_points: int = 1000
     smoothing_factor: float = 1e-10
     baseline_weight: float = 0.1
+    section_split: bool = False
+    section_split_time_s: int = 1000
 
 
 @dataclass
@@ -2732,7 +2738,7 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     return df
 
 
-def downsample_sections(df, x_col, y_col, num_points, smoothing_factor=1e-3):
+def downsample_sections(df, x_col, y_col, processparams):
     """
     Downsample a DataFrame by dividing it into sections and downsampling each section individually.
 
@@ -2747,10 +2753,7 @@ def downsample_sections(df, x_col, y_col, num_points, smoothing_factor=1e-3):
     - downsampled_df: Downsampled pandas DataFrame.
     """
     # Time Split
-    time_split = 1000
-
-    num_points_region1 = num_points / 2
-    num_points_region2 = num_points / 2
+    time_split = processparams.downsample.section_split_time_s #1000
 
     # Split the DataFrame into sections based on the time column
     df1 = df[df[x_col] < time_split]
@@ -2758,10 +2761,10 @@ def downsample_sections(df, x_col, y_col, num_points, smoothing_factor=1e-3):
 
     # Downsample each section individually
     downsampled_df1 = adaptive_downsample(
-        df1, x_col, y_col, num_points_region1, smoothing_factor
+        df1, x_col, y_col, processparams
     )
     downsampled_df2 = adaptive_downsample(
-        df2, x_col, y_col, num_points_region2, smoothing_factor
+        df2, x_col, y_col, processparams
     )
 
     # Concatenate the downsampled sections
@@ -2771,7 +2774,7 @@ def downsample_sections(df, x_col, y_col, num_points, smoothing_factor=1e-3):
 
 
 def adaptive_downsample(
-    df, x_col, y_col, num_points=1000, smoothing_factor=1e-10, baseline_weight=0.1
+    df, x_col, y_col, processparams: ProcessingParameters
 ):
     """
     Adaptively downsample a DataFrame based on the second derivative magnitude.
@@ -2786,13 +2789,17 @@ def adaptive_downsample(
     Returns:
     - downsampled_df: Downsampled pandas DataFrame.
     """
-    df = df.query("time_s > 1800")
+
+    if processparams.downsample.section_split:
+        processparams.downsample.num_points /= 2
+
+    #df = df.query("time_s > 1800")
     x = df[x_col].values
     y = df[y_col].values
 
     # print(y)
     # interpolate the data
-    spl = UnivariateSpline(x, y, s=smoothing_factor)
+    spl = UnivariateSpline(x, y, s=processparams.downsample.smoothing_factor)
     new_x = x  # np.linspace(x.min(), x.max(), len(x))
     # print(new_x)
     new_y = spl(new_x)
@@ -2811,7 +2818,8 @@ def adaptive_downsample(
     curvature_normalized = curvature / curvature.sum()
 
     # Create PDF with a baseline to ensure sampling in low-curvature areas
-    baseline_weight = baseline_weight
+    baseline_weight = processparams.downsample.baseline_weight
+    num_points = int(processparams.downsample.num_points)
     pdf = curvature_normalized + baseline_weight / num_points
     pdf /= pdf.sum()  # Normalize to create a valid PDF
 

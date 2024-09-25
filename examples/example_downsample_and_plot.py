@@ -11,11 +11,13 @@ testpath = parentfolder / "tests"
 
 processparams = ta.ProcessingParameters()
 processparams.downsample.apply = True
-processparams.downsample.num_points = 200
-
+processparams.downsample.num_points = 400
+processparams.downsample.section_split = True
+processparams.downsample.section_split_time_s = 3600
+processparams.downsample.baseline_weight = 0.1
 
 # experiments via class
-tam = ta.Measurement(
+tam_d = ta.Measurement(
     folder=datapath,
     regex=r".*data_[1].csv",
     show_info=True,
@@ -24,15 +26,31 @@ tam = ta.Measurement(
     processparams=processparams,
 )
 
+tam = ta.Measurement(
+    folder=datapath,
+    regex=r".*data_[1].csv",
+    show_info=True,
+    auto_clean=False,
+    cold_start=True,
+)
 
 #%%
 fig, ax = plt.subplots()
-for name, group in tam._data.groupby("sample_short"):
+for name, group in tam_d._data.groupby("sample_short"):
     ax.plot(group["time_s"]/3600, group["normalized_heat_flow_w_g"]*1000, "x-", label=name)
-#ax.set_xlim(0,24)
-# ax.set_ylim(0,5)
+    
+ax.set_xlim(0,24)
+ax.set_ylim(0,25)
 plt.show()
 
 # %%
 print(len(tam._data))
+# %%
+
+fig, ax = plt.subplots()
+ax.plot(tam._data["time_s"]/3600, tam._data["normalized_heat_flow_w_g"]*1000, "-", label="original")
+ax.plot(tam_d._data["time_s"]/3600, tam_d._data["normalized_heat_flow_w_g"]*1000, "-", label="downsampled")
+ax.legend()
+ax.set_xlim(0,24)
+ax.set_ylim(0,5)
 # %%
