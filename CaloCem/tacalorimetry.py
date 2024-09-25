@@ -159,6 +159,8 @@ class Measurement:
                 # return
                 return
 
+        if self.processparams.downsample.apply:
+            self._apply_adaptive_downsampling()
         # Message
         print(
             "================\nAre you missing some samples? Try rerunning with auto_clean=True and cold_start=True.\n================="
@@ -264,8 +266,8 @@ class Measurement:
         except Exception:
             pass
 
-        if self.processparams.downsample.apply is not False:
-            self._apply_adaptive_downsampling()
+        # if self.processparams.downsample.apply is not False:
+        #     self._apply_adaptive_downsampling()
         # write _data and _info to pickle
         with open(self._file_data_pickle, "wb") as f:
             pickle.dump(self._data, f)
@@ -499,6 +501,9 @@ class Measurement:
 
         # type conversion
         data = utils.convert_df_to_float(data)
+
+        # if self.processparams.downsample.apply:
+        #     data = self._apply_adaptive_downsampling(data)
 
         # return
         return data
@@ -2415,6 +2420,8 @@ class Measurement:
 
         # apply the correction for each sample
         for s, d in self._iter_samples():
+            print(d.sample_short[0])
+            print(len(d))
             d = d.dropna(subset=["normalized_heat_flow_w_g"])
             # apply adaptive downsampling
             if not self.processparams.downsample.section_split:
@@ -2791,7 +2798,7 @@ def adaptive_downsample(
     """
 
     if processparams.downsample.section_split:
-        processparams.downsample.num_points /= 2
+        num_points = int(processparams.downsample.num_points / 2)
 
     #df = df.query("time_s > 1800")
     x = df[x_col].values
@@ -2819,7 +2826,6 @@ def adaptive_downsample(
 
     # Create PDF with a baseline to ensure sampling in low-curvature areas
     baseline_weight = processparams.downsample.baseline_weight
-    num_points = int(processparams.downsample.num_points)
     pdf = curvature_normalized + baseline_weight / num_points
     pdf /= pdf.sum()  # Normalize to create a valid PDF
 
@@ -2835,10 +2841,10 @@ def adaptive_downsample(
     # plt.plot(x, curvature, label="curvature")
     # plt.scatter(new_x, pdf, label="pdf")
 
-    plt.plot(x, cdf, label="cdf")
-    plt.legend()
-    # plt.yscale("log")
-    plt.show()
+    # plt.plot(x, cdf, label="cdf")
+    # plt.legend()
+    # # plt.yscale("log")
+    # plt.show()
 
     # # # Generate uniformly spaced samples in the interval [0, 1)
     uniform_samples = np.linspace(0, 1, num_points, endpoint=False)
@@ -2858,5 +2864,7 @@ def adaptive_downsample(
 
     # Subsample the DataFrame at these indices
     downsampled_df = df.iloc[indices]
-
+    # name of sample
+    sample_name = df["sample_short"].iloc[0]
+    print(f"Downsampled {sample_name} to", len(downsampled_df), "points")
     return downsampled_df
