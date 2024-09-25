@@ -119,13 +119,27 @@ class Measurement:
     # init
     #
     def __init__(
-        self, folder=None, show_info=True, regex=None, auto_clean=False, cold_start=True
+        self,
+        folder=None,
+        show_info=True,
+        regex=None,
+        auto_clean=False,
+        cold_start=True,
+        downsample={
+            "num_points": None,
+            "smoothing_factor": 1e-5,
+            "baseline_weight": 0.1,
+        },
     ):
         """
         intialize measurements from folder
 
 
         """
+        if downsample["num_points"] is not None:
+            self.downsample_num_points = downsample["num_points"]
+            self.downsample_smoothing_factor = downsample["smoothing_factor"]
+            self.downsample_baseline_weight = downsample["baseline_weight"]
 
         # read
         if folder:
@@ -253,6 +267,8 @@ class Measurement:
         except Exception:
             pass
 
+        if self.downsample_num_points is not None:
+            self._apply_adaptive_downsampling()
         # write _data and _info to pickle
         with open(self._file_data_pickle, "wb") as f:
             pickle.dump(self._data, f)
@@ -925,9 +941,14 @@ class Measurement:
             heatcols = [s for s in data.columns if "heat" in s]
             data[heatcols] = data[heatcols] * y_factor
             ax, _ = utils.create_base_plot(data, ax, "time_s", y_column, sample)
-            ax = utils.style_base_plot(ax, y_label, t_unit, sample, )
+            ax = utils.style_base_plot(
+                ax,
+                y_label,
+                t_unit,
+                sample,
+            )
         return ax
-       
+
     #
     # plot by category
     #
@@ -1059,7 +1080,14 @@ class Measurement:
 
     @staticmethod
     def _plot_maximum_slope(
-        data, ax, age_col, target_col, sample, characteristics, time_discarded_s, save_path = None
+        data,
+        ax,
+        age_col,
+        target_col,
+        sample,
+        characteristics,
+        time_discarded_s,
+        save_path=None,
     ):
         ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
@@ -1083,7 +1111,6 @@ class Measurement:
         ax.set_xscale("log")
 
         if new_ax:
-            
             if save_path:
                 sample_name = pathlib.Path(sample).stem
                 plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.png")
@@ -1485,7 +1512,7 @@ class Measurement:
 
             if show_info:
                 print(f"Determineing maximum slope of {pathlib.Path(sample).stem}")
-                
+
             processor = HeatFlowProcessor(processparams)
 
             data = make_equidistant(data)
@@ -1511,7 +1538,7 @@ class Measurement:
                     sample,
                     characteristics,
                     time_discarded_s,
-                    save_path = save_path,
+                    save_path=save_path,
                 )
                 # plot heat flow curve
                 # plt.plot(data[age_col], data[target_col], label=target_col)
@@ -1557,9 +1584,9 @@ class Measurement:
         if not list_of_characteristics:
             print("No maximum slope found, check you processing parameters")
         # build overall list
-        else: 
+        else:
             max_slope_characteristics = pd.concat(list_of_characteristics)
-           # return
+            # return
             return max_slope_characteristics
 
     #
@@ -2381,6 +2408,33 @@ class Measurement:
         # call original restore function
         self.undo_average_by_metadata()
 
+    def _apply_adaptive_downsampling(self):
+        """
+        apply adaptive downsampling to data
+        """
+
+        # define temporary empty DataFrame
+        df = pd.DataFrame()
+
+        # apply the correction for each sample
+        for s, d in self._iter_samples():
+            d = d.dropna(subset=["normalized_heat_flow_w_g"])
+            # apply adaptive downsampling
+            d = adaptive_downsample(
+                d,
+                x_col="time_s",
+                y_col="normalized_heat_flow_w_g",
+                num_points=self.downsample_num_points,
+                smoothing_factor=self.downsample_smoothing_factor,
+                baseline_weight=self.downsample_baseline_weight,
+            )
+            # append to temporary DataFrame
+            # print(d)
+            df = pd.concat([df, d])
+
+        # set data to downsampled data
+        self._data = df
+
 
 @dataclass
 class CutOffParameters:
@@ -2665,4 +2719,118 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     df["time_s"] = (df.index - df.index[0]).total_seconds()
     return df
 
+def downsample_sections(df, x_col, y_col, num_points, smoothing_factor=1e-3):
+    """
+    Downsample a DataFrame by dividing it into sections and downsampling each section individually.
 
+    Parameters:
+    - df: pandas DataFrame with columns 'x' and 'y'.
+    - x_col: String for the 'x' values column of the DataFrame.
+    - y_col: String for the 'y' values column of the DataFrame.
+    - num_points: Desired number of points in the downsampled DataFrame.
+    - smoothing_factor: Smoothing factor for the spline interpolation.
+
+    Returns:
+    - downsampled_df: Downsampled pandas DataFrame.
+    """
+    # Time Split
+    time_split = 1000
+
+    num_points_region1 = num_points / 2
+    num_points_region2 = num_points / 2
+
+    # Split the DataFrame into sections based on the time column
+    df1 = df[df[x_col] < time_split]
+    df2 = df[df[x_col] >= time_split]
+
+    # Downsample each section individually
+    downsampled_df1 = adaptive_downsample(df1, x_col, y_col, num_points_region1, smoothing_factor)
+    downsampled_df2 = adaptive_downsample(df2, x_col, y_col, num_points_region2, smoothing_factor)
+
+    # Concatenate the downsampled sections
+    downsampled_df = pd.concat([downsampled_df1, downsampled_df2])
+    
+    return downsampled_df
+
+def adaptive_downsample(
+    df, x_col, y_col, num_points, smoothing_factor=1e-3, baseline_weight=0.1
+):
+    """
+    Adaptively downsample a DataFrame based on the second derivative magnitude.
+
+    Parameters:
+    - df: pandas DataFrame with columns 'x' and 'y'.
+    - x_col: String for the 'x' values column of the DataFrame.
+    - y_col: String for the 'y' values column of the DataFrame.
+    - num_points: Desired number of points in the downsampled DataFrame.
+    - smoothing_factor: Smoothing factor for the spline interpolation.
+
+    Returns:
+    - downsampled_df: Downsampled pandas DataFrame.
+    """
+    df = df.query("time_s > 1800")
+    x = df[x_col].values
+    y = df[y_col].values
+
+    # print(y)
+    # interpolate the data
+    spl = UnivariateSpline(x, y, s=smoothing_factor)
+    new_x = x  # np.linspace(x.min(), x.max(), len(x))
+    # print(new_x)
+    new_y = spl(new_x)
+
+    # Compute the first derivative (gradient)
+    dy_dx = np.gradient(new_y, new_x)
+
+    # Compute the second derivative
+    d2y_dx2 = np.gradient(dy_dx, new_x)
+
+    # Compute the absolute value of the second derivative
+    curvature = np.abs(d2y_dx2)
+    # Avoid division by zero by adding a small constant
+    curvature += 1e-15
+    # Normalize curvature
+    curvature_normalized = curvature / curvature.sum()
+
+    # Create PDF with a baseline to ensure sampling in low-curvature areas
+    baseline_weight = baseline_weight
+    pdf = curvature_normalized + baseline_weight / num_points
+    pdf /= pdf.sum()  # Normalize to create a valid PDF
+
+    # Compute CDF
+    cdf = np.cumsum(pdf)
+
+    # plt.plot(x, y)
+    # plt.plot(x, new_y, label="interpolated")
+    # plt.plot(x, y, label="raw")
+    # plt.plot(x, new_y, label="interpolated")
+    # plt.plot(x, dy_dx, label="gradient")
+    # plt.plot(x, d2y_dx2, label="second derivative")
+    # plt.plot(x, curvature, label="curvature")
+    # plt.scatter(new_x, pdf, label="pdf")
+
+    plt.plot(x, cdf, label="cdf")
+    plt.legend()
+    # plt.yscale("log")
+    plt.show()
+
+    # # # Generate uniformly spaced samples in the interval [0, 1)
+    uniform_samples = np.linspace(0, 1, num_points, endpoint=False)
+
+    # # # Map uniform samples to indices using the inverse CDF
+    indices = np.searchsorted(cdf, uniform_samples)
+    # print(indices)
+    # # # Ensure indices are within valid range
+
+    indices = np.clip(indices, 0, len(df) - 1)
+    # #
+
+    # # Remove duplicates and sort indices
+    indices = np.unique(indices)
+    # indices = np.argsort(pdf)[-num_points:]
+    # print(indices)
+
+    # Subsample the DataFrame at these indices
+    downsampled_df = df.iloc[indices]
+
+    return downsampled_df
