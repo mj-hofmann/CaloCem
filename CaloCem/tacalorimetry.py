@@ -125,21 +125,18 @@ class Measurement:
         regex=None,
         auto_clean=False,
         cold_start=True,
-        downsample={
-            "num_points": None,
-            "smoothing_factor": 1e-5,
-            "baseline_weight": 0.1,
-        },
+        processparams=None,
     ):
         """
         intialize measurements from folder
 
 
         """
-        if downsample["num_points"] is not None:
-            self.downsample_num_points = downsample["num_points"]
-            self.downsample_smoothing_factor = downsample["smoothing_factor"]
-            self.downsample_baseline_weight = downsample["baseline_weight"]
+
+        if not isinstance(processparams, ProcessingParameters):
+            self.processparams = ProcessingParameters()
+        else:
+            self.processparams = processparams
 
         # read
         if folder:
@@ -267,7 +264,7 @@ class Measurement:
         except Exception:
             pass
 
-        if self.downsample_num_points is not None:
+        if self.processparams.downsample.apply is not False:
             self._apply_adaptive_downsampling()
         # write _data and _info to pickle
         with open(self._file_data_pickle, "wb") as f:
@@ -2424,9 +2421,9 @@ class Measurement:
                 d,
                 x_col="time_s",
                 y_col="normalized_heat_flow_w_g",
-                num_points=self.downsample_num_points,
-                smoothing_factor=self.downsample_smoothing_factor,
-                baseline_weight=self.downsample_baseline_weight,
+                num_points=self.processparams.downsample.num_points,
+                smoothing_factor=self.processparams.downsample.smoothing_factor,
+                baseline_weight=self.processparams.downsample.baseline_weight,
             )
             # append to temporary DataFrame
             # print(d)
@@ -2520,6 +2517,14 @@ class GradientPeakDetectionParameters:
 
 
 @dataclass
+class DownSamplingParameters:
+    apply: bool = False
+    num_points: int = 1000
+    smoothing_factor: float = 1e-10
+    baseline_weight: float = 0.1
+
+
+@dataclass
 class ProcessingParameters:
     """
     A data class for storing all processing parameters for calorimetry data.
@@ -2545,6 +2550,12 @@ class ProcessingParameters:
         Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more
         nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks
         (e.g., first peak, largest width). The default values are defined in the GradientPeakDetectionParameters class.
+
+    downsample : DownSamplingParameters
+        Parameters for adaptive downsampling of the thermal analysis data. This includes settings such as the number of points,
+        smoothing factor, and baseline weight. The default values are defined in the DownSamplingParameters class.
+
+
 
     Examples
     --------
@@ -2579,6 +2590,7 @@ class ProcessingParameters:
     spline_interpolation: SplineInterpolationParameters = field(
         default_factory=SplineInterpolationParameters
     )
+    downsample: DownSamplingParameters = field(default_factory=DownSamplingParameters)
 
 
 class HeatFlowProcessor:
@@ -2719,6 +2731,7 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     df["time_s"] = (df.index - df.index[0]).total_seconds()
     return df
 
+
 def downsample_sections(df, x_col, y_col, num_points, smoothing_factor=1e-3):
     """
     Downsample a DataFrame by dividing it into sections and downsampling each section individually.
@@ -2744,16 +2757,21 @@ def downsample_sections(df, x_col, y_col, num_points, smoothing_factor=1e-3):
     df2 = df[df[x_col] >= time_split]
 
     # Downsample each section individually
-    downsampled_df1 = adaptive_downsample(df1, x_col, y_col, num_points_region1, smoothing_factor)
-    downsampled_df2 = adaptive_downsample(df2, x_col, y_col, num_points_region2, smoothing_factor)
+    downsampled_df1 = adaptive_downsample(
+        df1, x_col, y_col, num_points_region1, smoothing_factor
+    )
+    downsampled_df2 = adaptive_downsample(
+        df2, x_col, y_col, num_points_region2, smoothing_factor
+    )
 
     # Concatenate the downsampled sections
     downsampled_df = pd.concat([downsampled_df1, downsampled_df2])
-    
+
     return downsampled_df
 
+
 def adaptive_downsample(
-    df, x_col, y_col, num_points, smoothing_factor=1e-3, baseline_weight=0.1
+    df, x_col, y_col, num_points=1000, smoothing_factor=1e-10, baseline_weight=0.1
 ):
     """
     Adaptively downsample a DataFrame based on the second derivative magnitude.

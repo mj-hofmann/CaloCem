@@ -9,6 +9,11 @@ datapath = parentfolder / "CaloCem" / "DATA"
 plotpath = parentfolder / "docs" / "assets"
 testpath = parentfolder / "tests"
 
+processparams = ta.ProcessingParameters()
+processparams.downsample.apply = True
+processparams.downsample.num_points = 200
+
+
 # experiments via class
 tam = ta.Measurement(
     folder=datapath,
@@ -16,7 +21,8 @@ tam = ta.Measurement(
     show_info=True,
     auto_clean=False,
     cold_start=True,
-    downsample={"num_points": 100, "smoothing_factor":1e-4, "baseline_weight": 0.01},)
+    processparams=processparams,
+)
 
 
 #%%
@@ -29,3 +35,4 @@ plt.show()
 
 # %%
 print(len(tam._data))
+# %%
