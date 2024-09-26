@@ -18,16 +18,20 @@ from CaloCem import tacalorimetry
 def test_get_maximum_slope():
 
     # path
-    path = pathlib.Path().cwd() / "CaloCem" / "DATA"
+    path = pathlib.Path(__file__).parent.parent / "CaloCem" / "DATA"
     
+    # files = "|".join(["calorimetry_data_1.csv", "calorimetry_data_2.csv" ])
+    files = [f.stem for f in path.glob("*.csv") if not f.stem.startswith("corrupt")]
+    files = "|".join(files)
     # init object
-    tam = tacalorimetry.Measurement(path, auto_clean=False, show_info=True)
+    tam = tacalorimetry.Measurement(path, auto_clean=False, regex=files, show_info=True)
     
-    tacalorimetry.plt.ylim(0, 0.01)
 
     processparams = tacalorimetry.ProcessingParameters() 
+    processparams.spline_interpolation.apply= True
+    processparams.gradient_peakdetection.prominence = 1e-10
     # get cumulated heats
     max_slopes = tam.get_maximum_slope(processparams)
-    
+    print(max_slopes)
     # check
     assert isinstance(max_slopes, tacalorimetry.pd.DataFrame)
