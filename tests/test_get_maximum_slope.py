@@ -29,7 +29,6 @@ def test_get_maximum_slope():
 
     processparams = tacalorimetry.ProcessingParameters() 
     processparams.spline_interpolation.apply= True
-    processparams.gradient_peakdetection.prominence = 1e-10
     # get cumulated heats
     max_slopes = tam.get_maximum_slope(processparams)
     print(max_slopes)
