@@ -404,22 +404,8 @@ class Measurement:
             start_row = helper[helper].index.tolist()[0]
             # get offset for in-situ files
             t_offset_in_situ_s = float(data.at[start_row, 0].split(",")[0])
-
-        # get "column" count
-        data["count"] = [len(i) for i in data[0].str.split(",")]
-
-        # get most frequent count --> assume this for selection of "data" rows
-        data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
-
-        # init and loop list of lists
-        list_of_lists = []
-        for _, r in data.iterrows():
-            # append to list
-            list_of_lists.append(str(r.to_list()).strip("['']").split(","))
-
-        # get DataFrame from list of lists
-        data = pd.DataFrame(list_of_lists)
-
+            
+        data = utils.parse_rowwise_data(data)
         data = utils.tidy_colnames(data)
 
         data = utils.remove_unnecessary_data(data)

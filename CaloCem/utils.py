@@ -193,6 +193,27 @@ def tidy_colnames(df):
         return None
 
     return df
+
+
+def parse_rowwise_data(data):
+
+    # get "column" count
+    data["count"] = [len(i) for i in data[0].str.split(",")]
+
+    # get most frequent count --> assume this for selection of "data" rows
+    data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
+
+    # init and loop list of lists
+    list_of_lists = []
+    for _, r in data.iterrows():
+        # append to list
+        list_of_lists.append(str(r.to_list()).strip("['']").split(","))
+
+    # get DataFrame from list of lists
+    data = pd.DataFrame(list_of_lists)
+
+    return data
+
 # def calculate_smoothed_heatflow_derivatives(
 #     df: pd.DataFrame,
 #     tianparams: TianParameters,
