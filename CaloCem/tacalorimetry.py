@@ -420,22 +420,9 @@ class Measurement:
         # get DataFrame from list of lists
         data = pd.DataFrame(list_of_lists)
 
-        data = tidy_colnames(data)
+        data = utils.tidy_colnames(data)
 
-
-        # cut out data part
-        data = data.iloc[1:, :].reset_index(drop=True)
-
-        # drop column
-        try:
-            data = data.drop(columns=["time_markers_nan"])
-        except KeyError:
-            pass
-
-        # remove columns with too many NaNs
-        data = data.dropna(axis=1, thresh=3)
-        # # remove rows with NaNs
-        data = data.dropna(axis=0)
+        data = utils.remove_unnecessary_data(data)
 
         # type conversion
         data = utils.convert_df_to_float(data)
@@ -455,7 +442,7 @@ class Measurement:
         data = data.query("time_s > 0").reset_index(drop=True)
 
         # add sample information
-        data = add_sample_info(data, file)
+        data = utils.add_sample_info(data, file)
 
 
         # if self.processparams.downsample.apply:
@@ -2825,55 +2812,3 @@ def adaptive_downsample(
     print(f"Downsampled {sample_name} to", len(downsampled_df), "points")
     return downsampled_df
 
-
-def add_sample_info(df, file):
-
-    # get sample name
-    sample_name = pathlib.Path(file).stem
-
-    # add sample information
-    df["sample"] = file
-    # df["sample_short"] = sample_name
-    df.assign(sample_short=sample_name)
-
-    return df
-
-def tidy_colnames(df):
-    # get new column names
-    new_columnames = []
-    for i in df.iloc[0, :]:
-        # build
-        new_columname = (
-            re.sub(r'[\s\n\[\]\(\)° _"]+', "_", i.lower())
-            .replace("/", "_")
-            .replace("_signal_", "_")
-            .strip("_")
-        )
-
-        # select appropriate unit
-        if new_columname == "time":
-            new_columname += "_s"
-        elif "temperature" in new_columname:
-            new_columname += "_c"
-        elif new_columname == "heat_flow":
-            new_columname += "_w"
-        elif new_columname == "heat":
-            new_columname += "_j"
-        elif new_columname == "normalized_heat_flow":
-            new_columname += "_w_g"
-        elif new_columname == "normalized_heat":
-            new_columname += "_j_g"
-        else:
-            new_columname += "_nan"
-
-        # add to list
-        new_columnames.append(new_columname)
-
-    # set
-    df.columns = new_columnames
-    # validate new column names
-    if not "time_s" in new_columnames:
-        # stop here
-        return None
-
-    return df
