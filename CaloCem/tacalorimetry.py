@@ -437,14 +437,8 @@ class Measurement:
         # # remove rows with NaNs
         data = data.dropna(axis=0)
 
-        # float conversion
-        for _c in data.columns:
-            # convert
-            try:
-                data[_c] = data[_c].astype(float)
-            except ValueError:
-                # go to next column
-                continue
+        # type conversion
+        data = utils.convert_df_to_float(data)
 
         # check for "in-situ" sample --> reset
         try:
@@ -463,8 +457,6 @@ class Measurement:
         # add sample information
         data = add_sample_info(data, file)
 
-        # type conversion
-        data = utils.convert_df_to_float(data)
 
         # if self.processparams.downsample.apply:
         #     data = self._apply_adaptive_downsampling(data)
@@ -2883,5 +2875,5 @@ def tidy_colnames(df):
     if not "time_s" in new_columnames:
         # stop here
         return None
-        
+
     return df

@@ -92,8 +92,8 @@ def convert_df_to_float(df: pd.DataFrame) -> pd.DataFrame:
     for c in df.columns:
         try:
             df[c] = df[c].astype(float)
-        except Exception:
-            pass
+        except ValueError:
+            continue
 
     # return modified DataFrame
     return df
