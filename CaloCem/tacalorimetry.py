@@ -420,43 +420,8 @@ class Measurement:
         # get DataFrame from list of lists
         data = pd.DataFrame(list_of_lists)
 
-        # get new column names
-        new_columnames = []
-        for i in data.iloc[0, :]:
-            # build
-            new_columname = (
-                re.sub(r'[\s\n\[\]\(\)° _"]+', "_", i.lower())
-                .replace("/", "_")
-                .replace("_signal_", "_")
-                .strip("_")
-            )
+        data = tidy_colnames(data)
 
-            # select appropriate unit
-            if new_columname == "time":
-                new_columname += "_s"
-            elif "temperature" in new_columname:
-                new_columname += "_c"
-            elif new_columname == "heat_flow":
-                new_columname += "_w"
-            elif new_columname == "heat":
-                new_columname += "_j"
-            elif new_columname == "normalized_heat_flow":
-                new_columname += "_w_g"
-            elif new_columname == "normalized_heat":
-                new_columname += "_j_g"
-            else:
-                new_columname += "_nan"
-
-            # add to list
-            new_columnames.append(new_columname)
-
-        # set
-        data.columns = new_columnames
-
-        # validate new column names
-        if not "time_s" in new_columnames:
-            # stop here
-            return None
 
         # cut out data part
         data = data.iloc[1:, :].reset_index(drop=True)
@@ -496,8 +461,7 @@ class Measurement:
         data = data.query("time_s > 0").reset_index(drop=True)
 
         # add sample information
-        data["sample"] = file
-        data["sample_short"] = pathlib.Path(file).stem
+        data = add_sample_info(data, file)
 
         # type conversion
         data = utils.convert_df_to_float(data)
@@ -2868,3 +2832,56 @@ def adaptive_downsample(
     sample_name = df["sample_short"].iloc[0]
     print(f"Downsampled {sample_name} to", len(downsampled_df), "points")
     return downsampled_df
+
+
+def add_sample_info(df, file):
+
+    # get sample name
+    sample_name = pathlib.Path(file).stem
+
+    # add sample information
+    df["sample"] = file
+    # df["sample_short"] = sample_name
+    df.assign(sample_short=sample_name)
+
+    return df
+
+def tidy_colnames(df):
+    # get new column names
+    new_columnames = []
+    for i in df.iloc[0, :]:
+        # build
+        new_columname = (
+            re.sub(r'[\s\n\[\]\(\)° _"]+', "_", i.lower())
+            .replace("/", "_")
+            .replace("_signal_", "_")
+            .strip("_")
+        )
+
+        # select appropriate unit
+        if new_columname == "time":
+            new_columname += "_s"
+        elif "temperature" in new_columname:
+            new_columname += "_c"
+        elif new_columname == "heat_flow":
+            new_columname += "_w"
+        elif new_columname == "heat":
+            new_columname += "_j"
+        elif new_columname == "normalized_heat_flow":
+            new_columname += "_w_g"
+        elif new_columname == "normalized_heat":
+            new_columname += "_j_g"
+        else:
+            new_columname += "_nan"
+
+        # add to list
+        new_columnames.append(new_columname)
+
+    # set
+    df.columns = new_columnames
+    # validate new column names
+    if not "time_s" in new_columnames:
+        # stop here
+        return None
+        
+    return df

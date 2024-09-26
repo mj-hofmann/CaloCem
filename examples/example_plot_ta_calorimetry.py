@@ -14,6 +14,7 @@ tam = tacalorimetry.Measurement(
     regex="calorimetry_data_[1].csv",
     show_info=True,
     auto_clean=False,
+    cold_start=True,
 )
 
 # get sample and information
