@@ -2349,8 +2349,8 @@ class Measurement:
 
         # apply the correction for each sample
         for s, d in self._iter_samples():
-            print(d.sample_short[0])
-            print(len(d))
+            # print(d.sample_short[0])
+            # print(len(d))
             d = d.dropna(subset=["normalized_heat_flow_w_g"])
             # apply adaptive downsampling
             if not self.processparams.downsample.section_split:

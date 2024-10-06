@@ -90,12 +90,12 @@ def convert_df_to_float(df: pd.DataFrame) -> pd.DataFrame:
 
     # type conversion
     for c in df.columns:
+        # safe type conversion of the columns to float if possible
         try:
             df[c] = df[c].astype(float)
-        except ValueError:
-            continue
+        except (ValueError, TypeError):
+            pass
 
-    # return modified DataFrame
     return df
 
 
@@ -150,7 +150,7 @@ def add_sample_info(df, file):
     # add sample information
     df["sample"] = file
     # df["sample_short"] = sample_name
-    df.assign(sample_short=sample_name)
+    df = df.assign(sample_short=sample_name)
 
     return df
 

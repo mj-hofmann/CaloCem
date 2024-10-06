@@ -10,7 +10,7 @@ plotpath = parentfolder / "docs" / "assets"
 testpath = parentfolder / "tests"
 
 processparams = ta.ProcessingParameters()
-processparams.downsample.apply = True
+processparams.downsample.apply = False
 processparams.downsample.num_points = 300
 processparams.downsample.section_split = True
 processparams.downsample.section_split_time_s = 3600
