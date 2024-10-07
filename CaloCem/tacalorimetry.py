@@ -119,13 +119,24 @@ class Measurement:
     # init
     #
     def __init__(
-        self, folder=None, show_info=True, regex=None, auto_clean=False, cold_start=True
+        self,
+        folder=None,
+        show_info=True,
+        regex=None,
+        auto_clean=False,
+        cold_start=True,
+        processparams=None,
     ):
         """
         intialize measurements from folder
 
 
         """
+
+        if not isinstance(processparams, ProcessingParameters):
+            self.processparams = ProcessingParameters()
+        else:
+            self.processparams = processparams
 
         # read
         if folder:
@@ -148,6 +159,8 @@ class Measurement:
                 # return
                 return
 
+        if self.processparams.downsample.apply:
+            self._apply_adaptive_downsampling()
         # Message
         print(
             "================\nAre you missing some samples? Try rerunning with auto_clean=True and cold_start=True.\n================="
@@ -253,6 +266,8 @@ class Measurement:
         except Exception:
             pass
 
+        # if self.processparams.downsample.apply is not False:
+        #     self._apply_adaptive_downsampling()
         # write _data and _info to pickle
         with open(self._file_data_pickle, "wb") as f:
             pickle.dump(self._data, f)
@@ -389,82 +404,14 @@ class Measurement:
             start_row = helper[helper].index.tolist()[0]
             # get offset for in-situ files
             t_offset_in_situ_s = float(data.at[start_row, 0].split(",")[0])
+            
+        data = utils.parse_rowwise_data(data)
+        data = utils.tidy_colnames(data)
 
-        # get "column" count
-        data["count"] = [len(i) for i in data[0].str.split(",")]
+        data = utils.remove_unnecessary_data(data)
 
-        # get most frequent count --> assume this for selection of "data" rows
-        data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
-
-        # init and loop list of lists
-        list_of_lists = []
-        for _, r in data.iterrows():
-            # append to list
-            list_of_lists.append(str(r.to_list()).strip("['']").split(","))
-
-        # get DataFrame from list of lists
-        data = pd.DataFrame(list_of_lists)
-
-        # get new column names
-        new_columnames = []
-        for i in data.iloc[0, :]:
-            # build
-            new_columname = (
-                re.sub(r'[\s\n\[\]\(\)° _"]+', "_", i.lower())
-                .replace("/", "_")
-                .replace("_signal_", "_")
-                .strip("_")
-            )
-
-            # select appropriate unit
-            if new_columname == "time":
-                new_columname += "_s"
-            elif "temperature" in new_columname:
-                new_columname += "_c"
-            elif new_columname == "heat_flow":
-                new_columname += "_w"
-            elif new_columname == "heat":
-                new_columname += "_j"
-            elif new_columname == "normalized_heat_flow":
-                new_columname += "_w_g"
-            elif new_columname == "normalized_heat":
-                new_columname += "_j_g"
-            else:
-                new_columname += "_nan"
-
-            # add to list
-            new_columnames.append(new_columname)
-
-        # set
-        data.columns = new_columnames
-
-        # validate new column names
-        if not "time_s" in new_columnames:
-            # stop here
-            return None
-
-        # cut out data part
-        data = data.iloc[1:, :].reset_index(drop=True)
-
-        # drop column
-        try:
-            data = data.drop(columns=["time_markers_nan"])
-        except KeyError:
-            pass
-
-        # remove columns with too many NaNs
-        data = data.dropna(axis=1, thresh=3)
-        # # remove rows with NaNs
-        data = data.dropna(axis=0)
-
-        # float conversion
-        for _c in data.columns:
-            # convert
-            try:
-                data[_c] = data[_c].astype(float)
-            except ValueError:
-                # go to next column
-                continue
+        # type conversion
+        data = utils.convert_df_to_float(data)
 
         # check for "in-situ" sample --> reset
         try:
@@ -481,11 +428,11 @@ class Measurement:
         data = data.query("time_s > 0").reset_index(drop=True)
 
         # add sample information
-        data["sample"] = file
-        data["sample_short"] = pathlib.Path(file).stem
+        data = utils.add_sample_info(data, file)
 
-        # type conversion
-        data = utils.convert_df_to_float(data)
+
+        # if self.processparams.downsample.apply:
+        #     data = self._apply_adaptive_downsampling(data)
 
         # return
         return data
@@ -925,9 +872,14 @@ class Measurement:
             heatcols = [s for s in data.columns if "heat" in s]
             data[heatcols] = data[heatcols] * y_factor
             ax, _ = utils.create_base_plot(data, ax, "time_s", y_column, sample)
-            ax = utils.style_base_plot(ax, y_label, t_unit, sample, )
+            ax = utils.style_base_plot(
+                ax,
+                y_label,
+                t_unit,
+                sample,
+            )
         return ax
-       
+
     #
     # plot by category
     #
@@ -1059,7 +1011,14 @@ class Measurement:
 
     @staticmethod
     def _plot_maximum_slope(
-        data, ax, age_col, target_col, sample, characteristics, time_discarded_s, save_path = None
+        data,
+        ax,
+        age_col,
+        target_col,
+        sample,
+        characteristics,
+        time_discarded_s,
+        save_path=None,
     ):
         ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
@@ -1083,7 +1042,6 @@ class Measurement:
         ax.set_xscale("log")
 
         if new_ax:
-            
             if save_path:
                 sample_name = pathlib.Path(sample).stem
                 plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.png")
@@ -1485,7 +1443,7 @@ class Measurement:
 
             if show_info:
                 print(f"Determineing maximum slope of {pathlib.Path(sample).stem}")
-                
+
             processor = HeatFlowProcessor(processparams)
 
             data = make_equidistant(data)
@@ -1511,7 +1469,7 @@ class Measurement:
                     sample,
                     characteristics,
                     time_discarded_s,
-                    save_path = save_path,
+                    save_path=save_path,
                 )
                 # plot heat flow curve
                 # plt.plot(data[age_col], data[target_col], label=target_col)
@@ -1557,9 +1515,9 @@ class Measurement:
         if not list_of_characteristics:
             print("No maximum slope found, check you processing parameters")
         # build overall list
-        else: 
+        else:
             max_slope_characteristics = pd.concat(list_of_characteristics)
-           # return
+            # return
             return max_slope_characteristics
 
     #
@@ -2381,6 +2339,39 @@ class Measurement:
         # call original restore function
         self.undo_average_by_metadata()
 
+    def _apply_adaptive_downsampling(self):
+        """
+        apply adaptive downsampling to data
+        """
+
+        # define temporary empty DataFrame
+        df = pd.DataFrame()
+
+        # apply the correction for each sample
+        for s, d in self._iter_samples():
+            # print(d.sample_short[0])
+            # print(len(d))
+            d = d.dropna(subset=["normalized_heat_flow_w_g"])
+            # apply adaptive downsampling
+            if not self.processparams.downsample.section_split:
+                d = adaptive_downsample(
+                    d,
+                    x_col="time_s",
+                    y_col="normalized_heat_flow_w_g",
+                    processparams=self.processparams,
+                )
+            else:
+                d = downsample_sections(
+                    d,
+                    x_col="time_s",
+                    y_col="normalized_heat_flow_w_g",
+                    processparams=self.processparams,
+                )
+            df = pd.concat([df, d])
+
+        # set data to downsampled data
+        self._data = df
+
 
 @dataclass
 class CutOffParameters:
@@ -2466,6 +2457,16 @@ class GradientPeakDetectionParameters:
 
 
 @dataclass
+class DownSamplingParameters:
+    apply: bool = False
+    num_points: int = 1000
+    smoothing_factor: float = 1e-10
+    baseline_weight: float = 0.1
+    section_split: bool = False
+    section_split_time_s: int = 1000
+
+
+@dataclass
 class ProcessingParameters:
     """
     A data class for storing all processing parameters for calorimetry data.
@@ -2491,6 +2492,12 @@ class ProcessingParameters:
         Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more
         nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks
         (e.g., first peak, largest width). The default values are defined in the GradientPeakDetectionParameters class.
+
+    downsample : DownSamplingParameters
+        Parameters for adaptive downsampling of the thermal analysis data. This includes settings such as the number of points,
+        smoothing factor, and baseline weight. The default values are defined in the DownSamplingParameters class.
+
+
 
     Examples
     --------
@@ -2525,6 +2532,7 @@ class ProcessingParameters:
     spline_interpolation: SplineInterpolationParameters = field(
         default_factory=SplineInterpolationParameters
     )
+    downsample: DownSamplingParameters = field(default_factory=DownSamplingParameters)
 
 
 class HeatFlowProcessor:
@@ -2665,4 +2673,128 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     df["time_s"] = (df.index - df.index[0]).total_seconds()
     return df
 
+
+def downsample_sections(df, x_col, y_col, processparams):
+    """
+    Downsample a DataFrame by dividing it into sections and downsampling each section individually.
+
+    Parameters:
+    - df: pandas DataFrame with columns 'x' and 'y'.
+    - x_col: String for the 'x' values column of the DataFrame.
+    - y_col: String for the 'y' values column of the DataFrame.
+    - num_points: Desired number of points in the downsampled DataFrame.
+    - smoothing_factor: Smoothing factor for the spline interpolation.
+
+    Returns:
+    - downsampled_df: Downsampled pandas DataFrame.
+    """
+    # Time Split
+    time_split = processparams.downsample.section_split_time_s #1000
+
+    # Split the DataFrame into sections based on the time column
+    df1 = df[df[x_col] < time_split]
+    df2 = df[df[x_col] >= time_split]
+
+    # Downsample each section individually
+    downsampled_df1 = adaptive_downsample(
+        df1, x_col, y_col, processparams
+    )
+    downsampled_df2 = adaptive_downsample(
+        df2, x_col, y_col, processparams
+    )
+
+    # Concatenate the downsampled sections
+    downsampled_df = pd.concat([downsampled_df1, downsampled_df2])
+
+    return downsampled_df
+
+
+def adaptive_downsample(
+    df, x_col, y_col, processparams: ProcessingParameters
+):
+    """
+    Adaptively downsample a DataFrame based on the second derivative magnitude.
+
+    Parameters:
+    - df: pandas DataFrame with columns 'x' and 'y'.
+    - x_col: String for the 'x' values column of the DataFrame.
+    - y_col: String for the 'y' values column of the DataFrame.
+    - num_points: Desired number of points in the downsampled DataFrame.
+    - smoothing_factor: Smoothing factor for the spline interpolation.
+
+    Returns:
+    - downsampled_df: Downsampled pandas DataFrame.
+    """
+
+    if processparams.downsample.section_split:
+        num_points = int(processparams.downsample.num_points / 2)
+
+    #df = df.query("time_s > 1800")
+    x = df[x_col].values
+    y = df[y_col].values
+
+    # print(y)
+    # interpolate the data
+    spl = UnivariateSpline(x, y, s=processparams.downsample.smoothing_factor)
+    new_x = x  # np.linspace(x.min(), x.max(), len(x))
+    # print(new_x)
+    new_y = spl(new_x)
+
+    # Compute the first derivative (gradient)
+    dy_dx = np.gradient(new_y, new_x)
+
+    # Compute the second derivative
+    d2y_dx2 = np.gradient(dy_dx, new_x)
+
+    # Compute the absolute value of the second derivative
+    curvature = np.abs(d2y_dx2)
+    # Avoid division by zero by adding a small constant
+    curvature += 1e-15
+    # Normalize curvature
+    curvature_normalized = curvature / curvature.sum()
+
+    # Create PDF with a baseline to ensure sampling in low-curvature areas
+    baseline_weight = processparams.downsample.baseline_weight
+    pdf = curvature_normalized + baseline_weight / num_points
+    pdf /= pdf.sum()  # Normalize to create a valid PDF
+
+    # Compute CDF
+    cdf = np.cumsum(pdf)
+
+    # plt.plot(x, y)
+    # plt.plot(x, new_y, label="interpolated")
+    # plt.plot(x, y, label="raw")
+    # plt.plot(x, new_y, label="interpolated")
+    # plt.plot(x, dy_dx, label="gradient")
+    # plt.plot(x, d2y_dx2, label="second derivative")
+    # plt.plot(x, curvature, label="curvature")
+    # plt.scatter(new_x, pdf, label="pdf")
+
+    # plt.plot(x, cdf, label="cdf")
+    # plt.legend()
+    # # plt.yscale("log")
+    # plt.show()
+
+    # # # Generate uniformly spaced samples in the interval [0, 1)
+    uniform_samples = np.linspace(0, 1, num_points, endpoint=False)
+
+    # # # Map uniform samples to indices using the inverse CDF
+    indices = np.searchsorted(cdf, uniform_samples)
+    # print(indices)
+    # # # Ensure indices are within valid range
+
+    indices = np.clip(indices, 0, len(df) - 1)
+    # #
+
+    # # Remove duplicates and sort indices
+    indices = np.unique(indices)
+    # indices = np.argsort(pdf)[-num_points:]
+    # print(indices)
+
+    # Subsample the DataFrame at these indices
+    downsampled_df = df.iloc[indices]
+    # name of sample
+    sample_name = df["sample_short"].iloc[0]
+    print(f"Downsampled {sample_name} to", len(downsampled_df), "points")
+    return downsampled_df
 

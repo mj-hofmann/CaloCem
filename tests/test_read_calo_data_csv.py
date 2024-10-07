@@ -11,7 +11,7 @@ from CaloCem import tacalorimetry
         ("c3a.csv", 173873),
         (
             "gen1_calofile.csv",
-            None,
+            0,
         ),  # multiples samples in one file?  --> do nothing / return 0
         ("gen3_calofile.csv", 172799),
         ("calorimetry_data_1.csv", 416006),  
@@ -27,7 +27,7 @@ from CaloCem import tacalorimetry
 def test_last_time_entry(file, expected):
 
     # path
-    path = pathlib.Path().cwd() / "CaloCem" / "DATA"
+    path = pathlib.Path(__file__).parent.parent / "CaloCem" / "DATA"
 
     # get data
     data = tacalorimetry.Measurement(auto_clean=False)._read_calo_data_csv(path / file)

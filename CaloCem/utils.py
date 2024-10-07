@@ -6,7 +6,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
 from scipy.signal import convolve, gaussian
 from scipy.ndimage import median_filter
 from pathlib import Path
-
+import re
 
 def create_base_plot(data, ax, _age_col, _target_col, sample):
     """
@@ -90,12 +90,12 @@ def convert_df_to_float(df: pd.DataFrame) -> pd.DataFrame:
 
     # type conversion
     for c in df.columns:
+        # safe type conversion of the columns to float if possible
         try:
             df[c] = df[c].astype(float)
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
-    # return modified DataFrame
     return df
 
 
@@ -122,6 +122,97 @@ def fit_univariate_spline(df, target_col, s=1e-6):
     df = df.iloc[:-100, :]
     return df
 
+
+def remove_unnecessary_data(df):
+    # cut out data part
+    df = df.iloc[1:, :].reset_index(drop=True)
+
+    # drop column
+    try:
+        data = df.drop(columns=["time_markers_nan"])
+    except KeyError:
+        pass
+
+    # remove columns with too many NaNs
+    data = data.dropna(axis=1, thresh=3)
+
+    # # remove rows with NaNs
+    data = data.dropna(axis=1)
+
+    return data
+
+
+def add_sample_info(df, file):
+
+    # get sample name
+    sample_name = Path(file).stem
+
+    # add sample information
+    df["sample"] = file
+    # df["sample_short"] = sample_name
+    df = df.assign(sample_short=sample_name)
+
+    return df
+
+def tidy_colnames(df):
+    # get new column names
+    new_columnames = []
+    for i in df.iloc[0, :]:
+        # build
+        new_columname = (
+            re.sub(r'[\s\n\[\]\(\)° _"]+', "_", i.lower())
+            .replace("/", "_")
+            .replace("_signal_", "_")
+            .strip("_")
+        )
+
+        # select appropriate unit
+        if new_columname == "time":
+            new_columname += "_s"
+        elif "temperature" in new_columname:
+            new_columname += "_c"
+        elif new_columname == "heat_flow":
+            new_columname += "_w"
+        elif new_columname == "heat":
+            new_columname += "_j"
+        elif new_columname == "normalized_heat_flow":
+            new_columname += "_w_g"
+        elif new_columname == "normalized_heat":
+            new_columname += "_j_g"
+        else:
+            new_columname += "_nan"
+
+        # add to list
+        new_columnames.append(new_columname)
+
+    # set
+    df.columns = new_columnames
+    # validate new column names
+    if not "time_s" in new_columnames:
+        # stop here
+        return None
+
+    return df
+
+
+def parse_rowwise_data(data):
+
+    # get "column" count
+    data["count"] = [len(i) for i in data[0].str.split(",")]
+
+    # get most frequent count --> assume this for selection of "data" rows
+    data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
+
+    # init and loop list of lists
+    list_of_lists = []
+    for _, r in data.iterrows():
+        # append to list
+        list_of_lists.append(str(r.to_list()).strip("['']").split(","))
+
+    # get DataFrame from list of lists
+    data = pd.DataFrame(list_of_lists)
+
+    return data
 
 # def calculate_smoothed_heatflow_derivatives(
 #     df: pd.DataFrame,

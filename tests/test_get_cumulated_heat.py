@@ -22,10 +22,12 @@ from CaloCem import tacalorimetry
 def test_get_cumulated_heat(target_h):
 
     # path
-    path = pathlib.Path().cwd() / "CaloCem" / "DATA"
+    path = pathlib.Path(__file__).parent.parent / "CaloCem" / "DATA"
+    
+    files = "|".join(["calorimetry_data_1.csv", "calorimetry_data_2.csv" ])
 
     # init object
-    tam = tacalorimetry.Measurement(path, auto_clean=False, show_info=True)
+    tam = tacalorimetry.Measurement(path, auto_clean=False, regex=files, show_info=True, cold_start=True)
 
     # get cumulated heats
     cumulated_heats = tam.get_cumulated_heat_at_hours(target_h=target_h, cutoff_min=10)
