@@ -1093,7 +1093,7 @@ class Measurement:
                 self._data.groupby(by="sample")
                 .apply(
                     lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min),
-                    include_groups=False,
+                    # include_groups=False,
                 )
                 .reset_index(level=0)
             )
