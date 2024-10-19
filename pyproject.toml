@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "CaloCem"
-version = "0.1.18"
+version = "0.1.19"
 description = "Handling TAM Air calorimetry files made easy."
 authors = [
     "mj-hofmann <aCodingChemist@gmail.com>",
