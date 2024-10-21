@@ -1093,7 +1093,7 @@ class Measurement:
                 self._data.groupby(by="sample")
                 .apply(
                     lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min),
-                    include_groups=False,
+                    # include_groups=False,
                 )
                 .reset_index(level=0)
             )
@@ -2696,15 +2696,22 @@ def downsample_sections(df, x_col, y_col, processparams):
     df2 = df[df[x_col] >= time_split]
 
     # Downsample each section individually
-    downsampled_df1 = adaptive_downsample(
-        df1, x_col, y_col, processparams
-    )
-    downsampled_df2 = adaptive_downsample(
-        df2, x_col, y_col, processparams
-    )
+    if not df1.empty:
+        downsampled_df1 = adaptive_downsample(
+            df1, x_col, y_col, processparams
+        )
+    if not df2.empty:
+        downsampled_df2 = adaptive_downsample(
+            df2, x_col, y_col, processparams
+        )
 
     # Concatenate the downsampled sections
-    downsampled_df = pd.concat([downsampled_df1, downsampled_df2])
+    if not df1.empty and not df2.empty:
+        downsampled_df = pd.concat([downsampled_df1, downsampled_df2])
+    elif not df1.empty:
+        downsampled_df = downsampled_df1
+    elif not df2.empty:
+        downsampled_df = downsampled_df2
 
     return downsampled_df
 
@@ -2755,7 +2762,7 @@ def adaptive_downsample(
 
     # Create PDF with a baseline to ensure sampling in low-curvature areas
     baseline_weight = processparams.downsample.baseline_weight
-    pdf = curvature_normalized + baseline_weight / num_points
+    pdf = curvature_normalized + baseline_weight / processparams.downsample.num_points
     pdf /= pdf.sum()  # Normalize to create a valid PDF
 
     # Compute CDF
@@ -2776,7 +2783,7 @@ def adaptive_downsample(
     # plt.show()
 
     # # # Generate uniformly spaced samples in the interval [0, 1)
-    uniform_samples = np.linspace(0, 1, num_points, endpoint=False)
+    uniform_samples = np.linspace(0, 1, processparams.downsample.num_points, endpoint=False)
 
     # # # Map uniform samples to indices using the inverse CDF
     indices = np.searchsorted(cdf, uniform_samples)
