@@ -1055,6 +1055,18 @@ class Measurement:
     def get_cumulated_heat_at_hours(self, target_h=4, cutoff_min=None):
         """
         get the cumulated heat flow a at a certain age
+        
+        Parameters
+        ----------
+        target_h : int | float
+            end time in hours
+        cutoff_min : int | float, optional
+            start time in minutes. All data before the cutoff_min time will be removed  
+
+        Returns
+        -------
+        A Pandas dataframe
+
         """
 
         def applicable(df, target_h=4, cutoff_min=None):
@@ -1397,7 +1409,7 @@ class Measurement:
         save_path=None,
     ):
         """
-        get maximum slope as a characteristic value
+        The method finds the point in time of the maximum slope. It also calculates the gradient at this point. The method can be controlled by passing a customized ProcessingParameters object for the `processparams` parameter. If no object is passed, the default parameters will be used.
 
         Parameters
         ----------
@@ -1415,8 +1427,18 @@ class Measurement:
             regex pattern to include only certain experimental result files during initialization. The default is None.
         Returns
         -------
-        pd.DataFrame holding peak onset characterisitcs for each sample.
+        Pandas Dataframe
+            A dataframe that contains the time and the gradient of the maximum slope.
+        Examples
+        --------
+        >>> from CaloCem import tacalorimetry as ta
+        >>> from pathlib import Path
 
+        >>> thepath = Path(__file__).parent / "data"
+        >>> tam = ta.Measurement(thepath)
+        >>> processparams = ta.ProcessingParameters()
+        >>> processparams..apply = True
+        >>> max_slopes = tam.get_maximum_slope(processparams)
         """
 
         # init list of characteristics
@@ -1702,18 +1724,17 @@ class Measurement:
         Parameters
         ----------
         regex : str, optional
-            DESCRIPTION. The default is None.
-        cutoff_min : int, optional
-            DESCRIPTION. The default is 5.
+            Regex which can be used to filter the data, i.e., only the patterns which fit the regex will be evaluated. The default is None.
+        cutoff_min : int | float, optional
+            Time at the start of the experiment which will be cutoff from analysis. This can be useful for ex-situ mixed samples. The default is 5.
         upper_dormant_thresh_w_g : float, optional
-            DESCRIPTION. The default is 0.001.
-        show_plot : TYPE, optional
-            DESCRIPTION. The default is False.
+            Parameter which controls the upper limit for the plotting option. The default is 0.001.
+        show_plot : bool, optional
+            If set to true, the data is plotted. The default is False.
 
         Returns
         -------
-        result : TYPE
-            DESCRIPTION.
+        Pandas Dataframe
 
         """
 
@@ -1798,12 +1819,23 @@ class Measurement:
         ----------
         individual : bool, optional
             DESCRIPTION. The default is False.
+        processparams: ProcessingParameters
+            Dataclass containing parameters which control the processing of the calorimetry data.
 
         Returns
         -------
-        astm_times : pd.DataFrame
-            DESCRIPTION.
+        Pandas Dataframe
 
+        Examples
+        --------
+        Assuming that the calorimetry data is contained in a subfolder `data`, the time according to ASTM c1679 can be obtained by
+
+        >>> from CaloCem import tacalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> thepath = Path(__file__).parent / "data"
+        >>> tam = ta.Measurement(thepath)
+        >>> astm = tam.get_astm_c1679_characteristics()
         """
 
         # get peaks
@@ -1862,12 +1894,21 @@ class Measurement:
 
     def get_data(self):
         """
-        get data
-
+        A convenience function which returns the Pandas Dataframe containing the read and processed calorimetry data. 
         Returns
         -------
-        pd.DataFrame
-            data, i.e. heat flow, heat, sample, ....
+        Pandas DataFrame
+
+        Examples
+        --------
+        Assuming that the calorimetry data is contained in a subfolder `data`, a conventional Pandas dataframe `df` containing the data from all calorimetry files in `data` can be obtained with the following code.
+
+        >>> from CaloCem import tacalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> thepath = Path(__file__).parent / "data"
+        >>> tam = ta.Measurement(thepath)
+        >>> df = tam.get_data()
 
         """
 
@@ -2497,7 +2538,8 @@ class ProcessingParameters:
         Parameters for adaptive downsampling of the thermal analysis data. This includes settings such as the number of points,
         smoothing factor, and baseline weight. The default values are defined in the DownSamplingParameters class.
 
-
+    spline_interpolation: SplineInterpolationParameters
+        Parameters which control the interpolation of the first and second derivative of the data. If no smoothing is applied the derivatives often become very noisy.
 
     Examples
     --------
@@ -2506,6 +2548,7 @@ class ProcessingParameters:
 
     >>> processparams = ProcessingParameters()
     >>> processparams.cutoff.cutoff_min = 30
+    >>> processparams.spline_interpolation.apply = True
     """
 
     cutoff: CutOffParameters = field(default_factory=CutOffParameters)
@@ -2762,7 +2805,7 @@ def adaptive_downsample(
 
     # Create PDF with a baseline to ensure sampling in low-curvature areas
     baseline_weight = processparams.downsample.baseline_weight
-    pdf = curvature_normalized + baseline_weight / processparams.downsample.num_points
+    pdf = curvature_normalized + baseline_weight / num_points
     pdf /= pdf.sum()  # Normalize to create a valid PDF
 
     # Compute CDF
@@ -2783,7 +2826,7 @@ def adaptive_downsample(
     # plt.show()
 
     # # # Generate uniformly spaced samples in the interval [0, 1)
-    uniform_samples = np.linspace(0, 1, processparams.downsample.num_points, endpoint=False)
+    uniform_samples = np.linspace(0, 1, num_points, endpoint=False)
 
     # # # Map uniform samples to indices using the inverse CDF
     indices = np.searchsorted(cdf, uniform_samples)
