@@ -2445,6 +2445,17 @@ class RollingMeanParameters:
 
 @dataclass
 class MedianFilterParameters:
+    """Parameters for the application of a Median filter to the data. The SciPy method `median_filter` is applied. [Link to method](https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.median_filter.html)
+
+
+    Parameters
+    ----------
+    apply: bool
+        default is false. If `True`, a median filter is applied. The Scipy function `median_filter` is  applied.   
+    size: int
+        The size of the median filter (see the SciPy documentation)
+    
+    """
     apply: bool = False
     size: int = 7
 
@@ -2481,12 +2492,43 @@ class SplineInterpolationParameters:
 
 @dataclass
 class PeakDetectionParameters:
+    """
+    Parameters that control the identication of peaks during peak detection. 
+
+    Parameters
+    ----------
+
+    prominence: float
+        The minimum prominence of the peak
+    distance: int
+        The minimum distance of the peak.
+    """
     prominence: float = 1e-5
     distance: int = 100
 
 
 @dataclass
 class GradientPeakDetectionParameters:
+    """
+    Parameters that control the identifcation of Peaks in the first derivative (gradient) of the heat flow data. Under the hood the SciPy `find_peaks()` is used [Link to SciPy method](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html). 
+
+    Parameters
+    ----------
+    prominence: float
+        Minimum prominence of the peak
+    distance: int
+        Minimum distance
+    width: int
+        Minimum width
+    rel_height: float
+        Relative height of the peak
+    height: float
+        Minimum height of the peak
+    use_first: bool
+        If true, only the first peak will be used
+    use_largest_width: bool
+        If true the peak with the largest peak width will be used.
+    """
     prominence: float = 1e-9
     distance: int = 100
     width: int = 20
