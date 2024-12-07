@@ -18,7 +18,7 @@ It is very easy to load the calorimetry files and to plot them. The file `myscri
 After we have obtained the path, we pass it to `ta.Measurement()`. Besides the `Path` object, we can pass further arguments such as the option `show_info=True` which prints the names of the calo files being loaded in the terminal.
 
 ```python
-from CaloCem import tacalorimetry as ta
+from calocem import tacalorimetry as ta
 from pathlib import Path
 
 datapath = Path(__file__).parent / "calo_data"

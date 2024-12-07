@@ -2,15 +2,15 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
 
 parentfolder = Path(__file__).parent.parent
-datapath = parentfolder / "CaloCem" / "DATA"
+datapath = parentfolder / "calocem" / "DATA"
 plotpath = parentfolder / "docs" / "assets"
 testpath = parentfolder / "tests"
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r".*data_[1-5].csv",
     show_info=True,

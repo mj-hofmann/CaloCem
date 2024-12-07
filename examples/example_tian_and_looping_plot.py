@@ -3,13 +3,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 
 
 # %%
-tam2 = ta.Measurement(
+tam2 = Measurement(
     folder=datapath,
     regex=".*bm.*",
     cold_start=True,
@@ -18,7 +18,7 @@ tam2 = ta.Measurement(
 # %%
 
 # define processing parameters
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.tau_values = {"tau1": 300, "tau2": None}
 
 tam2.apply_tian_correction(processparams)

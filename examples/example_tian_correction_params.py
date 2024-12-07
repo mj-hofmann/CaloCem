@@ -2,13 +2,14 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
+from calocem.processparams import ProcessingParameters
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 plotpath = Path(__file__).parent.parent / "docs" / "assets"
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r".*(insitu_bm).csv",
     show_info=True,
@@ -18,7 +19,7 @@ tam = ta.Measurement(
 
 
 # Set Proceesing Parameters
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 240
 processparams.time_constants.tau2 = 80
 processparams.median_filter.apply = True
@@ -59,7 +60,7 @@ plt.savefig(plotpath / "tian_correction.png")
 
 
 # example with only one tau constant and no smoothing
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 300
 processparams.time_constants.tau2 = None
 processparams.median_filter.apply = False

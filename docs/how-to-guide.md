@@ -29,7 +29,7 @@ Import the ```tacalorimetry``` module from **TAInstCalorimetry**.
 ```python
 # import
 import os
-from CaloCem import tacalorimetry
+from calocem import tacalorimetry
 ```
 
 Next, we define where the exported files are stored. With this information at hand, a ```Measurement``` is initialized. Experimental raw data and the metadata passed in the course of the measurement are retrieved by the methods ```get_data()``` and ```get_information()```, respectively.

@@ -2,9 +2,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline
-from scipy.signal import convolve, gaussian
-from scipy.ndimage import median_filter
+from scipy.interpolate import UnivariateSpline
 from pathlib import Path
 import re
 

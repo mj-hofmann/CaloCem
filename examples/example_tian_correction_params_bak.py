@@ -5,11 +5,12 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
+from calocem.processparams import ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r".*(insitu_bm).*.csv",
     show_info=True,
@@ -18,13 +19,14 @@ tam = ta.Measurement(
 )
 
 #%%
-processparams = ta.ProcessingParameters()
-processparams.tau_values = {"tau1": 230, "tau2": 80}
-processparams.median_filter["apply"] = True
-processparams.median_filter["size"] = 15
-processparams.spline_interpolation["apply"] = True
-processparams.spline_interpolation["smoothing_1st_deriv"] = 1e-10
-processparams.spline_interpolation["smoothing_2nd_deriv"] = 1e-10
+processparams = ProcessingParameters()
+processparams.time_constants.tau1 = 230
+processparams.time_constants.tau2 = 80
+processparams.median_filter.apply = True
+processparams.median_filter.size = 15
+processparams.spline_interpolation.apply = True
+processparams.spline_interpolation.smoothing_1st_deriv = 1e-10
+processparams.spline_interpolation.smoothing_2nd_deriv = 1e-10
 
 tam.apply_tian_correction(
     processparams=processparams,

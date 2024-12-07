@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from CaloCem import tacalorimetry
+from calocem.tacalorimetry import Measurement
 
 datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
 plotpath = Path(__file__).parent.parent / "docs" / "assets"
@@ -10,7 +10,7 @@ plotpath = Path(__file__).parent.parent / "docs" / "assets"
 # %% use class based approach
 
 # experiments via class
-tam = tacalorimetry.Measurement(
+tam = Measurement(
     folder=datapath,
     regex="calorimetry_data_[1].csv",
     show_info=True,

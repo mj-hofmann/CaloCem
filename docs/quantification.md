@@ -7,7 +7,8 @@ First we load the data
 ```python
 # %%
 from pathlib import Path
-import CaloCem.tacalorimetry as ta
+import calocem.tacalorimetry as ta
+from calocem.processparams import ProcessingParameters
 
 # define the Path of the folder with the calorimetry data
 datapath = Path()
@@ -28,7 +29,7 @@ Note that only the largest peak will be detected if the prominence is set to 1e-
 
 ```python
 # define the processing parameters
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.peakdetection.prominence = 1e-4
 
 # plot the peak position
@@ -67,7 +68,7 @@ It is therefore very useful to apply a little smoothing to the first derivative.
 
 ```python
 
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.spline_interpolation.apply = True
 processparams.spline_interpolation.smoothing_1st_deriv = 1e-12
 

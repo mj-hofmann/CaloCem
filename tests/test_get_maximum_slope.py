@@ -3,7 +3,7 @@ import pathlib
 import pysnooper
 import pytest
 
-from CaloCem import tacalorimetry
+from calocem import tacalorimetry
 
 
 #
@@ -18,7 +18,7 @@ from CaloCem import tacalorimetry
 def test_get_maximum_slope():
 
     # path
-    path = pathlib.Path(__file__).parent.parent / "CaloCem" / "DATA"
+    path = pathlib.Path(__file__).parent.parent / "calocem" / "DATA"
     
     # files = "|".join(["calorimetry_data_1.csv", "calorimetry_data_2.csv" ])
     files = [f.stem for f in path.glob("*.csv") if not f.stem.startswith("corrupt")]

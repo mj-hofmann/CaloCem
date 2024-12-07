@@ -2,13 +2,14 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
+from calocem.processparams import ProcessingParameters
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 assetpath = Path(__file__).parent.parent / "docs" / "assets"
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=".*calorimetry_data_5.*",
     show_info=True,
@@ -20,7 +21,7 @@ tam = ta.Measurement(
 # %% plot
 
 
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.spline_interpolation.apply = True
 processparams.spline_interpolation.smoothing_1st_deriv = 1e-12
 
