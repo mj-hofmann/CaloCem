@@ -212,6 +212,166 @@ def parse_rowwise_data(data):
 
     return data
 
+
+def make_equidistant(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.reset_index(drop=True)
+    df["td"] = pd.to_timedelta(df["time_s"], unit="s")
+    resample = df.resample("10s", on="td")
+    string_cols = df.select_dtypes(include="object").columns
+    num_cols = df.select_dtypes(include="number").columns
+    resampled_stringcols = resample[string_cols].first().ffill()
+    resampled_numcols = resample[num_cols].mean().interpolate()
+    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
+    return df
+
+
+def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
+    resampler = df.set_index(pd.to_datetime(df["time_s"], unit="s")).resample(
+        resampling_s
+    )
+    string_cols = df.select_dtypes(include="object").columns
+    num_cols = df.select_dtypes(include="number").columns
+    resampled_stringcols = resampler[string_cols].first().ffill()
+    resampled_numcols = resampler[num_cols].mean().interpolate()
+    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
+    df["time_s"] = (df.index - df.index[0]).total_seconds()
+    return df
+    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
+    df["time_s"] = (df.index - df.index[0]).total_seconds()
+    return df
+
+
+def downsample_sections(df, x_col, y_col, processparams):
+    """
+    Downsample a DataFrame by dividing it into sections and downsampling each section individually.
+
+    Parameters:
+    - df: pandas DataFrame with columns 'x' and 'y'.
+    - x_col: String for the 'x' values column of the DataFrame.
+    - y_col: String for the 'y' values column of the DataFrame.
+    - num_points: Desired number of points in the downsampled DataFrame.
+    - smoothing_factor: Smoothing factor for the spline interpolation.
+
+    Returns:
+    - downsampled_df: Downsampled pandas DataFrame.
+    """
+    # Time Split
+    time_split = processparams.downsample.section_split_time_s #1000
+
+    # Split the DataFrame into sections based on the time column
+    df1 = df[df[x_col] < time_split]
+    df2 = df[df[x_col] >= time_split]
+
+    # Downsample each section individually
+    if not df1.empty:
+        downsampled_df1 = adaptive_downsample(
+            df1, x_col, y_col, processparams
+        )
+    if not df2.empty:
+        downsampled_df2 = adaptive_downsample(
+            df2, x_col, y_col, processparams
+        )
+
+    # Concatenate the downsampled sections
+    if not df1.empty and not df2.empty:
+        downsampled_df = pd.concat([downsampled_df1, downsampled_df2])
+    elif not df1.empty:
+        downsampled_df = downsampled_df1
+    elif not df2.empty:
+        downsampled_df = downsampled_df2
+
+    return downsampled_df
+
+
+def adaptive_downsample(
+    df, x_col, y_col, processparams: ProcessingParameters
+):
+    """
+    Adaptively downsample a DataFrame based on the second derivative magnitude.
+
+    Parameters:
+    - df: pandas DataFrame with columns 'x' and 'y'.
+    - x_col: String for the 'x' values column of the DataFrame.
+    - y_col: String for the 'y' values column of the DataFrame.
+    - num_points: Desired number of points in the downsampled DataFrame.
+    - smoothing_factor: Smoothing factor for the spline interpolation.
+
+    Returns:
+    - downsampled_df: Downsampled pandas DataFrame.
+    """
+
+    if processparams.downsample.section_split:
+        num_points = int(processparams.downsample.num_points / 2)
+
+    #df = df.query("time_s > 1800")
+    x = df[x_col].values
+    y = df[y_col].values
+
+    # print(y)
+    # interpolate the data
+    spl = UnivariateSpline(x, y, s=processparams.downsample.smoothing_factor)
+    new_x = x  # np.linspace(x.min(), x.max(), len(x))
+    # print(new_x)
+    new_y = spl(new_x)
+
+    # Compute the first derivative (gradient)
+    dy_dx = np.gradient(new_y, new_x)
+
+    # Compute the second derivative
+    d2y_dx2 = np.gradient(dy_dx, new_x)
+
+    # Compute the absolute value of the second derivative
+    curvature = np.abs(d2y_dx2)
+    # Avoid division by zero by adding a small constant
+    curvature += 1e-15
+    # Normalize curvature
+    curvature_normalized = curvature / curvature.sum()
+
+    # Create PDF with a baseline to ensure sampling in low-curvature areas
+    baseline_weight = processparams.downsample.baseline_weight
+    pdf = curvature_normalized + baseline_weight / num_points
+    pdf /= pdf.sum()  # Normalize to create a valid PDF
+
+    # Compute CDF
+    cdf = np.cumsum(pdf)
+
+    # plt.plot(x, y)
+    # plt.plot(x, new_y, label="interpolated")
+    # plt.plot(x, y, label="raw")
+    # plt.plot(x, new_y, label="interpolated")
+    # plt.plot(x, dy_dx, label="gradient")
+    # plt.plot(x, d2y_dx2, label="second derivative")
+    # plt.plot(x, curvature, label="curvature")
+    # plt.scatter(new_x, pdf, label="pdf")
+
+    # plt.plot(x, cdf, label="cdf")
+    # plt.legend()
+    # # plt.yscale("log")
+    # plt.show()
+
+    # # # Generate uniformly spaced samples in the interval [0, 1)
+    uniform_samples = np.linspace(0, 1, num_points, endpoint=False)
+
+    # # # Map uniform samples to indices using the inverse CDF
+    indices = np.searchsorted(cdf, uniform_samples)
+    # print(indices)
+    # # # Ensure indices are within valid range
+
+    indices = np.clip(indices, 0, len(df) - 1)
+    # #
+
+    # # Remove duplicates and sort indices
+    indices = np.unique(indices)
+    # indices = np.argsort(pdf)[-num_points:]
+    # print(indices)
+
+    # Subsample the DataFrame at these indices
+    downsampled_df = df.iloc[indices]
+    # name of sample
+    sample_name = df["sample_short"].iloc[0]
+    print(f"Downsampled {sample_name} to", len(downsampled_df), "points")
+    return downsampled_df
+
 # def calculate_smoothed_heatflow_derivatives(
 #     df: pd.DataFrame,
 #     tianparams: TianParameters,
