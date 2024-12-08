@@ -18,7 +18,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.ndimage import median_filter
 
 from calocem import utils
-from .processparams import * 
+from .processparams import *
 
 logging.basicConfig(
     filename="CaloCem.log",
@@ -122,12 +122,14 @@ class Measurement:
         auto_clean=False,
         cold_start=True,
         processparams=None,
+        new_code=False,
     ):
         """
         intialize measurements from folder
 
 
         """
+        self._new_code = new_code
 
         if not isinstance(processparams, ProcessingParameters):
             self.processparams = ProcessingParameters()
@@ -225,18 +227,29 @@ class Measurement:
             # append csv
             if f.endswith(".csv"):
                 # collect data
-                try:
+                if self._new_code:
                     self._data = pd.concat(
                         [
                             self._data,
-                            self._read_calo_data_csv(file, show_info=show_info),
+                            self._read_csv_data(file, show_info=show_info),
                         ]
                     )
+                    # self._read_csv_data(file, show_info=show_info)
+                if self._new_code is False:
+                    try:
+                        self._data = pd.concat(
+                            [
+                                self._data,
+                                self._read_calo_data_csv(file, show_info=show_info),
+                            ]
+                        )
 
-                except Exception:
-                    # initialize
-                    if self._data.empty:
-                        self._data = self._read_calo_data_csv(file, show_info=show_info)
+                    except Exception:
+                        # initialize
+                        if self._data.empty:
+                            self._data = self._read_calo_data_csv(
+                                file, show_info=show_info
+                            )
 
                 # collect information
                 try:
@@ -327,6 +340,30 @@ class Measurement:
         # nr_lines = empty_lines[1] - empty_lines[0] - 2
         return empty_lines
 
+    def _read_csv_data(self, file, show_info=True):
+        """
+        NEW IMPLEMENTATION
+        """
+        delimiter = utils.detect_delimiter(file)
+        title_row = utils.find_title_row(file, delimiter)
+
+        data = pd.read_csv(
+            file, delimiter=delimiter, header=None, skiprows=title_row ,engine="python", 
+        )
+        start_time = utils.find_reaction_start_time(data)
+        if delimiter == ",":
+            data = utils.tidy_colnames(data)
+        elif delimiter == "\t":
+            data = utils.prepare_tab_columns(data, file)
+        #data = utils.tidy_colnames(data)
+
+        data = utils.remove_unnecessary_data(data)
+        data = utils.convert_df_to_float(data)
+        data = utils.correct_start_time(data, start_time)
+        data = utils.add_sample_info(data, file)
+
+        return data
+
     #
     # read csv data
     #
@@ -400,7 +437,7 @@ class Measurement:
             start_row = helper[helper].index.tolist()[0]
             # get offset for in-situ files
             t_offset_in_situ_s = float(data.at[start_row, 0].split(",")[0])
-            
+
         data = utils.parse_rowwise_data(data)
         data = utils.tidy_colnames(data)
 
@@ -425,7 +462,6 @@ class Measurement:
 
         # add sample information
         data = utils.add_sample_info(data, file)
-
 
         # if self.processparams.downsample.apply:
         #     data = self._apply_adaptive_downsampling(data)
@@ -1051,13 +1087,13 @@ class Measurement:
     def get_cumulated_heat_at_hours(self, target_h=4, cutoff_min=None):
         """
         get the cumulated heat flow a at a certain age
-        
+
         Parameters
         ----------
         target_h : int | float
             end time in hours
         cutoff_min : int | float, optional
-            start time in minutes. All data before the cutoff_min time will be removed  
+            start time in minutes. All data before the cutoff_min time will be removed
 
         Returns
         -------
@@ -1888,7 +1924,7 @@ class Measurement:
 
     def get_data(self):
         """
-        A convenience function which returns the Pandas Dataframe containing the read and processed calorimetry data. 
+        A convenience function which returns the Pandas Dataframe containing the read and processed calorimetry data.
         Returns
         -------
         Pandas DataFrame

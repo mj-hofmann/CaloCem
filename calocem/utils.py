@@ -1,10 +1,53 @@
+import csv
+import re
+import pathlib
+from pathlib import Path
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from pathlib import Path
-import re
+from scipy import integrate
+
+def detect_delimiter(file_path):
+    with open(file_path, 'r') as file:
+        sample = file.read(1024)  # Read the first 1 KB of the file
+        sniffer = csv.Sniffer()
+        delimiter = sniffer.sniff(sample).delimiter
+        return delimiter
+
+def find_reaction_start_time(df):
+    string = "reaction start"
+    df_lower = df.map(lambda x: x.lower() if isinstance(x, str) else x)
+    contains_string = df_lower.map(lambda x: string in x if isinstance(x, str) else False)
+    
+    # get row index where contains_string is True
+    idx = contains_string.idxmax(axis=1).idxmax()
+    if contains_string.any().any():
+        return float(df.iloc[idx, 0])
+
+def find_title_row(file, delimiter):
+    df = pd.read_csv(file, delimiter="none", engine="python", header=None)
+    string1 = "time"
+    if delimiter == "\t":
+        string2 = "channel"
+    else:
+        string2 = "heat"
+    df_lower = df.map(lambda x: x.lower() if isinstance(x, str) else x)
+    contains_string = df_lower.map(lambda x: (string1 in x if isinstance(x, str) else False) and (string2 in x if isinstance(x, str) else False))
+    
+    # get row index where contains_string is True
+    idx = contains_string.idxmax().values[0]
+    if delimiter == "\t":
+        return idx + 3
+    #if contains_string.any().any():
+    return idx
+
+def correct_start_time(df, start_time):
+    df["time_s"] = df["time_s"] - start_time
+    df = df.query("time_s >= 0").reset_index(drop=True)
+    return df
 
 def create_base_plot(data, ax, _age_col, _target_col, sample):
     """
@@ -21,7 +64,7 @@ def create_base_plot(data, ax, _age_col, _target_col, sample):
     # check if std deviation is available
     std_present = [s for s in data.columns if "std" in s]
     if std_present:
-        #data = data.query("normalized_heat_flow_w_g_std.notnull()", engine="python")
+        # data = data.query("normalized_heat_flow_w_g_std.notnull()", engine="python")
         ax.fill_between(
             data[_age_col],
             data[_target_col] - data[_target_col + "_std"],
@@ -44,17 +87,18 @@ def style_base_plot(
         print("time_discarded_s", time_discarded_s)
         ax.fill_between(
             [ax.get_ylim()[0], time_discarded_s],
-            [ax.get_ylim()[0]] ,
-            [ax.get_ylim()[1]] ,
+            [ax.get_ylim()[0]],
+            [ax.get_ylim()[1]],
             color="black",
             alpha=0.35,
         )
     if limits is not None:
         ax.set_xlim(limits["left"], limits["right"])
         ax.set_ylim(limits["bottom"], limits["top"])
-   # ax.set_ylim(0, plt_top)
+    # ax.set_ylim(0, plt_top)
     ax.legend()
     return ax
+
 
 def get_data_limits(data, _age_col, _target_col):
     """
@@ -67,6 +111,7 @@ def get_data_limits(data, _age_col, _target_col):
         "top": data[_target_col].max(),
     }
     return limits
+
 
 #
 # conversion of DataFrame to float
@@ -123,25 +168,24 @@ def fit_univariate_spline(df, target_col, s=1e-6):
 
 def remove_unnecessary_data(df):
     # cut out data part
-    df = df.iloc[1:, :].reset_index(drop=True)
+    data = df.iloc[1:].reset_index(drop=True)
 
     # drop column
     try:
-        data = df.drop(columns=["time_markers_nan"])
+        data = data.drop(columns=["time_markers_nan"])
     except KeyError:
         pass
 
     # remove columns with too many NaNs
-    data = data.dropna(axis=1, thresh=3)
+    #data = data.dropna(axis=1, thresh=20)
 
     # # remove rows with NaNs
-    data = data.dropna(axis=1)
+    data = data.dropna(axis=0)
 
     return data
 
 
 def add_sample_info(df, file):
-
     # get sample name
     sample_name = Path(file).stem
 
@@ -151,6 +195,7 @@ def add_sample_info(df, file):
     df = df.assign(sample_short=sample_name)
 
     return df
+
 
 def tidy_colnames(df):
     # get new column names
@@ -192,9 +237,55 @@ def tidy_colnames(df):
 
     return df
 
+def prepare_tab_columns(df,file):
+    # get sample mass (if available)
+    try:
+        # get mass, first row in 3rd column is the title
+        # the assumption is that the sample weight is one value on top of the 3rd column
+        #mass_index = df.index[df.iloc[:, 3].notna()]
+        mass = float(df.iloc[0, 3])
+    except IndexError:
+        # set mass to None
+        mass = None
+        # go on
+        pass
+    
+    # only keep first two columns
+    df = df.iloc[:, :2]
+
+    # rename
+    try:
+        df.columns = ["time_s", "heat_flow_mw"]
+    except ValueError:
+        # return empty DataFrame
+        return pd.DataFrame({"time_s": 0}, index=[0])
+
+    # convert data types
+    df["time_s"] = df["time_s"].astype(float)
+    df["heat_flow_mw"] = df["heat_flow_mw"].apply(
+        lambda x: float(x.replace(",", "."))
+    )
+    # convert to same unit
+    df["heat_flow_w"] = df["heat_flow_mw"] / 1000
+
+    # calculate cumulative heat flow
+    df["heat_j"] = integrate.cumulative_trapezoid(
+        df["heat_flow_w"], x=df["time_s"], initial=0
+    )
+
+    # remove "heat_flow_w" column
+    del df["heat_flow_mw"]
+    df["sample"] = file
+    df["sample_short"] = pathlib.Path(file).stem
+    
+    if mass:
+        df["normalized_heat_flow_w_g"] = df["heat_flow_w"] / mass
+        df["normalized_heat_j_g"] = df["heat_j"] / mass
+
+
+    return df
 
 def parse_rowwise_data(data):
-
     # get "column" count
     data["count"] = [len(i) for i in data[0].str.split(",")]
 
@@ -256,7 +347,7 @@ def downsample_sections(df, x_col, y_col, processparams):
     - downsampled_df: Downsampled pandas DataFrame.
     """
     # Time Split
-    time_split = processparams.downsample.section_split_time_s #1000
+    time_split = processparams.downsample.section_split_time_s  # 1000
 
     # Split the DataFrame into sections based on the time column
     df1 = df[df[x_col] < time_split]
@@ -264,13 +355,9 @@ def downsample_sections(df, x_col, y_col, processparams):
 
     # Downsample each section individually
     if not df1.empty:
-        downsampled_df1 = adaptive_downsample(
-            df1, x_col, y_col, processparams
-        )
+        downsampled_df1 = adaptive_downsample(df1, x_col, y_col, processparams)
     if not df2.empty:
-        downsampled_df2 = adaptive_downsample(
-            df2, x_col, y_col, processparams
-        )
+        downsampled_df2 = adaptive_downsample(df2, x_col, y_col, processparams)
 
     # Concatenate the downsampled sections
     if not df1.empty and not df2.empty:
@@ -283,9 +370,7 @@ def downsample_sections(df, x_col, y_col, processparams):
     return downsampled_df
 
 
-def adaptive_downsample(
-    df, x_col, y_col, processparams: ProcessingParameters
-):
+def adaptive_downsample(df, x_col, y_col, processparams):
     """
     Adaptively downsample a DataFrame based on the second derivative magnitude.
 
@@ -303,7 +388,7 @@ def adaptive_downsample(
     if processparams.downsample.section_split:
         num_points = int(processparams.downsample.num_points / 2)
 
-    #df = df.query("time_s > 1800")
+    # df = df.query("time_s > 1800")
     x = df[x_col].values
     y = df[y_col].values
 
@@ -371,6 +456,7 @@ def adaptive_downsample(
     sample_name = df["sample_short"].iloc[0]
     print(f"Downsampled {sample_name} to", len(downsampled_df), "points")
     return downsampled_df
+
 
 # def calculate_smoothed_heatflow_derivatives(
 #     df: pd.DataFrame,
