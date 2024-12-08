@@ -22,10 +22,13 @@ def find_reaction_start_time(df):
     df_lower = df.map(lambda x: x.lower() if isinstance(x, str) else x)
     contains_string = df_lower.map(lambda x: string in x if isinstance(x, str) else False)
     
+    rows_with_reaction_start = contains_string.any(axis=1)
+    idx = df[rows_with_reaction_start].index[0]
+    return float(df.iloc[idx, 0])
     # get row index where contains_string is True
-    idx = contains_string.idxmax(axis=1).idxmax()
-    if contains_string.any().any():
-        return float(df.iloc[idx, 0])
+    #idx = contains_string.idxmax(axis=1).idxmax()
+    #if contains_string.any().any():
+    #    return float(df.iloc[idx, 0])
 
 def find_title_row(file, delimiter):
     df = pd.read_csv(file, delimiter="none", engine="python", header=None)
@@ -48,6 +51,88 @@ def correct_start_time(df, start_time):
     df["time_s"] = df["time_s"] - start_time
     df = df.query("time_s >= 0").reset_index(drop=True)
     return df
+
+def load_data(file, delimiter, title_row):
+    file = Path(file)
+    print(file.suffix)
+    if file.suffix == ".csv":
+        data = pd.read_csv(
+            file, delimiter=delimiter, header=None, skiprows=title_row ,engine="python", 
+        )
+    if file.suffix == ".xlsx" or file.suffix == ".xls":
+        data = read_excel(file)
+        #data = pd.read_excel(file, header=0, sheet_name="Raw data", engine="openpyxl")
+    return data
+
+def read_excel(file, show_info=True):
+    xl = pd.ExcelFile(file)
+
+
+    try:
+        # parse "data" sheet
+        df_data = xl.parse("Raw data", header=None)
+
+        # replace init timestamp
+        df_data.iloc[0, 0] = "time"
+
+        # get new column names
+        new_columnames = []
+        for i, j in zip(df_data.iloc[0, :], df_data.iloc[1, :]):
+            # build
+            new_columnames.append(
+                re.sub(r"[\s\n\[\]\(\)° _]+", "_", f"{i}_{j}".lower())
+                .replace("/", "_")
+                .replace("_signal_", "_")
+            )
+
+        # set
+        df_data.columns = new_columnames
+
+        # cut out data part
+        df_data = df_data.iloc[2:, :].reset_index(drop=True)
+
+        # drop column
+        # try:
+        #     df_data = df_data.drop(columns=["time_markers_nan"])
+        # except KeyError:
+        #     pass
+
+        # remove columns with too many NaNs
+        # df_data = df_data.dropna(axis=1, thresh=3)
+        # # remove rows with NaNs
+        # df_data = df_data.dropna(axis=0)
+
+        # float conversion
+
+        # convert all columns to float execept "time_markers_nan"
+        df_data = df_data.apply(lambda col: col.astype(float) if col.name !="time_markers_nan" else col)
+
+
+
+        # add sample information
+        df_data["sample"] = file
+        df_data["sample_short"] = pathlib.Path(file).stem
+
+        # rename
+        data = df_data
+
+        # return
+        return data
+
+    except Exception as e:
+        if show_info:
+            print(
+                "\n\n==============================================================="
+            )
+            print(f"{e} in file '{pathlib.Path(file).name}'")
+            print("Please, rename the data sheet to 'Raw data' (device default).")
+            print(
+                "===============================================================\n\n"
+            )
+
+        # return
+        return None
+
 
 def create_base_plot(data, ax, _age_col, _target_col, sample):
     """

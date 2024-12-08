@@ -197,32 +197,40 @@ class Measurement:
 
             # check xls
             if f.endswith(".xls"):
-                # collect information
-                try:
-                    self._info = pd.concat(
-                        [
-                            self._info,
-                            self._read_calo_info_xls(file, show_info=show_info),
-                        ]
-                    )
-                except Exception:
-                    # initialize
-                    if self._info.empty:
-                        self._info = self._read_calo_info_xls(file, show_info=show_info)
-
-                # collect data
-                try:
+                if self._new_code:
                     self._data = pd.concat(
                         [
                             self._data,
-                            self._read_calo_data_xls(file, show_info=show_info),
+                            self._read_csv_data(file, show_info=show_info),
                         ]
                     )
+                if self._new_code is False:
+                    # collect information
+                    try:
+                        self._info = pd.concat(
+                            [
+                                self._info,
+                                self._read_calo_info_xls(file, show_info=show_info),
+                            ]
+                        )
+                    except Exception:
+                        # initialize
+                        if self._info.empty:
+                            self._info = self._read_calo_info_xls(file, show_info=show_info)
 
-                except Exception:
-                    # initialize
-                    if self._data.empty:
-                        self._data = self._read_calo_data_xls(file, show_info=show_info)
+                    # collect data
+                    try:
+                        self._data = pd.concat(
+                            [
+                                self._data,
+                                self._read_calo_data_xls(file, show_info=show_info),
+                            ]
+                        )
+
+                    except Exception:
+                        # initialize
+                        if self._data.empty:
+                            self._data = self._read_calo_data_xls(file, show_info=show_info)
 
             # append csv
             if f.endswith(".csv"):
@@ -344,17 +352,23 @@ class Measurement:
         """
         NEW IMPLEMENTATION
         """
-        delimiter = utils.detect_delimiter(file)
-        title_row = utils.find_title_row(file, delimiter)
+        filetype = pathlib.Path(file).suffix
+        if filetype == ".csv":
+            delimiter = utils.detect_delimiter(file)
+            title_row = utils.find_title_row(file, delimiter)
+        else :
+            delimiter = None
+            title_row = 0
 
-        data = pd.read_csv(
-            file, delimiter=delimiter, header=None, skiprows=title_row ,engine="python", 
-        )
+        data = utils.load_data(file, delimiter, title_row)
         start_time = utils.find_reaction_start_time(data)
-        if delimiter == ",":
-            data = utils.tidy_colnames(data)
-        elif delimiter == "\t":
+        # if delimiter == "," or filetype == ".xls" or filetype == ".xlsx":
+        #     data = utils.tidy_colnames(data)
+        if delimiter == "\t":
             data = utils.prepare_tab_columns(data, file)
+        else: 
+            if filetype == ".csv":
+                data = utils.tidy_colnames(data)
         #data = utils.tidy_colnames(data)
 
         data = utils.remove_unnecessary_data(data)

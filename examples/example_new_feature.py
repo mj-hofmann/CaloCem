@@ -13,7 +13,7 @@ plotpath = Path(__file__).parent.parent / "docs" / "assets"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex="gen1_calofile[2-3].csv",
+    regex="calorimetry_data_[1-4].csv",
     show_info=True,
     auto_clean=False,
     cold_start=True,
