@@ -121,7 +121,7 @@ def read_excel(file, show_info=True):
         return None
 
 
-def create_base_plot(data, ax, _age_col, _target_col, sample):
+def create_base_plot(data, ax, _age_col, _target_col, sample, xunit):
     """
     create base plot
     """
@@ -147,18 +147,32 @@ def create_base_plot(data, ax, _age_col, _target_col, sample):
 
 
 def style_base_plot(
-    ax, _target_col, _age_col, sample, limits=None, time_discarded_s=None
+    ax, _target_col, _age_col, sample, limits=None, time_discarded_s=None, xunit="s"
 ):
     """
     style base plot
     """
-    ax.set_ylabel(_target_col)
+    if not _target_col == "normalized_heat_flow_w_g":
+        ax.set_ylabel(_target_col)
+    else:
+        ax.set_ylabel("Normalized Heat Flow [W/g]")
     ax.set_xlabel(_age_col)
     ax.set_title(f"Sample: {Path(sample).stem}")
+
+    if xunit == "s":
+        x_end_discard = time_discarded_s 
+        x_start_discard = ax.get_xlim()[0]
+        ax.set_xlabel("Time [s]")
+    elif xunit == "h":
+        x_end_discard = time_discarded_s / 3600
+        x_start_discard = ax.get_xlim()[0] / 3600
+        ax.set_xlabel("Time [h]")
+
     if time_discarded_s is not None:
         print("time_discarded_s", time_discarded_s)
         ax.fill_between(
-            [ax.get_ylim()[0], time_discarded_s],
+            #[ax.get_ylim()[0], time_discarded_s],
+            [x_start_discard, x_end_discard],
             [ax.get_ylim()[0]],
             [ax.get_ylim()[1]],
             color="black",

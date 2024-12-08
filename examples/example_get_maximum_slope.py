@@ -1,6 +1,7 @@
 #%%
 from pathlib import Path
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 from calocem.tacalorimetry import Measurement
 from calocem.processparams import ProcessingParameters
@@ -11,7 +12,7 @@ assetpath = Path(__file__).parent.parent / "docs" / "assets"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=".*calorimetry_data_5.*",
+    regex=".*calorimetry_data_[3-5].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -23,15 +24,31 @@ tam = Measurement(
 
 processparams = ProcessingParameters()
 processparams.spline_interpolation.apply = True
-processparams.spline_interpolation.smoothing_1st_deriv = 1e-12
+processparams.spline_interpolation.smoothing_1st_deriv = 5e-12
+processparams.gradient_peakdetection.use_largest_width_height = True
 
 # get peak onsets via alternative method
-# fig, ax = ta.plt.subplots()
-onsets_spline = tam.get_maximum_slope(
-    processparams=processparams,
-    show_plot=True,
-    save_path=assetpath,
-    #ax = ax
-)
+
+sample_names = tam._data.sample_short.unique()
+
+for sample_name in sample_names: 
+    fig, ax = plt.subplots()
+
+    onsets_spline = tam.get_maximum_slope(
+        processparams=processparams,
+        show_plot=True,
+        save_path=assetpath,
+        regex=sample_name,
+        ax = ax,
+        xunit="h",
+        xscale="linear",
+    )
+    ax.set_xlim(0, 24)
+    ax.set_ylim(0, 0.005)
+    ax.set_title("")
+    handles, labels = ax.get_legend_handles_labels()
+    labels = ["Calo Data", "Shifted Gradient"]
+    ax.legend(handles, labels, loc="upper right")
+    plt.show()
 # ta.plt.savefig(assetpath / "example_detect_maximum_slope.png")
 # %%

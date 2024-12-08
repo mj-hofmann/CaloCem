@@ -1062,9 +1062,16 @@ class Measurement:
         characteristics,
         time_discarded_s,
         save_path=None,
+        xscale="log",
+        xunit="s",
     ):
-        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
+        if xunit == "h":
+            data[age_col] = data[age_col] / 3600
+            characteristics[age_col] = characteristics[age_col] / 3600
 
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample, xunit)
+
+        # plot gradient
         ax.plot(
             data[age_col],
             data["gradient"] * 1e4 + 0.001,
@@ -1075,14 +1082,18 @@ class Measurement:
         for _idx, _row in characteristics.iterrows():
             # vline
             ax.axvline(_row.at[age_col], color="green", alpha=0.3)
+        
+        if xunit == "h":
+            limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
 
-        limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
+        else:
+            limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
 
         ax = utils.style_base_plot(
-            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s
+            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s, xunit=xunit
         )
 
-        ax.set_xscale("log")
+        ax.set_xscale(xscale)
 
         if new_ax:
             if save_path:
@@ -1448,6 +1459,8 @@ class Measurement:
         read_start_c3s=False,
         ax=None,
         save_path=None,
+        xscale="log",
+        xunit="s",
     ):
         """
         The method finds the point in time of the maximum slope. It also calculates the gradient at this point. The method can be controlled by passing a customized ProcessingParameters object for the `processparams` parameter. If no object is passed, the default parameters will be used.
@@ -1533,6 +1546,8 @@ class Measurement:
                     characteristics,
                     time_discarded_s,
                     save_path=save_path,
+                    xscale=xscale,
+                    xunit=xunit,
                 )
                 # plot heat flow curve
                 # plt.plot(data[age_col], data[target_col], label=target_col)
