@@ -61,16 +61,18 @@ def load_data(file, delimiter, title_row):
         )
     if file.suffix == ".xlsx" or file.suffix == ".xls":
         data = read_excel(file)
-        #data = pd.read_excel(file, header=0, sheet_name="Raw data", engine="openpyxl")
     return data
 
 def read_excel(file, show_info=True):
     xl = pd.ExcelFile(file)
+    sheet_names = xl.sheet_names
 
+    # get the sheet name with raw in it
+    raw_sheet = [s for s in sheet_names if "raw" in s.lower()][0]
 
     try:
         # parse "data" sheet
-        df_data = xl.parse("Raw data", header=None)
+        df_data = xl.parse(raw_sheet, header=None)
 
         # replace init timestamp
         df_data.iloc[0, 0] = "time"
@@ -91,23 +93,8 @@ def read_excel(file, show_info=True):
         # cut out data part
         df_data = df_data.iloc[2:, :].reset_index(drop=True)
 
-        # drop column
-        # try:
-        #     df_data = df_data.drop(columns=["time_markers_nan"])
-        # except KeyError:
-        #     pass
-
-        # remove columns with too many NaNs
-        # df_data = df_data.dropna(axis=1, thresh=3)
-        # # remove rows with NaNs
-        # df_data = df_data.dropna(axis=0)
-
-        # float conversion
-
         # convert all columns to float execept "time_markers_nan"
         df_data = df_data.apply(lambda col: col.astype(float) if col.name !="time_markers_nan" else col)
-
-
 
         # add sample information
         df_data["sample"] = file

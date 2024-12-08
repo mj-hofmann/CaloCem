@@ -14,6 +14,7 @@ plotpath = Path(__file__).parent.parent / "docs" / "assets"
 tam = Measurement(
     folder=datapath,
     regex="calorimetry_data_[1-4].csv",
+    #regex="excel_example[1-3].xls",
     show_info=True,
     auto_clean=False,
     cold_start=True,

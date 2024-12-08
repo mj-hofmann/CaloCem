@@ -345,7 +345,6 @@ class Measurement:
         empty_lines = [
             index for index, line in enumerate(csv.reader(thefile)) if len(line) == 0
         ]
-        # nr_lines = empty_lines[1] - empty_lines[0] - 2
         return empty_lines
 
     def _read_csv_data(self, file, show_info=True):
@@ -362,14 +361,12 @@ class Measurement:
 
         data = utils.load_data(file, delimiter, title_row)
         start_time = utils.find_reaction_start_time(data)
-        # if delimiter == "," or filetype == ".xls" or filetype == ".xlsx":
-        #     data = utils.tidy_colnames(data)
+        
         if delimiter == "\t":
             data = utils.prepare_tab_columns(data, file)
         else: 
             if filetype == ".csv":
                 data = utils.tidy_colnames(data)
-        #data = utils.tidy_colnames(data)
 
         data = utils.remove_unnecessary_data(data)
         data = utils.convert_df_to_float(data)
