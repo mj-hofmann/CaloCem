@@ -4,12 +4,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
+from calocem.processparams import ProcessingParameters
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=".*peak_detect.*",
     show_info=True,
@@ -21,9 +22,9 @@ tam = ta.Measurement(
 # %% plot
 
 
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 
-processparams.peak_prominence = 1e-5
+processparams.gradient_peakdetection.prominence = 1e-5
 # processparams.spline_interpolation = {
 #     "apply": True,
 #     "smoothing_1st_deriv": 1e-11,
@@ -33,7 +34,7 @@ processparams.peak_prominence = 1e-5
 #     "apply": True,
 #     "size": 5,
 # }
-processparams.cutoff_min = 60
+processparams.cutoff.cutoff_min = 60
 
 # get peak onsets via alternative method
 onsets_spline = tam.get_dormant_period_heatflow(

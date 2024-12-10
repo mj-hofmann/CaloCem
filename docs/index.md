@@ -6,7 +6,7 @@ on [PyPI](https://pypi.org/project/tainstcalorimetry/).
 
 The documentation consists of the following parts:
 
-* [How to Plot](plotting.md)
+* [How to Plot](plotting_example.ipynb)
 * [How to do a Tian Correction](tian.md)
 * [How to calculate characteristic values](quantification.md)
 * [An Older How-To Guide](how-to-guide.md)

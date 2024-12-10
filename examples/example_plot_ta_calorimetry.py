@@ -1,15 +1,15 @@
 # %%
-
-from CaloCem import tacalorimetry
+import matplotlib.pyplot as plt
+from calocem.tacalorimetry import Measurement
 from pathlib import Path
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 plotpath = Path(__file__).parent.parent / "docs" / "assets"
 
 # %% use class based approach
 
 # experiments via class
-tam = tacalorimetry.Measurement(
+tam = Measurement(
     folder=datapath,
     regex="calorimetry_data_[1].csv",
     show_info=True,
@@ -25,13 +25,13 @@ info = tam.get_information()
 # %% basic plotting
 tam.plot()
 # save plot
-tacalorimetry.plt.savefig(plotpath / "basic_plot.png")
+plt.savefig(plotpath / "basic_plot.png")
 
 
 # %% basic plotting
 tam.plot(y="normalized_heat_j_g")
 # show plot
-tacalorimetry.plt.show()
+plt.show()
 
 
 # %% customized plotting
@@ -46,7 +46,7 @@ ax = tam.plot(
 ax.set_ylim(0, 6)
 ax.set_xlim(0, 48)
 ax.legend(bbox_to_anchor=(1., 1), loc="upper right")
-tacalorimetry.plt.show()
+plt.show()
 
 
 # %% get table of cumulated heat at certain age
@@ -65,7 +65,7 @@ ax = tam.plot(t_unit="h", y="normalized_heat_j_g", y_unit_milli=False)
 ax.axvline(target_h, color="gray", alpha=0.5, linestyle=":")
 ax.set_ylim(top=100)
 ax.set_xlim(right=12)
-tacalorimetry.plt.show()
+plt.show()
 
 
 # %%

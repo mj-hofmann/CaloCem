@@ -1,12 +1,12 @@
 from pathlib import Path
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
 
 parentfolder = Path(__file__).parent.parent
 
-datapath = parentfolder / "CaloCem" / "DATA"
+datapath = parentfolder / "calocem" / "DATA"
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r".*data_[1-3].csv",
     show_info=True,
@@ -18,7 +18,7 @@ tam = ta.Measurement(
 # %% plot
 
 # init
-fig, axs = ta.plt.subplots(1, 3, layout="constrained", sharey=True)
+fig, axs = plt.subplots(1, 3, layout="constrained", sharey=True)
 
 # populate subplots
 for i, grad in enumerate([5e-9, 3e-8, 7e-8]):

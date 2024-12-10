@@ -1,11 +1,22 @@
 ![Logo](https://github.com/mj-hofmann/CaloCem/blob/main/icon/icon.png?raw=true)
 
-# Interfacing with experimental results file from TAM Air calorimeters made easy.
+# Loading and Processing of Data Files from TAM Air Calorimeters.
 
-After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **CaloCem** is here to get this done smoothly.
+After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple `.xls` or `.csv`-files obtained as exports from the device control software. **CaloCem** is here to make calorimetry data processing easy.
+
+The package was written with a strong focus on the calorimetry of **cementitious materials**.
+
+## Features
+
+Some of the features are:
+
+* Batch calorimetry data processing
+* Plotting
+* Tian correction
+* Feature extraction (cumulative heat, time of dormant period, gradient of silicate reaction, etc.)
 
 ## Documentation
-The full documentation can be found [here](https://mj-hofmann.github.io/CaloCem/index.html).
+The full documentation is here [here](https://mj-hofmann.github.io/CaloCem/index.html).
 
 ## Download Stats
 
@@ -13,7 +24,7 @@ The full documentation can be found [here](https://mj-hofmann.github.io/CaloCem/
 [![PyPI - Downloads](https://static.pepy.tech/personalized-badge/calocem?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/calocem.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/calocem/) 
 
-
+<!-- 
 ## Example Usage
 
 Import the ```tacalorimetry``` module from **CaloCem**.
@@ -94,7 +105,7 @@ Additionally, the package allows among others for streamlining routine tasks suc
 - identifying peaks positions and characteristics,
 - identifying peak onsets,
 - Plotting by Category,
-- ...
+- ... -->
 
 ## Installation
 

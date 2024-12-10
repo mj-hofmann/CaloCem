@@ -2,7 +2,7 @@ import pathlib
 
 import pytest
 
-from CaloCem import tacalorimetry
+from calocem import tacalorimetry
 
 
 @pytest.mark.parametrize(
@@ -27,7 +27,7 @@ from CaloCem import tacalorimetry
 def test_last_time_entry(file, expected):
 
     # path
-    path = pathlib.Path(__file__).parent.parent / "CaloCem" / "DATA"
+    path = pathlib.Path(__file__).parent.parent / "calocem" / "DATA"
 
     # get data
     data = tacalorimetry.Measurement(auto_clean=False)._read_calo_data_csv(path / file)

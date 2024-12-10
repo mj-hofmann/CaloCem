@@ -22,7 +22,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+import calocem.tacalorimetry as ta
+from calocem.processparams import ProcessingParameters
 
 datapath = Path(__file__).parent / "calo_data"
 
@@ -46,7 +47,7 @@ The numeric value needs to be determined experimentally.
 ```python
 
 # Set Proceesing Parameters
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 240
 processparams.time_constants.tau2 = 80
 processparams.median_filter.apply = True
@@ -128,7 +129,7 @@ In pratical terms, if only the attribute tau1 is set, only the first derivative 
 ```python
 
 # Set Proceesing Parameters
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 300
 ```
 

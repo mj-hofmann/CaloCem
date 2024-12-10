@@ -14,15 +14,11 @@ import numpy as np
 import pandas as pd
 import pysnooper
 from scipy import integrate, signal
-from scipy.interpolate import (
-    InterpolatedUnivariateSpline,
-    UnivariateSpline,
-    splev,
-    splrep,
-)
+from scipy.interpolate import UnivariateSpline
 from scipy.ndimage import median_filter
 
-from CaloCem import utils
+from calocem import utils
+from .processparams import *
 
 logging.basicConfig(
     filename="CaloCem.log",
@@ -126,12 +122,14 @@ class Measurement:
         auto_clean=False,
         cold_start=True,
         processparams=None,
+        new_code=False,
     ):
         """
         intialize measurements from folder
 
 
         """
+        self._new_code = new_code
 
         if not isinstance(processparams, ProcessingParameters):
             self.processparams = ProcessingParameters()
@@ -199,48 +197,67 @@ class Measurement:
 
             # check xls
             if f.endswith(".xls"):
-                # collect information
-                try:
-                    self._info = pd.concat(
-                        [
-                            self._info,
-                            self._read_calo_info_xls(file, show_info=show_info),
-                        ]
-                    )
-                except Exception:
-                    # initialize
-                    if self._info.empty:
-                        self._info = self._read_calo_info_xls(file, show_info=show_info)
-
-                # collect data
-                try:
+                if self._new_code:
                     self._data = pd.concat(
                         [
                             self._data,
-                            self._read_calo_data_xls(file, show_info=show_info),
+                            self._read_csv_data(file, show_info=show_info),
                         ]
                     )
+                if self._new_code is False:
+                    # collect information
+                    try:
+                        self._info = pd.concat(
+                            [
+                                self._info,
+                                self._read_calo_info_xls(file, show_info=show_info),
+                            ]
+                        )
+                    except Exception:
+                        # initialize
+                        if self._info.empty:
+                            self._info = self._read_calo_info_xls(file, show_info=show_info)
 
-                except Exception:
-                    # initialize
-                    if self._data.empty:
-                        self._data = self._read_calo_data_xls(file, show_info=show_info)
+                    # collect data
+                    try:
+                        self._data = pd.concat(
+                            [
+                                self._data,
+                                self._read_calo_data_xls(file, show_info=show_info),
+                            ]
+                        )
+
+                    except Exception:
+                        # initialize
+                        if self._data.empty:
+                            self._data = self._read_calo_data_xls(file, show_info=show_info)
 
             # append csv
             if f.endswith(".csv"):
                 # collect data
-                try:
+                if self._new_code:
                     self._data = pd.concat(
                         [
                             self._data,
-                            self._read_calo_data_csv(file, show_info=show_info),
+                            self._read_csv_data(file, show_info=show_info),
                         ]
                     )
+                    # self._read_csv_data(file, show_info=show_info)
+                if self._new_code is False:
+                    try:
+                        self._data = pd.concat(
+                            [
+                                self._data,
+                                self._read_calo_data_csv(file, show_info=show_info),
+                            ]
+                        )
 
-                except Exception:
-                    # initialize
-                    if self._data.empty:
-                        self._data = self._read_calo_data_csv(file, show_info=show_info)
+                    except Exception:
+                        # initialize
+                        if self._data.empty:
+                            self._data = self._read_calo_data_csv(
+                                file, show_info=show_info
+                            )
 
                 # collect information
                 try:
@@ -328,8 +345,35 @@ class Measurement:
         empty_lines = [
             index for index, line in enumerate(csv.reader(thefile)) if len(line) == 0
         ]
-        # nr_lines = empty_lines[1] - empty_lines[0] - 2
         return empty_lines
+
+    def _read_csv_data(self, file, show_info=True):
+        """
+        NEW IMPLEMENTATION
+        """
+        filetype = pathlib.Path(file).suffix
+        if filetype == ".csv":
+            delimiter = utils.detect_delimiter(file)
+            title_row = utils.find_title_row(file, delimiter)
+        else :
+            delimiter = None
+            title_row = 0
+
+        data = utils.load_data(file, delimiter, title_row)
+        start_time = utils.find_reaction_start_time(data)
+        
+        if delimiter == "\t":
+            data = utils.prepare_tab_columns(data, file)
+        else: 
+            if filetype == ".csv":
+                data = utils.tidy_colnames(data)
+
+        data = utils.remove_unnecessary_data(data)
+        data = utils.convert_df_to_float(data)
+        data = utils.correct_start_time(data, start_time)
+        data = utils.add_sample_info(data, file)
+
+        return data
 
     #
     # read csv data
@@ -404,7 +448,7 @@ class Measurement:
             start_row = helper[helper].index.tolist()[0]
             # get offset for in-situ files
             t_offset_in_situ_s = float(data.at[start_row, 0].split(",")[0])
-            
+
         data = utils.parse_rowwise_data(data)
         data = utils.tidy_colnames(data)
 
@@ -429,7 +473,6 @@ class Measurement:
 
         # add sample information
         data = utils.add_sample_info(data, file)
-
 
         # if self.processparams.downsample.apply:
         #     data = self._apply_adaptive_downsampling(data)
@@ -1019,9 +1062,16 @@ class Measurement:
         characteristics,
         time_discarded_s,
         save_path=None,
+        xscale="log",
+        xunit="s",
     ):
-        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
+        if xunit == "h":
+            data[age_col] = data[age_col] / 3600
+            characteristics[age_col] = characteristics[age_col] / 3600
 
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample, xunit)
+
+        # plot gradient
         ax.plot(
             data[age_col],
             data["gradient"] * 1e4 + 0.001,
@@ -1032,19 +1082,23 @@ class Measurement:
         for _idx, _row in characteristics.iterrows():
             # vline
             ax.axvline(_row.at[age_col], color="green", alpha=0.3)
+        
+        if xunit == "h":
+            limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
 
-        limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
+        else:
+            limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
 
         ax = utils.style_base_plot(
-            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s
+            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s, xunit=xunit
         )
 
-        ax.set_xscale("log")
+        ax.set_xscale(xscale)
 
         if new_ax:
             if save_path:
                 sample_name = pathlib.Path(sample).stem
-                plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.png")
+                plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.pdf")
             else:
                 plt.show()
 
@@ -1055,6 +1109,18 @@ class Measurement:
     def get_cumulated_heat_at_hours(self, target_h=4, cutoff_min=None):
         """
         get the cumulated heat flow a at a certain age
+
+        Parameters
+        ----------
+        target_h : int | float
+            end time in hours
+        cutoff_min : int | float, optional
+            start time in minutes. All data before the cutoff_min time will be removed
+
+        Returns
+        -------
+        A Pandas dataframe
+
         """
 
         def applicable(df, target_h=4, cutoff_min=None):
@@ -1090,10 +1156,9 @@ class Measurement:
         if isinstance(target_h, int) or isinstance(target_h, float):
             # groupby
             results = (
-                self._data.groupby(by="sample")
+                self._data.groupby(by="sample")[["time_s", "normalized_heat_j_g"]]
                 .apply(
                     lambda x: applicable(x, target_h=target_h, cutoff_min=cutoff_min),
-                    # include_groups=False,
                 )
                 .reset_index(level=0)
             )
@@ -1110,12 +1175,11 @@ class Measurement:
             for this_target_h in target_h:
                 # groupby
                 _results = (
-                    self._data.groupby(by="sample")
+                    self._data.groupby(by="sample")[["time_s", "normalized_heat_j_g"]]
                     .apply(
                         lambda x: applicable(
                             x, target_h=this_target_h, cutoff_min=cutoff_min
                         ),
-                        include_groups=False,
                     )
                     .reset_index(level=0)
                 )
@@ -1395,9 +1459,11 @@ class Measurement:
         read_start_c3s=False,
         ax=None,
         save_path=None,
+        xscale="log",
+        xunit="s",
     ):
         """
-        get maximum slope as a characteristic value
+        The method finds the point in time of the maximum slope. It also calculates the gradient at this point. The method can be controlled by passing a customized ProcessingParameters object for the `processparams` parameter. If no object is passed, the default parameters will be used.
 
         Parameters
         ----------
@@ -1415,8 +1481,18 @@ class Measurement:
             regex pattern to include only certain experimental result files during initialization. The default is None.
         Returns
         -------
-        pd.DataFrame holding peak onset characterisitcs for each sample.
+        Pandas Dataframe
+            A dataframe that contains the time and the gradient of the maximum slope.
+        Examples
+        --------
+        >>> from CaloCem import tacalorimetry as ta
+        >>> from pathlib import Path
 
+        >>> thepath = Path(__file__).parent / "data"
+        >>> tam = ta.Measurement(thepath)
+        >>> processparams = ta.ProcessingParameters()
+        >>> processparams..apply = True
+        >>> max_slopes = tam.get_maximum_slope(processparams)
         """
 
         # init list of characteristics
@@ -1446,7 +1522,7 @@ class Measurement:
 
             processor = HeatFlowProcessor(processparams)
 
-            data = make_equidistant(data)
+            data = utils.make_equidistant(data)
 
             if processparams.rolling_mean.apply:
                 data = processor.apply_rolling_mean(data)
@@ -1470,6 +1546,8 @@ class Measurement:
                     characteristics,
                     time_discarded_s,
                     save_path=save_path,
+                    xscale=xscale,
+                    xunit=xunit,
                 )
                 # plot heat flow curve
                 # plt.plot(data[age_col], data[target_col], label=target_col)
@@ -1702,18 +1780,17 @@ class Measurement:
         Parameters
         ----------
         regex : str, optional
-            DESCRIPTION. The default is None.
-        cutoff_min : int, optional
-            DESCRIPTION. The default is 5.
+            Regex which can be used to filter the data, i.e., only the patterns which fit the regex will be evaluated. The default is None.
+        cutoff_min : int | float, optional
+            Time at the start of the experiment which will be cutoff from analysis. This can be useful for ex-situ mixed samples. The default is 5.
         upper_dormant_thresh_w_g : float, optional
-            DESCRIPTION. The default is 0.001.
-        show_plot : TYPE, optional
-            DESCRIPTION. The default is False.
+            Parameter which controls the upper limit for the plotting option. The default is 0.001.
+        show_plot : bool, optional
+            If set to true, the data is plotted. The default is False.
 
         Returns
         -------
-        result : TYPE
-            DESCRIPTION.
+        Pandas Dataframe
 
         """
 
@@ -1798,12 +1875,23 @@ class Measurement:
         ----------
         individual : bool, optional
             DESCRIPTION. The default is False.
+        processparams: ProcessingParameters
+            Dataclass containing parameters which control the processing of the calorimetry data.
 
         Returns
         -------
-        astm_times : pd.DataFrame
-            DESCRIPTION.
+        Pandas Dataframe
 
+        Examples
+        --------
+        Assuming that the calorimetry data is contained in a subfolder `data`, the time according to ASTM c1679 can be obtained by
+
+        >>> from CaloCem import tacalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> thepath = Path(__file__).parent / "data"
+        >>> tam = ta.Measurement(thepath)
+        >>> astm = tam.get_astm_c1679_characteristics()
         """
 
         # get peaks
@@ -1862,12 +1950,21 @@ class Measurement:
 
     def get_data(self):
         """
-        get data
-
+        A convenience function which returns the Pandas Dataframe containing the read and processed calorimetry data.
         Returns
         -------
-        pd.DataFrame
-            data, i.e. heat flow, heat, sample, ....
+        Pandas DataFrame
+
+        Examples
+        --------
+        Assuming that the calorimetry data is contained in a subfolder `data`, a conventional Pandas dataframe `df` containing the data from all calorimetry files in `data` can be obtained with the following code.
+
+        >>> from CaloCem import tacalorimetry as ta
+        >>> from pathlib import Path
+        >>>
+        >>> thepath = Path(__file__).parent / "data"
+        >>> tam = ta.Measurement(thepath)
+        >>> df = tam.get_data()
 
         """
 
@@ -2160,7 +2257,7 @@ class Measurement:
         # make data equidistant grouped by sample_short
         df = (
             df.groupby(data_id)
-            .apply(lambda x: apply_resampling(x, resampling_s))
+            .apply(lambda x: utils.apply_resampling(x, resampling_s))
             .reset_index(drop=True)
         )
 
@@ -2354,14 +2451,14 @@ class Measurement:
             d = d.dropna(subset=["normalized_heat_flow_w_g"])
             # apply adaptive downsampling
             if not self.processparams.downsample.section_split:
-                d = adaptive_downsample(
+                d = utils.adaptive_downsample(
                     d,
                     x_col="time_s",
                     y_col="normalized_heat_flow_w_g",
                     processparams=self.processparams,
                 )
             else:
-                d = downsample_sections(
+                d = utils.downsample_sections(
                     d,
                     x_col="time_s",
                     y_col="normalized_heat_flow_w_g",
@@ -2371,168 +2468,6 @@ class Measurement:
 
         # set data to downsampled data
         self._data = df
-
-
-@dataclass
-class CutOffParameters:
-    cutoff_min: int = 30
-
-
-@dataclass
-class TianCorrectionParameters:
-    """
-    Parameters related to time constants used in Tian's correction method for thermal analysis. The default values are defined in the TianCorrectionParameters class.
-
-    Parameters
-    ----------
-    tau1 : int
-        Time constant for the first correction step in Tian's method. The default value is 300.
-
-    tau2 : int
-        Time constant for the second correction step in Tian's method. The default value is 100.
-    """
-
-    tau1: int = 300
-    tau2: int = 100
-
-
-@dataclass
-class RollingMeanParameters:
-    apply: bool = False
-    window: int = 11
-
-
-@dataclass
-class MedianFilterParameters:
-    apply: bool = False
-    size: int = 7
-
-
-@dataclass
-class NonLinSavGolParameters:
-    apply: bool = False
-    window: int = 11
-    polynom: int = 3
-
-
-@dataclass
-class SplineInterpolationParameters:
-    """Parameters for spline interpolation of heat flow data.
-
-    Parameters
-    ----------
-
-    apply :
-        Flag indicating whether spline interpolation should be applied to the heat flow data. The default value is False.
-
-    smoothing_1st_deriv :
-        Smoothing parameter for the first derivative of the heat flow data. The default value is 1e-9.
-
-    smoothing_2nd_deriv :
-        Smoothing parameter for the second derivative of the heat flow data. The default value is 1e-9.
-
-    """
-
-    apply: bool = False
-    smoothing_1st_deriv: float = 1e-9
-    smoothing_2nd_deriv: float = 1e-9
-
-
-@dataclass
-class PeakDetectionParameters:
-    prominence: float = 1e-5
-    distance: int = 100
-
-
-@dataclass
-class GradientPeakDetectionParameters:
-    prominence: float = 1e-9
-    distance: int = 100
-    width: int = 20
-    rel_height: float = 0.05
-    height: float = 1e-9
-    use_first: bool = False
-    use_largest_width: bool = False
-    use_largest_width_height: bool = False
-
-
-@dataclass
-class DownSamplingParameters:
-    apply: bool = False
-    num_points: int = 1000
-    smoothing_factor: float = 1e-10
-    baseline_weight: float = 0.1
-    section_split: bool = False
-    section_split_time_s: int = 1000
-
-
-@dataclass
-class ProcessingParameters:
-    """
-    A data class for storing all processing parameters for calorimetry data.
-
-    This class aggregates various processing parameters, including cutoff criteria, time constants for the Tian correction, and parameters for peak detection and gradient peak detection.
-
-    Attributes
-    ----------
-
-    cutoff :
-        Parameters defining the cutoff criteria for the analysis.
-        Currently only cutoff_min is implemented, which defines the minimum time in minutes for the analysis. The default value is defined in the CutOffParameters class.
-
-    time_constants : TianCorrectionParameters
-        Parameters related to time constants used in Tian's correction method for thermal analysis. he default values are defined in the
-        TianCorrectionParameters class.
-
-    peakdetection : PeakDetectionParameters
-        Parameters for detecting peaks in the thermal analysis data. This includes settings such as the minimum
-        prominence and distance between peaks. The default values are defined in the PeakDetectionParameters class.
-
-    gradient_peakdetection : GradientPeakDetectionParameters
-        Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more
-        nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks
-        (e.g., first peak, largest width). The default values are defined in the GradientPeakDetectionParameters class.
-
-    downsample : DownSamplingParameters
-        Parameters for adaptive downsampling of the thermal analysis data. This includes settings such as the number of points,
-        smoothing factor, and baseline weight. The default values are defined in the DownSamplingParameters class.
-
-
-
-    Examples
-    --------
-
-    Define a set of processing parameters for thermal analysis data.
-
-    >>> processparams = ProcessingParameters()
-    >>> processparams.cutoff.cutoff_min = 30
-    """
-
-    cutoff: CutOffParameters = field(default_factory=CutOffParameters)
-    time_constants: TianCorrectionParameters = field(
-        default_factory=TianCorrectionParameters
-    )
-
-    # peak detection params
-    peakdetection: PeakDetectionParameters = field(
-        default_factory=PeakDetectionParameters
-    )
-    gradient_peakdetection: GradientPeakDetectionParameters = field(
-        default_factory=GradientPeakDetectionParameters
-    )
-
-    # smoothing params
-    rolling_mean: RollingMeanParameters = field(default_factory=RollingMeanParameters)
-    median_filter: MedianFilterParameters = field(
-        default_factory=MedianFilterParameters
-    )
-    nonlin_savgol: NonLinSavGolParameters = field(
-        default_factory=NonLinSavGolParameters
-    )
-    spline_interpolation: SplineInterpolationParameters = field(
-        default_factory=SplineInterpolationParameters
-    )
-    downsample: DownSamplingParameters = field(default_factory=DownSamplingParameters)
 
 
 class HeatFlowProcessor:
@@ -2644,164 +2579,3 @@ class HeatFlowProcessor:
         df = self.calculate_hf_derivative(df, "second").copy()
 
         return df["first_derivative"], df["second_derivative"]
-
-
-def make_equidistant(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.reset_index(drop=True)
-    df["td"] = pd.to_timedelta(df["time_s"], unit="s")
-    resample = df.resample("10s", on="td")
-    string_cols = df.select_dtypes(include="object").columns
-    num_cols = df.select_dtypes(include="number").columns
-    resampled_stringcols = resample[string_cols].first().ffill()
-    resampled_numcols = resample[num_cols].mean().interpolate()
-    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
-    return df
-
-
-def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
-    resampler = df.set_index(pd.to_datetime(df["time_s"], unit="s")).resample(
-        resampling_s
-    )
-    string_cols = df.select_dtypes(include="object").columns
-    num_cols = df.select_dtypes(include="number").columns
-    resampled_stringcols = resampler[string_cols].first().ffill()
-    resampled_numcols = resampler[num_cols].mean().interpolate()
-    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
-    df["time_s"] = (df.index - df.index[0]).total_seconds()
-    return df
-    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
-    df["time_s"] = (df.index - df.index[0]).total_seconds()
-    return df
-
-
-def downsample_sections(df, x_col, y_col, processparams):
-    """
-    Downsample a DataFrame by dividing it into sections and downsampling each section individually.
-
-    Parameters:
-    - df: pandas DataFrame with columns 'x' and 'y'.
-    - x_col: String for the 'x' values column of the DataFrame.
-    - y_col: String for the 'y' values column of the DataFrame.
-    - num_points: Desired number of points in the downsampled DataFrame.
-    - smoothing_factor: Smoothing factor for the spline interpolation.
-
-    Returns:
-    - downsampled_df: Downsampled pandas DataFrame.
-    """
-    # Time Split
-    time_split = processparams.downsample.section_split_time_s #1000
-
-    # Split the DataFrame into sections based on the time column
-    df1 = df[df[x_col] < time_split]
-    df2 = df[df[x_col] >= time_split]
-
-    # Downsample each section individually
-    if not df1.empty:
-        downsampled_df1 = adaptive_downsample(
-            df1, x_col, y_col, processparams
-        )
-    if not df2.empty:
-        downsampled_df2 = adaptive_downsample(
-            df2, x_col, y_col, processparams
-        )
-
-    # Concatenate the downsampled sections
-    if not df1.empty and not df2.empty:
-        downsampled_df = pd.concat([downsampled_df1, downsampled_df2])
-    elif not df1.empty:
-        downsampled_df = downsampled_df1
-    elif not df2.empty:
-        downsampled_df = downsampled_df2
-
-    return downsampled_df
-
-
-def adaptive_downsample(
-    df, x_col, y_col, processparams: ProcessingParameters
-):
-    """
-    Adaptively downsample a DataFrame based on the second derivative magnitude.
-
-    Parameters:
-    - df: pandas DataFrame with columns 'x' and 'y'.
-    - x_col: String for the 'x' values column of the DataFrame.
-    - y_col: String for the 'y' values column of the DataFrame.
-    - num_points: Desired number of points in the downsampled DataFrame.
-    - smoothing_factor: Smoothing factor for the spline interpolation.
-
-    Returns:
-    - downsampled_df: Downsampled pandas DataFrame.
-    """
-
-    if processparams.downsample.section_split:
-        num_points = int(processparams.downsample.num_points / 2)
-
-    #df = df.query("time_s > 1800")
-    x = df[x_col].values
-    y = df[y_col].values
-
-    # print(y)
-    # interpolate the data
-    spl = UnivariateSpline(x, y, s=processparams.downsample.smoothing_factor)
-    new_x = x  # np.linspace(x.min(), x.max(), len(x))
-    # print(new_x)
-    new_y = spl(new_x)
-
-    # Compute the first derivative (gradient)
-    dy_dx = np.gradient(new_y, new_x)
-
-    # Compute the second derivative
-    d2y_dx2 = np.gradient(dy_dx, new_x)
-
-    # Compute the absolute value of the second derivative
-    curvature = np.abs(d2y_dx2)
-    # Avoid division by zero by adding a small constant
-    curvature += 1e-15
-    # Normalize curvature
-    curvature_normalized = curvature / curvature.sum()
-
-    # Create PDF with a baseline to ensure sampling in low-curvature areas
-    baseline_weight = processparams.downsample.baseline_weight
-    pdf = curvature_normalized + baseline_weight / processparams.downsample.num_points
-    pdf /= pdf.sum()  # Normalize to create a valid PDF
-
-    # Compute CDF
-    cdf = np.cumsum(pdf)
-
-    # plt.plot(x, y)
-    # plt.plot(x, new_y, label="interpolated")
-    # plt.plot(x, y, label="raw")
-    # plt.plot(x, new_y, label="interpolated")
-    # plt.plot(x, dy_dx, label="gradient")
-    # plt.plot(x, d2y_dx2, label="second derivative")
-    # plt.plot(x, curvature, label="curvature")
-    # plt.scatter(new_x, pdf, label="pdf")
-
-    # plt.plot(x, cdf, label="cdf")
-    # plt.legend()
-    # # plt.yscale("log")
-    # plt.show()
-
-    # # # Generate uniformly spaced samples in the interval [0, 1)
-    uniform_samples = np.linspace(0, 1, processparams.downsample.num_points, endpoint=False)
-
-    # # # Map uniform samples to indices using the inverse CDF
-    indices = np.searchsorted(cdf, uniform_samples)
-    # print(indices)
-    # # # Ensure indices are within valid range
-
-    indices = np.clip(indices, 0, len(df) - 1)
-    # #
-
-    # # Remove duplicates and sort indices
-    indices = np.unique(indices)
-    # indices = np.argsort(pdf)[-num_points:]
-    # print(indices)
-
-    # Subsample the DataFrame at these indices
-    downsampled_df = df.iloc[indices]
-    # name of sample
-    sample_name = df["sample_short"].iloc[0]
-    print(f"Downsampled {sample_name} to", len(downsampled_df), "points")
-    return downsampled_df
-

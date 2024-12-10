@@ -2,14 +2,15 @@ import matplotlib.pyplot as plt
 
 import sys
 from pathlib import Path
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
 
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 #datapath = parentfolder / "tmp"
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r"gen1_calofile[2-3].csv",
     show_info=True,
@@ -20,4 +21,4 @@ tam = ta.Measurement(
 ax = tam.plot()
 ax.set_xlim(0, 25)
 ax.set_ylim(0, 5)
-ta.plt.show()
+plt.show()

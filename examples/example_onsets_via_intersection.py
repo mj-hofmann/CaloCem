@@ -1,14 +1,14 @@
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import CaloCem.tacalorimetry as ta
+from calocem.tacalorimetry import Measurement
+from calocem.processparams import ProcessingParameters
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r".*peak_detec.*",
     show_info=True,
@@ -19,21 +19,16 @@ tam = ta.Measurement(
 
 # %% plot
 
-processparams = ta.ProcessingParameters()
+processparams = ProcessingParameters()
 
-processparams.gradient_peak_prominence = 1e-10
-processparams.gradient_peak_width = 200
-processparams.use_largest_gradient_peak_width = True
-processparams.spline_interpolation = {
-    "apply": True,
-    "smoothing_1st_deriv": 1.5e-12,
-    "smoothing_2nd_deriv": 1e-10,
-
-}
-processparams.median_filter = {
-    "apply": True,
-    "size": 25,
-}
+processparams.gradient_peakdetection.prominence = 1e-10
+processparams.gradient_peakdetection.width = 200
+processparams.gradient_peakdetection.use_largest_width = True
+processparams.spline_interpolation.apply = True
+processparams.spline_interpolation.smoothing_1st_deriv = 1.5e-12
+processparams.spline_interpolation.smoothing_2nd_deriv = 1e-10
+processparams.median_filter.apply = True
+processparams.median_filter.size = 25
 
 # get peak onsets via alternative method
 maxslopes = tam.get_maximum_slope(
