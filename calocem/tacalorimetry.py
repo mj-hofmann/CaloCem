@@ -1068,6 +1068,7 @@ class Measurement:
         if xunit == "h":
             data[age_col] = data[age_col] / 3600
             characteristics[age_col] = characteristics[age_col] / 3600
+            time_discarded_s = time_discarded_s / 3600
 
         ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
@@ -1080,7 +1081,11 @@ class Measurement:
             color="orange"
         )
         ax2.set_yscale("linear")
-        ax2.set_ylim(-5e-7, 5e-7)
+        xmask = data[age_col] > time_discarded_s
+        y_vals = data["gradient"][xmask]
+        ymin = y_vals.min() + y_vals.min() * 0.1
+        ymax = y_vals.max() + y_vals.max() * 0.1
+        ax2.set_ylim(ymin, ymax)
         ax2.set_ylabel(r"Gradient [Wg$^{-1}$s$^{-1}$]")
 
         # add vertical lines

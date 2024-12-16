@@ -36,6 +36,7 @@ for sample_name in sample_names:
 
     onsets_spline = tam.get_maximum_slope(
         processparams=processparams,
+        time_discarded_s = 3600,
         show_plot=True,
         save_path=assetpath,
         regex=sample_name,
