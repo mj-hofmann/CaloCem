@@ -1107,7 +1107,7 @@ class Measurement:
         )
 
         ax.set_xscale(xscale)
-        ax.text(t_maxslope + x_increment, 0.001, f"{round(t_maxslope,1)} {xunit} ", color="green")
+        ax.text(t_maxslope + x_increment, 0.00025, f"{round(t_maxslope,2)} {xunit} ", color="green")
 
         if new_ax:
             if save_path:
