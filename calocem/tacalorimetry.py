@@ -1069,14 +1069,19 @@ class Measurement:
             data[age_col] = data[age_col] / 3600
             characteristics[age_col] = characteristics[age_col] / 3600
 
-        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample, xunit)
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
+        ax2 = ax.twinx()
         # plot gradient
-        ax.plot(
+        ax2.plot(
             data[age_col],
-            data["gradient"] * 1e4 + 0.001,
-            label="gradient * 1e4 + 1mW",
+            data["gradient"]  ,
+            label="gradient  ",
+            color="orange"
         )
+        ax2.set_yscale("linear")
+        ax2.set_ylim(-5e-7, 5e-7)
+        ax2.set_ylabel(r"Gradient [Wg$^{-1}$s$^{-1}$]")
 
         # add vertical lines
         for _idx, _row in characteristics.iterrows():
@@ -1099,6 +1104,69 @@ class Measurement:
             if save_path:
                 sample_name = pathlib.Path(sample).stem
                 plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.pdf")
+            else:
+                plt.show()
+
+    @staticmethod
+    def _plot_intersection(
+            data,
+            ax,
+            age_col,
+            target_col,
+            sample,
+            # characteristics,
+            time_discarded_s,
+            characteristics,
+            save_path=None,
+            xscale="log",
+            #xunit="s",
+            hmax = None,
+            tmax = None,
+    ):
+        if characteristics.xunit == "h":
+            data.loc[:,age_col] = data.loc[:,age_col] / 3600
+            characteristics.time_s = characteristics.time_s / 3600
+            characteristics.dorm_time_s = characteristics.dorm_time_s / 3600
+            characteristics.gradient = characteristics.gradient * 3600
+            tmax = tmax / 3600
+            characteristics.x_intersect = characteristics.x_intersect / 3600
+            #characteristics[age_col] = characteristics[age_col] / 3600
+        
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
+        #print(new_ax)
+        ax = utils.style_base_plot(ax, target_col, age_col, sample, time_discarded_s=time_discarded_s, xunit=characteristics.xunit)
+
+        ax.axline(
+            (characteristics.time_s, characteristics.normalized_heat_flow_w_g),
+            slope=characteristics.gradient,
+            color="red",
+            linestyle="--",
+        )
+        ax.axhline(
+            y=characteristics.dorm_normalized_heat_flow_w_g,
+            color = "red",
+            linestyle="--",
+        )
+        ax.text(
+            x=characteristics.x_intersect,
+            y=characteristics.dorm_normalized_heat_flow_w_g,
+            s=fr"$t_i=$ {characteristics.x_intersect:.1f} {characteristics.xunit}" + "\n",
+            color="green",
+        )
+        ax.axvline(
+            x=characteristics.x_intersect,
+            color="green",
+            linestyle=":",
+        )
+
+        ax.set_xscale(xscale)
+        ax.set_xlim(0, tmax)
+        ax.set_ylim(0, hmax)
+
+        if new_ax:
+            if save_path:
+                sample_name = pathlib.Path(sample).stem
+                plt.savefig(save_path / f"intersection_detect_{sample_name}.pdf")
             else:
                 plt.show()
 
@@ -1606,6 +1674,13 @@ class Measurement:
         processparams,
         show_plot=False,
         ax=None,
+        regex=None,
+        age_col="time_s",
+        target_col="normalized_heat_flow_w_g",
+        time_discarded_s=900,
+        save_path=None,
+        xscale="linear",
+        xunit="s",
     ):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
@@ -1625,14 +1700,21 @@ class Measurement:
         # get onsets
         max_slopes = self.get_maximum_slope(
             processparams,
+            regex=regex,
+            show_plot=False,
+            ax=ax,
+            #show_plot=show_plot,
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
             processparams,  # cutoff_min=cutoff_min, prominence=prominence
+            regex=regex,
+            show_plot=False,
+            # ax=ax,
         )
 
         # init list
-        list_onsets = []
+        list_characteristics = []
 
         # loop samples
         for i, row in max_slopes.iterrows():
@@ -1657,7 +1739,7 @@ class Measurement:
             )["normalized_heat_flow_w_g"].max()
 
             # append to list
-            list_onsets.append(
+            list_characteristics.append(
                 {
                     "sample": row["sample_short"],
                     "onset_time_s": x_intersect,
@@ -1665,74 +1747,113 @@ class Measurement:
                 }
             )
 
-            if show_plot:
-                if isinstance(ax, matplotlib.axes._axes.Axes):
-                    # plot data
-                    ax = self.plot(
-                        t_unit="s", y_unit_milli=False, regex=row["sample_short"], ax=ax
-                    )
-                    ax.axline(
-                        (row["time_s"], row["normalized_heat_flow_w_g"]),
-                        slope=row["gradient"],
-                        color="k",
-                    )
-                    ax.axhline(
-                        float(
-                            dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                                "normalized_heat_flow_w_g"
-                            ]
-                        ),
-                        color="k",
-                    )
-                    # guide to the eye line
-                    ax.axvline(x_intersect, color="red")
-                    # info text
-                    ax.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
-                    # ax limits
-                    ax.set_xlim(0, tmax)
-                    ax.set_ylim(0, hmax)
-                    # title
-                    ax.set_title(row["sample_short"])
+            data = self._data.query("sample_short == @row['sample_short']")
+            sample = row["sample_short"]
+            
+            dorm_hfs_sample = dorm_hfs.query("sample_short == @sample")
+            # add prefix dorm to all columns
+            dorm_hfs_sample.columns = ["dorm_" + s for s in dorm_hfs_sample.columns]
 
-                else:
-                    # plot data
-                    self.plot(
-                        t_unit="s",
-                        y_unit_milli=False,
-                        regex=row["sample_short"],
-                    )
-                    # max slope line
-                    plt.axline(
-                        (row["time_s"], row["normalized_heat_flow_w_g"]),
-                        slope=row["gradient"],
-                        color="k",
-                    )
-                    # dormant heat plot
-                    plt.axhline(
-                        float(
-                            dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                                "normalized_heat_flow_w_g"
-                            ]
-                        ),
-                        color="k",
-                    )
-                    # guide to the eye line
-                    plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
-                    # guide to the eye line
-                    plt.axvline(x_intersect, color="red")
-                    # info text
-                    plt.text(
-                        x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red"
-                    )
-                    # ax limits
-                    plt.xlim(0, tmax)
-                    plt.ylim(0, hmax)
-                    # title
-                    plt.title(row["sample_short"])
-                    plt.show()
+            characteristics = pd.concat([row, dorm_hfs_sample.squeeze()])
+            characteristics.loc["xunit"] = xunit
+            characteristics.loc["x_intersect"] = x_intersect
+            #print(characteristics.x_intersect)
+
+            if show_plot:
+                self._plot_intersection(
+                    data,
+                    ax,
+                    age_col,
+                    target_col,
+                    sample,
+                    #max_slopes,
+                    time_discarded_s,
+                    characteristics = characteristics,
+                    save_path=save_path,
+                    xscale=xscale,
+                    #xunit=xunit,
+                    hmax = hmax,
+                    tmax = tmax,
+                )
+                # self._plot_intersection(
+                #     data,
+                #     ax,
+                #     age_col,
+                #     target_col,
+                #     sample,
+                #     # characteristics,
+                #     time_discarded_s,
+                #     save_path=None,
+                #     xscale="linear",
+                #     xunit="s",
+                # )
+                # if isinstance(ax, matplotlib.axes._axes.Axes):
+                #     # plot data
+                #     ax = self.plot(
+                #         t_unit="s", y_unit_milli=False, regex=row["sample_short"], ax=ax
+                #     )
+                #     ax.axline(
+                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
+                #         slope=row["gradient"],
+                #         color="k",
+                #     )
+                #     ax.axhline(
+                #         float(
+                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                #                 "normalized_heat_flow_w_g"
+                #             ]
+                #         ),
+                #         color="k",
+                #     )
+                #     # guide to the eye line
+                #     ax.axvline(x_intersect, color="red")
+                #     # info text
+                #     ax.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
+                #     # ax limits
+                #     ax.set_xlim(0, tmax)
+                #     ax.set_ylim(0, hmax)
+                #     # title
+                #     ax.set_title(row["sample_short"])
+
+                # else:
+                #     # plot data
+                #     self.plot(
+                #         t_unit="s",
+                #         y_unit_milli=False,
+                #         regex=row["sample_short"],
+                #     )
+                #     # max slope line
+                #     plt.axline(
+                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
+                #         slope=row["gradient"],
+                #         color="k",
+                #     )
+                #     # dormant heat plot
+                #     plt.axhline(
+                #         float(
+                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                #                 "normalized_heat_flow_w_g"
+                #             ]
+                #         ),
+                #         color="k",
+                #     )
+                #     # guide to the eye line
+                #     plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
+                #     # guide to the eye line
+                #     plt.axvline(x_intersect, color="red")
+                #     # info text
+                #     plt.text(
+                #         x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red"
+                #     )
+                #     # ax limits
+                #     plt.xlim(0, tmax)
+                #     plt.ylim(0, hmax)
+                #     # title
+                #     plt.title(row["sample_short"])
+                #     plt.show()
 
         # build overall dataframe to be returned
-        onsets = pd.DataFrame(list_onsets)
+        onsets = pd.DataFrame(list_characteristics)
 
         # merge with dorm_hfs
         onsets = onsets.merge(
@@ -1753,12 +1874,13 @@ class Measurement:
         )
 
         # return
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            # return onset characteristics and ax
-            return onsets, ax
-        else:
-            # return onset characteristics exclusively
-            return onsets
+        return onsets
+        # if isinstance(ax, matplotlib.axes._axes.Axes):
+        #     # return onset characteristics and ax
+        #     return onsets, ax
+        # else:
+        #     # return onset characteristics exclusively
+        #     return onsets
 
     #
     # get dormant period heatflow
@@ -1805,7 +1927,7 @@ class Measurement:
                 # cutoff_min=cutoff_min,
                 regex=pathlib.Path(sample).name,
                 # prominence=processparams.gradient_peak_prominence, # prominence,
-                show_plot=True,
+                show_plot=show_plot,
             )
 
             # identify "dormant period" as range between initial spike
