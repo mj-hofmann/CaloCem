@@ -1065,10 +1065,12 @@ class Measurement:
         xscale="log",
         xunit="s",
     ):
+        x_increment = 600
         if xunit == "h":
             data[age_col] = data[age_col] / 3600
             characteristics[age_col] = characteristics[age_col] / 3600
             time_discarded_s = time_discarded_s / 3600
+            x_increment = 0.2
 
         ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
@@ -1091,7 +1093,8 @@ class Measurement:
         # add vertical lines
         for _idx, _row in characteristics.iterrows():
             # vline
-            ax.axvline(_row.at[age_col], color="green", alpha=0.3)
+            t_maxslope = _row.at[age_col]
+            ax.axvline(t_maxslope, color="green", alpha=0.3)
         
         if xunit == "h":
             limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
@@ -1104,6 +1107,7 @@ class Measurement:
         )
 
         ax.set_xscale(xscale)
+        ax.text(t_maxslope + x_increment, 0.001, f"{round(t_maxslope,1)} {xunit} ", color="green")
 
         if new_ax:
             if save_path:
