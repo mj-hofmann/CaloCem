@@ -47,8 +47,11 @@ for sample_name in sample_names:
     ax.set_xlim(0, 24)
     ax.set_ylim(0, 0.005)
     ax.set_title("")
+    ax, ax2 = fig.get_axes()
     handles, labels = ax.get_legend_handles_labels()
-    labels = ["Calo Data", "Shifted Gradient"]
+    handles2, labels2 = ax2.get_legend_handles_labels()
+    handles = handles + handles2
+    labels = ["Sample", "Gradient"]
     ax.legend(handles, labels, loc="upper right")
     plt.show()
 # ta.plt.savefig(assetpath / "example_detect_maximum_slope.png")

@@ -1018,7 +1018,7 @@ class Measurement:
 
     @staticmethod
     def _plot_peak_positions(
-        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
+        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s, plot_labels
     ):
         """
         Plot detected peaks.
@@ -1026,12 +1026,12 @@ class Measurement:
 
         ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col, sample)
 
-        ax.plot(
-            data[_age_col][peaks],
-            data[_target_col][peaks],
-            "x",
-            color="red",
-        )
+        # ax.plot(
+        #     data[_age_col][peaks],
+        #     data[_target_col][peaks],
+        #     "x",
+        #     color="red",
+        # )
 
         ax.vlines(
             x=data[_age_col][peaks],
@@ -1039,6 +1039,18 @@ class Measurement:
             ymax=data[_target_col][peaks],
             color="red",
         )
+
+        if plot_labels:
+            for x, y in zip(data[_age_col][peaks], data[_target_col][peaks]):
+                y = y + 0.0002
+                ax.text(x, y, f"{round(x,2)}", color="red")
+            # ax.text(
+            #     x=data[_age_col][peaks],
+            #     y=data[_target_col][peaks],
+            #     #s=[f"{round(i,2)}" for i in data[_age_col][peaks]],
+            #     s="hallo",
+            #     color="red",
+            # )
 
         limits = {
             "left": ax.get_xlim()[0],
@@ -1079,7 +1091,7 @@ class Measurement:
         ax2.plot(
             data[age_col],
             data["gradient"]  ,
-            label="gradient  ",
+            label="Gradient",
             color="orange"
         )
         ax2.set_yscale("linear")
@@ -1285,6 +1297,8 @@ class Measurement:
         plt_right_s=2e5,
         plt_top=1e-2,
         ax=None,
+        xunit="s",
+        plot_labels=None,
     ) -> pd.DataFrame:
         """
         get DataFrame of peak characteristics.
@@ -1339,9 +1353,17 @@ class Measurement:
 
             # plot?
             if show_plot:
-                self._plot_peak_positions(
-                    data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
-                )
+                if xunit=="h":
+                    df_copy = data.copy()
+                    df_copy[_age_col] = df_copy[_age_col] / 3600
+                    plt_right_s = plt_right_s / 3600
+                    self._plot_peak_positions(
+                        df_copy, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s, plot_labels
+                    )
+                else:
+                    self._plot_peak_positions(
+                        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s, plot_labels
+                    )
 
             # compile peak characteristics
             peak_characteristics = pd.concat(
