@@ -51,7 +51,7 @@ onsets = tam.get_peak_onset_via_max_slope(
     ax=ax,
 )
 ax.set_xlabel("Time / h")
-ax.set_xlim(0, 10)
+ax.set_xlim(0, 40)
 plt.show()
 
 

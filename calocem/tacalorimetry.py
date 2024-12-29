@@ -216,7 +216,9 @@ class Measurement:
                     except Exception:
                         # initialize
                         if self._info.empty:
-                            self._info = self._read_calo_info_xls(file, show_info=show_info)
+                            self._info = self._read_calo_info_xls(
+                                file, show_info=show_info
+                            )
 
                     # collect data
                     try:
@@ -230,7 +232,9 @@ class Measurement:
                     except Exception:
                         # initialize
                         if self._data.empty:
-                            self._data = self._read_calo_data_xls(file, show_info=show_info)
+                            self._data = self._read_calo_data_xls(
+                                file, show_info=show_info
+                            )
 
             # append csv
             if f.endswith(".csv"):
@@ -355,16 +359,16 @@ class Measurement:
         if filetype == ".csv":
             delimiter = utils.detect_delimiter(file)
             title_row = utils.find_title_row(file, delimiter)
-        else :
+        else:
             delimiter = None
             title_row = 0
 
         data = utils.load_data(file, delimiter, title_row)
         start_time = utils.find_reaction_start_time(data)
-        
+
         if delimiter == "\t":
             data = utils.prepare_tab_columns(data, file)
-        else: 
+        else:
             if filetype == ".csv":
                 data = utils.tidy_colnames(data)
 
@@ -1018,7 +1022,16 @@ class Measurement:
 
     @staticmethod
     def _plot_peak_positions(
-        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s, plot_labels
+        data,
+        ax,
+        _age_col,
+        _target_col,
+        peaks,
+        sample,
+        plt_top,
+        plt_right_s,
+        plot_labels,
+        xmarker,
     ):
         """
         Plot detected peaks.
@@ -1026,12 +1039,13 @@ class Measurement:
 
         ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col, sample)
 
-        # ax.plot(
-        #     data[_age_col][peaks],
-        #     data[_target_col][peaks],
-        #     "x",
-        #     color="red",
-        # )
+        if xmarker:
+            ax.plot(
+                data[_age_col][peaks],
+                data[_target_col][peaks],
+                "x",
+                color="red",
+            )
 
         ax.vlines(
             x=data[_age_col][peaks],
@@ -1044,6 +1058,7 @@ class Measurement:
             for x, y in zip(data[_age_col][peaks], data[_target_col][peaks]):
                 y = y + 0.0002
                 ax.text(x, y, f"{round(x,2)}", color="red")
+        
             # ax.text(
             #     x=data[_age_col][peaks],
             #     y=data[_target_col][peaks],
@@ -1088,12 +1103,7 @@ class Measurement:
 
         ax2 = ax.twinx()
         # plot gradient
-        ax2.plot(
-            data[age_col],
-            data["gradient"]  ,
-            label="Gradient",
-            color="orange"
-        )
+        ax2.plot(data[age_col], data["gradient"], label="Gradient", color="orange")
         ax2.set_yscale("linear")
         xmask = data[age_col] > time_discarded_s
         y_vals = data["gradient"][xmask]
@@ -1107,7 +1117,7 @@ class Measurement:
             # vline
             t_maxslope = _row.at[age_col]
             ax.axvline(t_maxslope, color="green", alpha=0.3)
-        
+
         if xunit == "h":
             limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
 
@@ -1115,11 +1125,22 @@ class Measurement:
             limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
 
         ax = utils.style_base_plot(
-            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s, xunit=xunit
+            ax,
+            target_col,
+            age_col,
+            sample,
+            limits,
+            time_discarded_s=time_discarded_s,
+            xunit=xunit,
         )
 
         ax.set_xscale(xscale)
-        ax.text(t_maxslope + x_increment, 0.00025, f"{round(t_maxslope,2)} {xunit} ", color="green")
+        ax.text(
+            t_maxslope + x_increment,
+            0.00025,
+            f"{round(t_maxslope,2)} {xunit} ",
+            color="green",
+        )
 
         if new_ax:
             if save_path:
@@ -1130,32 +1151,39 @@ class Measurement:
 
     @staticmethod
     def _plot_intersection(
-            data,
-            ax,
-            age_col,
-            target_col,
-            sample,
-            # characteristics,
-            time_discarded_s,
-            characteristics,
-            save_path=None,
-            xscale="log",
-            #xunit="s",
-            hmax = None,
-            tmax = None,
+        data,
+        ax,
+        age_col,
+        target_col,
+        sample,
+        # characteristics,
+        time_discarded_s,
+        characteristics,
+        save_path=None,
+        xscale="log",
+        # xunit="s",
+        hmax=None,
+        tmax=None,
     ):
         if characteristics.xunit == "h":
-            data.loc[:,age_col] = data.loc[:,age_col] / 3600
+            data.loc[:, age_col] = data.loc[:, age_col] / 3600
             characteristics.time_s = characteristics.time_s / 3600
             characteristics.dorm_time_s = characteristics.dorm_time_s / 3600
             characteristics.gradient = characteristics.gradient * 3600
             tmax = tmax / 3600
             characteristics.x_intersect = characteristics.x_intersect / 3600
-            #characteristics[age_col] = characteristics[age_col] / 3600
-        
+            # characteristics[age_col] = characteristics[age_col] / 3600
+
         ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
-        #print(new_ax)
-        ax = utils.style_base_plot(ax, target_col, age_col, sample, time_discarded_s=time_discarded_s, xunit=characteristics.xunit)
+        # print(new_ax)
+        ax = utils.style_base_plot(
+            ax,
+            target_col,
+            age_col,
+            sample,
+            time_discarded_s=time_discarded_s,
+            xunit=characteristics.xunit,
+        )
 
         ax.axline(
             (characteristics.time_s, characteristics.normalized_heat_flow_w_g),
@@ -1165,13 +1193,14 @@ class Measurement:
         )
         ax.axhline(
             y=characteristics.dorm_normalized_heat_flow_w_g,
-            color = "red",
+            color="red",
             linestyle="--",
         )
         ax.text(
             x=characteristics.x_intersect,
             y=characteristics.dorm_normalized_heat_flow_w_g,
-            s=fr"$t_i=$ {characteristics.x_intersect:.1f} {characteristics.xunit}" + "\n",
+            s=rf"   $t_i=$ {characteristics.x_intersect:.1f} {characteristics.xunit}"
+            + "\n",
             color="green",
         )
         ax.axvline(
@@ -1299,6 +1328,7 @@ class Measurement:
         ax=None,
         xunit="s",
         plot_labels=None,
+        xmarker=False,
     ) -> pd.DataFrame:
         """
         get DataFrame of peak characteristics.
@@ -1353,16 +1383,34 @@ class Measurement:
 
             # plot?
             if show_plot:
-                if xunit=="h":
+                if xunit == "h":
                     df_copy = data.copy()
                     df_copy[_age_col] = df_copy[_age_col] / 3600
                     plt_right_s = plt_right_s / 3600
                     self._plot_peak_positions(
-                        df_copy, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s, plot_labels
+                        df_copy,
+                        ax,
+                        _age_col,
+                        _target_col,
+                        peaks,
+                        sample,
+                        plt_top,
+                        plt_right_s,
+                        plot_labels,
+                        xmarker,
                     )
                 else:
                     self._plot_peak_positions(
-                        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s, plot_labels
+                        data,
+                        ax,
+                        _age_col,
+                        _target_col,
+                        peaks,
+                        sample,
+                        plt_top,
+                        plt_right_s,
+                        plot_labels,
+                        xmarker,
                     )
 
             # compile peak characteristics
@@ -1734,7 +1782,7 @@ class Measurement:
             regex=regex,
             show_plot=False,
             ax=ax,
-            #show_plot=show_plot,
+            # show_plot=show_plot,
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
@@ -1780,7 +1828,7 @@ class Measurement:
 
             data = self._data.query("sample_short == @row['sample_short']")
             sample = row["sample_short"]
-            
+
             dorm_hfs_sample = dorm_hfs.query("sample_short == @sample")
             # add prefix dorm to all columns
             dorm_hfs_sample.columns = ["dorm_" + s for s in dorm_hfs_sample.columns]
@@ -1788,7 +1836,7 @@ class Measurement:
             characteristics = pd.concat([row, dorm_hfs_sample.squeeze()])
             characteristics.loc["xunit"] = xunit
             characteristics.loc["x_intersect"] = x_intersect
-            #print(characteristics.x_intersect)
+            # print(characteristics.x_intersect)
 
             if show_plot:
                 self._plot_intersection(
@@ -1797,14 +1845,14 @@ class Measurement:
                     age_col,
                     target_col,
                     sample,
-                    #max_slopes,
+                    # max_slopes,
                     time_discarded_s,
-                    characteristics = characteristics,
+                    characteristics=characteristics,
                     save_path=save_path,
                     xscale=xscale,
-                    #xunit=xunit,
-                    hmax = hmax,
-                    tmax = tmax,
+                    # xunit=xunit,
+                    hmax=hmax,
+                    tmax=tmax,
                 )
                 # self._plot_intersection(
                 #     data,
@@ -2602,6 +2650,9 @@ class Measurement:
             # print(d.sample_short[0])
             # print(len(d))
             d = d.dropna(subset=["normalized_heat_flow_w_g"])
+
+            processor = HeatFlowProcessor(self.processparams)
+            d = processor.restrict_data_range(d)            
             # apply adaptive downsampling
             if not self.processparams.downsample.section_split:
                 d = utils.adaptive_downsample(
@@ -2732,3 +2783,8 @@ class HeatFlowProcessor:
         df = self.calculate_hf_derivative(df, "second").copy()
 
         return df["first_derivative"], df["second_derivative"]
+
+    def restrict_data_range(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df.query(
+            f"time_s >= {self.processparams.cutoff.cutoff_min * 60} & time_s <= {self.processparams.cutoff.cutoff_max * 60}"
+        )

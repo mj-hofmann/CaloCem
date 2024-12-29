@@ -43,6 +43,7 @@ tam.get_peaks(
     regex="4",
     xunit="h",
     plot_labels=True,
+    xmarker=True,
 )
 plt.show()
 # %%

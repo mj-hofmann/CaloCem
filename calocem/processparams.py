@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 @dataclass
 class CutOffParameters:
     cutoff_min: int = 30
+    cutoff_max: int = 2880 # 2 days in minutes
 
 
 @dataclass
