@@ -23,7 +23,7 @@ processparams.cutoff.cutoff_max = 55 * 60
 # experiments via class
 tam_d = Measurement(
     folder=datapath,
-    regex=r".*data_[1].csv",
+    regex=r".*data_(?=1).csv",
     #regex="JAA.*",
     # regex="downsample.*",
     show_info=True,

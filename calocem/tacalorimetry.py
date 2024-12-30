@@ -2065,6 +2065,11 @@ class Measurement:
         self,
         processparams,
         individual: bool = False,
+        show_plot=False,
+        ax=None,
+        regex=None,
+        xscale="log",
+        xunit="s",
     ) -> pd.DataFrame:
         """
         get characteristics according to ASTM C1679. Compiles a list of data
@@ -2096,7 +2101,7 @@ class Measurement:
         """
 
         # get peaks
-        peaks = self.get_peaks(processparams, plt_right_s=4e5)
+        peaks = self.get_peaks(processparams, plt_right_s=4e5, show_plot=False)
         # sort peaks by ascending normalized heat flow
         peaks = peaks.sort_values(by="normalized_heat_flow_w_g", ascending=True)
         # select highest peak --> ASTM C1679
@@ -2109,9 +2114,10 @@ class Measurement:
         astm_times = []
 
         # loop samples
-        for sample, sample_data in self._iter_samples():
+        for sample, sample_data in self._iter_samples(regex=regex):
             # pick sample data
             helper = data[data["sample"] == sample]
+            helper_df = helper.copy()
 
             # check if peak was found
             if peaks[peaks["sample_short"] == sample_data.sample_short[0]].empty:
@@ -2138,6 +2144,30 @@ class Measurement:
 
                 # add to list of of selected points
             astm_times.append(helper.tail(1))
+
+            if show_plot:
+                # plot
+                if xunit == "h":
+                    helper_df["time_s"] = helper_df["time_s"] / 3600
+                    helper["time_s"] = helper["time_s"] / 3600
+                if isinstance(ax, matplotlib.axes._axes.Axes):
+                    ax.plot(
+                        helper_df["time_s"],
+                        helper_df["normalized_heat_flow_w_g"],
+                        label=sample,
+                    )
+                    ax.plot(
+                        helper.tail(1)["time_s"],
+                        helper.tail(1)["normalized_heat_flow_w_g"],
+                        marker="o",
+                        color="red",
+                    )
+                else:
+                    plt.plot(
+                        data["time_s"],
+                        data["normalized_heat_flow_w_g"],
+                        label=sample,
+                    )
 
         # build overall DataFrame
         astm_times = pd.concat(astm_times)
