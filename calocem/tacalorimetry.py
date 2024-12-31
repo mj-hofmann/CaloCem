@@ -1058,7 +1058,7 @@ class Measurement:
             for x, y in zip(data[_age_col][peaks], data[_target_col][peaks]):
                 y = y + 0.0002
                 ax.text(x, y, f"{round(x,2)}", color="red")
-        
+
             # ax.text(
             #     x=data[_age_col][peaks],
             #     y=data[_target_col][peaks],
@@ -2120,7 +2120,7 @@ class Measurement:
             helper_df = helper.copy()
 
             # check if peak was found
-            if peaks[peaks["sample_short"] == sample_data.sample_short[0]].empty:
+            if peaks[peaks["sample_short"] == sample_data.sample_short.iloc[0]].empty:
                 helper = helper.iloc[0:1]
                 # manually set time to NaN to indicate that no peak was found
                 helper["time_s"] = np.NaN
@@ -2145,6 +2145,9 @@ class Measurement:
                 # add to list of of selected points
             astm_times.append(helper.tail(1))
 
+            if helper.tail(1)["time_s"].isna().all():
+                continue
+
             if show_plot:
                 # plot
                 if xunit == "h":
@@ -2160,6 +2163,19 @@ class Measurement:
                         helper.tail(1)["time_s"],
                         helper.tail(1)["normalized_heat_flow_w_g"],
                         marker="o",
+                        color="red",
+                    )
+                    ax.vlines(
+                        x=helper.tail(1)["time_s"],
+                        ymin=0,
+                        ymax=helper.tail(1)["normalized_heat_flow_w_g"],
+                        color="red",
+                        linestyle="--",
+                    )
+                    ax.text(
+                        x=helper.tail(1)["time_s"],
+                        y=helper.tail(1)["normalized_heat_flow_w_g"]/2,
+                        s=r" $t_{ASTM}$ =" + f"{helper.tail(1)['time_s'].values[0]:.1f}",
                         color="red",
                     )
                 else:
@@ -2682,7 +2698,7 @@ class Measurement:
             d = d.dropna(subset=["normalized_heat_flow_w_g"])
 
             processor = HeatFlowProcessor(self.processparams)
-            d = processor.restrict_data_range(d)            
+            d = processor.restrict_data_range(d)
             # apply adaptive downsampling
             if not self.processparams.downsample.section_split:
                 d = utils.adaptive_downsample(
