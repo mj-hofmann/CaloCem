@@ -121,7 +121,7 @@ def read_excel(file, show_info=True):
         return None
 
 
-def create_base_plot(data, ax, _age_col, _target_col, sample, xunit):
+def create_base_plot(data, ax, _age_col, _target_col, sample):
     """
     create base plot
     """
