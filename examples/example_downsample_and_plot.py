@@ -14,8 +14,8 @@ testpath = parentfolder / "tests"
 processparams = ProcessingParameters()
 processparams.downsample.apply = True
 processparams.downsample.num_points = 400
-processparams.downsample.section_split = True
-processparams.downsample.section_split_time_s = 3600
+# processparams.downsample.section_split = True
+# processparams.downsample.section_split_time_s = 3600
 processparams.downsample.baseline_weight = 0.1
 processparams.cutoff.cutoff_min = 70
 processparams.cutoff.cutoff_max = 55 * 60
@@ -23,7 +23,7 @@ processparams.cutoff.cutoff_max = 55 * 60
 # experiments via class
 tam_d = Measurement(
     folder=datapath,
-    regex=r".*data_(?=1).csv",
+    regex=r".*data_[1].csv",
     #regex="JAA.*",
     # regex="downsample.*",
     show_info=True,
@@ -55,3 +55,5 @@ ax.set_xlim(0,60)
 ax.set_ylim(0,4)
 
 # %%
+
+

@@ -473,6 +473,8 @@ def adaptive_downsample(df, x_col, y_col, processparams):
 
     if processparams.downsample.section_split:
         num_points = int(processparams.downsample.num_points / 2)
+    else:
+        num_points = int(processparams.downsample.num_points)
 
     # df = df.query("time_s > 1800")
     x = df[x_col].values

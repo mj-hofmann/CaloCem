@@ -1106,10 +1106,16 @@ class Measurement:
         ax2.plot(data[age_col], data["gradient"], label="Gradient", color="orange")
         ax2.set_yscale("linear")
         xmask = data[age_col] > time_discarded_s
-        y_vals = data["gradient"][xmask]
-        ymin = y_vals.min() + y_vals.min() * 0.1
-        ymax = y_vals.max() + y_vals.max() * 0.1
-        ax2.set_ylim(ymin, ymax)
+        y_vals = data[target_col][xmask]
+        ymin = y_vals.min() + y_vals.min()*0.1
+        ymax = y_vals.max() + y_vals.max()*0.1
+        # ax.set_ylim(ymin, ymax)
+
+        y2_vals = data["gradient"][xmask]
+        y2min = y2_vals.min() + y2_vals.min() * 0.1
+        y2max = y2_vals.max() + y2_vals.max() * 0.1
+        ax2.set_ylim(y2min, y2max)
+        
         ax2.set_ylabel(r"Gradient [Wg$^{-1}$s$^{-1}$]")
 
         # add vertical lines
@@ -1119,10 +1125,10 @@ class Measurement:
             ax.axvline(t_maxslope, color="green", alpha=0.3)
 
         if xunit == "h":
-            limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
+            limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": ymax}
 
         else:
-            limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
+            limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": ymax}
 
         ax = utils.style_base_plot(
             ax,
