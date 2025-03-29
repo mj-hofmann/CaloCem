@@ -216,7 +216,9 @@ class Measurement:
                     except Exception:
                         # initialize
                         if self._info.empty:
-                            self._info = self._read_calo_info_xls(file, show_info=show_info)
+                            self._info = self._read_calo_info_xls(
+                                file, show_info=show_info
+                            )
 
                     # collect data
                     try:
@@ -230,7 +232,9 @@ class Measurement:
                     except Exception:
                         # initialize
                         if self._data.empty:
-                            self._data = self._read_calo_data_xls(file, show_info=show_info)
+                            self._data = self._read_calo_data_xls(
+                                file, show_info=show_info
+                            )
 
             # append csv
             if f.endswith(".csv"):
@@ -355,16 +359,16 @@ class Measurement:
         if filetype == ".csv":
             delimiter = utils.detect_delimiter(file)
             title_row = utils.find_title_row(file, delimiter)
-        else :
+        else:
             delimiter = None
             title_row = 0
 
         data = utils.load_data(file, delimiter, title_row)
         start_time = utils.find_reaction_start_time(data)
-        
+
         if delimiter == "\t":
             data = utils.prepare_tab_columns(data, file)
-        else: 
+        else:
             if filetype == ".csv":
                 data = utils.tidy_colnames(data)
 
@@ -1018,7 +1022,16 @@ class Measurement:
 
     @staticmethod
     def _plot_peak_positions(
-        data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
+        data,
+        ax,
+        _age_col,
+        _target_col,
+        peaks,
+        sample,
+        plt_top,
+        plt_right_s,
+        plot_labels,
+        xmarker,
     ):
         """
         Plot detected peaks.
@@ -1026,12 +1039,13 @@ class Measurement:
 
         ax, new_ax = utils.create_base_plot(data, ax, _age_col, _target_col, sample)
 
-        ax.plot(
-            data[_age_col][peaks],
-            data[_target_col][peaks],
-            "x",
-            color="red",
-        )
+        if xmarker:
+            ax.plot(
+                data[_age_col][peaks],
+                data[_target_col][peaks],
+                "x",
+                color="red",
+            )
 
         ax.vlines(
             x=data[_age_col][peaks],
@@ -1039,6 +1053,19 @@ class Measurement:
             ymax=data[_target_col][peaks],
             color="red",
         )
+
+        if plot_labels:
+            for x, y in zip(data[_age_col][peaks], data[_target_col][peaks]):
+                y = y + 0.0002
+                ax.text(x, y, f"{round(x,2)}", color="red")
+
+            # ax.text(
+            #     x=data[_age_col][peaks],
+            #     y=data[_target_col][peaks],
+            #     #s=[f"{round(i,2)}" for i in data[_age_col][peaks]],
+            #     s="hallo",
+            #     color="red",
+            # )
 
         limits = {
             "left": ax.get_xlim()[0],
@@ -1065,40 +1092,137 @@ class Measurement:
         xscale="log",
         xunit="s",
     ):
+        x_increment = 600
         if xunit == "h":
             data[age_col] = data[age_col] / 3600
             characteristics[age_col] = characteristics[age_col] / 3600
+            time_discarded_s = time_discarded_s / 3600
+            x_increment = 0.2
 
-        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample, xunit)
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
 
+        ax2 = ax.twinx()
         # plot gradient
-        ax.plot(
-            data[age_col],
-            data["gradient"] * 1e4 + 0.001,
-            label="gradient * 1e4 + 1mW",
-        )
+        ax2.plot(data[age_col], data["gradient"], label="Gradient", color="orange")
+        ax2.set_yscale("linear")
+        xmask = data[age_col] > time_discarded_s
+        y_vals = data[target_col][xmask]
+        ymin = y_vals.min() + y_vals.min()*0.1
+        ymax = y_vals.max() + y_vals.max()*0.1
+        # ax.set_ylim(ymin, ymax)
+
+        y2_vals = data["gradient"][xmask]
+        y2min = y2_vals.min() + y2_vals.min() * 0.1
+        y2max = y2_vals.max() + y2_vals.max() * 0.1
+        ax2.set_ylim(y2min, y2max)
+        
+        ax2.set_ylabel(r"Gradient [Wg$^{-1}$s$^{-1}$]")
 
         # add vertical lines
         for _idx, _row in characteristics.iterrows():
             # vline
-            ax.axvline(_row.at[age_col], color="green", alpha=0.3)
-        
+            t_maxslope = _row.at[age_col]
+            ax.axvline(t_maxslope, color="green", alpha=0.3)
+
         if xunit == "h":
-            limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
+            limits = {"left": 0.1, "right": ax.get_xlim()[1], "bottom": 0, "top": ymax}
 
         else:
-            limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": 0.01}
+            limits = {"left": 100, "right": ax.get_xlim()[1], "bottom": 0, "top": ymax}
 
         ax = utils.style_base_plot(
-            ax, target_col, age_col, sample, limits, time_discarded_s=time_discarded_s, xunit=xunit
+            ax,
+            target_col,
+            age_col,
+            sample,
+            limits,
+            time_discarded_s=time_discarded_s,
+            xunit=xunit,
         )
 
         ax.set_xscale(xscale)
+        ax.text(
+            t_maxslope + x_increment,
+            0.00025,
+            f"{round(t_maxslope,2)} {xunit} ",
+            color="green",
+        )
 
         if new_ax:
             if save_path:
                 sample_name = pathlib.Path(sample).stem
                 plt.savefig(save_path / f"maximum_slope_detect_{sample_name}.pdf")
+            else:
+                plt.show()
+
+    @staticmethod
+    def _plot_intersection(
+        data,
+        ax,
+        age_col,
+        target_col,
+        sample,
+        # characteristics,
+        time_discarded_s,
+        characteristics,
+        save_path=None,
+        xscale="log",
+        # xunit="s",
+        hmax=None,
+        tmax=None,
+    ):
+        if characteristics.xunit == "h":
+            data.loc[:, age_col] = data.loc[:, age_col] / 3600
+            characteristics.time_s = characteristics.time_s / 3600
+            characteristics.dorm_time_s = characteristics.dorm_time_s / 3600
+            characteristics.gradient = characteristics.gradient * 3600
+            tmax = tmax / 3600
+            characteristics.x_intersect = characteristics.x_intersect / 3600
+            # characteristics[age_col] = characteristics[age_col] / 3600
+
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample)
+        # print(new_ax)
+        ax = utils.style_base_plot(
+            ax,
+            target_col,
+            age_col,
+            sample,
+            time_discarded_s=time_discarded_s,
+            xunit=characteristics.xunit,
+        )
+
+        ax.axline(
+            (characteristics.time_s, characteristics.normalized_heat_flow_w_g),
+            slope=characteristics.gradient,
+            color="red",
+            linestyle="--",
+        )
+        ax.axhline(
+            y=characteristics.dorm_normalized_heat_flow_w_g,
+            color="red",
+            linestyle="--",
+        )
+        ax.text(
+            x=characteristics.x_intersect,
+            y=characteristics.dorm_normalized_heat_flow_w_g,
+            s=rf"   $t_i=$ {characteristics.x_intersect:.1f} {characteristics.xunit}"
+            + "\n",
+            color="green",
+        )
+        ax.axvline(
+            x=characteristics.x_intersect,
+            color="green",
+            linestyle=":",
+        )
+
+        ax.set_xscale(xscale)
+        ax.set_xlim(0, tmax)
+        ax.set_ylim(0, hmax)
+
+        if new_ax:
+            if save_path:
+                sample_name = pathlib.Path(sample).stem
+                plt.savefig(save_path / f"intersection_detect_{sample_name}.pdf")
             else:
                 plt.show()
 
@@ -1208,6 +1332,9 @@ class Measurement:
         plt_right_s=2e5,
         plt_top=1e-2,
         ax=None,
+        xunit="s",
+        plot_labels=None,
+        xmarker=False,
     ) -> pd.DataFrame:
         """
         get DataFrame of peak characteristics.
@@ -1262,9 +1389,35 @@ class Measurement:
 
             # plot?
             if show_plot:
-                self._plot_peak_positions(
-                    data, ax, _age_col, _target_col, peaks, sample, plt_top, plt_right_s
-                )
+                if xunit == "h":
+                    df_copy = data.copy()
+                    df_copy[_age_col] = df_copy[_age_col] / 3600
+                    plt_right_s = plt_right_s / 3600
+                    self._plot_peak_positions(
+                        df_copy,
+                        ax,
+                        _age_col,
+                        _target_col,
+                        peaks,
+                        sample,
+                        plt_top,
+                        plt_right_s,
+                        plot_labels,
+                        xmarker,
+                    )
+                else:
+                    self._plot_peak_positions(
+                        data,
+                        ax,
+                        _age_col,
+                        _target_col,
+                        peaks,
+                        sample,
+                        plt_top,
+                        plt_right_s,
+                        plot_labels,
+                        xmarker,
+                    )
 
             # compile peak characteristics
             peak_characteristics = pd.concat(
@@ -1606,6 +1759,13 @@ class Measurement:
         processparams,
         show_plot=False,
         ax=None,
+        regex=None,
+        age_col="time_s",
+        target_col="normalized_heat_flow_w_g",
+        time_discarded_s=900,
+        save_path=None,
+        xscale="linear",
+        xunit="s",
     ):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
@@ -1625,14 +1785,21 @@ class Measurement:
         # get onsets
         max_slopes = self.get_maximum_slope(
             processparams,
+            regex=regex,
+            show_plot=False,
+            ax=ax,
+            # show_plot=show_plot,
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
             processparams,  # cutoff_min=cutoff_min, prominence=prominence
+            regex=regex,
+            show_plot=False,
+            # ax=ax,
         )
 
         # init list
-        list_onsets = []
+        list_characteristics = []
 
         # loop samples
         for i, row in max_slopes.iterrows():
@@ -1657,7 +1824,7 @@ class Measurement:
             )["normalized_heat_flow_w_g"].max()
 
             # append to list
-            list_onsets.append(
+            list_characteristics.append(
                 {
                     "sample": row["sample_short"],
                     "onset_time_s": x_intersect,
@@ -1665,74 +1832,113 @@ class Measurement:
                 }
             )
 
-            if show_plot:
-                if isinstance(ax, matplotlib.axes._axes.Axes):
-                    # plot data
-                    ax = self.plot(
-                        t_unit="s", y_unit_milli=False, regex=row["sample_short"], ax=ax
-                    )
-                    ax.axline(
-                        (row["time_s"], row["normalized_heat_flow_w_g"]),
-                        slope=row["gradient"],
-                        color="k",
-                    )
-                    ax.axhline(
-                        float(
-                            dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                                "normalized_heat_flow_w_g"
-                            ]
-                        ),
-                        color="k",
-                    )
-                    # guide to the eye line
-                    ax.axvline(x_intersect, color="red")
-                    # info text
-                    ax.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
-                    # ax limits
-                    ax.set_xlim(0, tmax)
-                    ax.set_ylim(0, hmax)
-                    # title
-                    ax.set_title(row["sample_short"])
+            data = self._data.query("sample_short == @row['sample_short']")
+            sample = row["sample_short"]
 
-                else:
-                    # plot data
-                    self.plot(
-                        t_unit="s",
-                        y_unit_milli=False,
-                        regex=row["sample_short"],
-                    )
-                    # max slope line
-                    plt.axline(
-                        (row["time_s"], row["normalized_heat_flow_w_g"]),
-                        slope=row["gradient"],
-                        color="k",
-                    )
-                    # dormant heat plot
-                    plt.axhline(
-                        float(
-                            dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                                "normalized_heat_flow_w_g"
-                            ]
-                        ),
-                        color="k",
-                    )
-                    # guide to the eye line
-                    plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
-                    # guide to the eye line
-                    plt.axvline(x_intersect, color="red")
-                    # info text
-                    plt.text(
-                        x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red"
-                    )
-                    # ax limits
-                    plt.xlim(0, tmax)
-                    plt.ylim(0, hmax)
-                    # title
-                    plt.title(row["sample_short"])
-                    plt.show()
+            dorm_hfs_sample = dorm_hfs.query("sample_short == @sample")
+            # add prefix dorm to all columns
+            dorm_hfs_sample.columns = ["dorm_" + s for s in dorm_hfs_sample.columns]
+
+            characteristics = pd.concat([row, dorm_hfs_sample.squeeze()])
+            characteristics.loc["xunit"] = xunit
+            characteristics.loc["x_intersect"] = x_intersect
+            # print(characteristics.x_intersect)
+
+            if show_plot:
+                self._plot_intersection(
+                    data,
+                    ax,
+                    age_col,
+                    target_col,
+                    sample,
+                    # max_slopes,
+                    time_discarded_s,
+                    characteristics=characteristics,
+                    save_path=save_path,
+                    xscale=xscale,
+                    # xunit=xunit,
+                    hmax=hmax,
+                    tmax=tmax,
+                )
+                # self._plot_intersection(
+                #     data,
+                #     ax,
+                #     age_col,
+                #     target_col,
+                #     sample,
+                #     # characteristics,
+                #     time_discarded_s,
+                #     save_path=None,
+                #     xscale="linear",
+                #     xunit="s",
+                # )
+                # if isinstance(ax, matplotlib.axes._axes.Axes):
+                #     # plot data
+                #     ax = self.plot(
+                #         t_unit="s", y_unit_milli=False, regex=row["sample_short"], ax=ax
+                #     )
+                #     ax.axline(
+                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
+                #         slope=row["gradient"],
+                #         color="k",
+                #     )
+                #     ax.axhline(
+                #         float(
+                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                #                 "normalized_heat_flow_w_g"
+                #             ]
+                #         ),
+                #         color="k",
+                #     )
+                #     # guide to the eye line
+                #     ax.axvline(x_intersect, color="red")
+                #     # info text
+                #     ax.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
+                #     # ax limits
+                #     ax.set_xlim(0, tmax)
+                #     ax.set_ylim(0, hmax)
+                #     # title
+                #     ax.set_title(row["sample_short"])
+
+                # else:
+                #     # plot data
+                #     self.plot(
+                #         t_unit="s",
+                #         y_unit_milli=False,
+                #         regex=row["sample_short"],
+                #     )
+                #     # max slope line
+                #     plt.axline(
+                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
+                #         slope=row["gradient"],
+                #         color="k",
+                #     )
+                #     # dormant heat plot
+                #     plt.axhline(
+                #         float(
+                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                #                 "normalized_heat_flow_w_g"
+                #             ]
+                #         ),
+                #         color="k",
+                #     )
+                #     # guide to the eye line
+                #     plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
+                #     # guide to the eye line
+                #     plt.axvline(x_intersect, color="red")
+                #     # info text
+                #     plt.text(
+                #         x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red"
+                #     )
+                #     # ax limits
+                #     plt.xlim(0, tmax)
+                #     plt.ylim(0, hmax)
+                #     # title
+                #     plt.title(row["sample_short"])
+                #     plt.show()
 
         # build overall dataframe to be returned
-        onsets = pd.DataFrame(list_onsets)
+        onsets = pd.DataFrame(list_characteristics)
 
         # merge with dorm_hfs
         onsets = onsets.merge(
@@ -1753,12 +1959,13 @@ class Measurement:
         )
 
         # return
-        if isinstance(ax, matplotlib.axes._axes.Axes):
-            # return onset characteristics and ax
-            return onsets, ax
-        else:
-            # return onset characteristics exclusively
-            return onsets
+        return onsets
+        # if isinstance(ax, matplotlib.axes._axes.Axes):
+        #     # return onset characteristics and ax
+        #     return onsets, ax
+        # else:
+        #     # return onset characteristics exclusively
+        #     return onsets
 
     #
     # get dormant period heatflow
@@ -1805,7 +2012,7 @@ class Measurement:
                 # cutoff_min=cutoff_min,
                 regex=pathlib.Path(sample).name,
                 # prominence=processparams.gradient_peak_prominence, # prominence,
-                show_plot=True,
+                show_plot=show_plot,
             )
 
             # identify "dormant period" as range between initial spike
@@ -1864,6 +2071,11 @@ class Measurement:
         self,
         processparams,
         individual: bool = False,
+        show_plot=False,
+        ax=None,
+        regex=None,
+        xscale="log",
+        xunit="s",
     ) -> pd.DataFrame:
         """
         get characteristics according to ASTM C1679. Compiles a list of data
@@ -1895,7 +2107,7 @@ class Measurement:
         """
 
         # get peaks
-        peaks = self.get_peaks(processparams, plt_right_s=4e5)
+        peaks = self.get_peaks(processparams, plt_right_s=4e5, show_plot=False)
         # sort peaks by ascending normalized heat flow
         peaks = peaks.sort_values(by="normalized_heat_flow_w_g", ascending=True)
         # select highest peak --> ASTM C1679
@@ -1908,12 +2120,13 @@ class Measurement:
         astm_times = []
 
         # loop samples
-        for sample, sample_data in self._iter_samples():
+        for sample, sample_data in self._iter_samples(regex=regex):
             # pick sample data
             helper = data[data["sample"] == sample]
+            helper_df = helper.copy()
 
             # check if peak was found
-            if peaks[peaks["sample_short"] == sample_data.sample_short[0]].empty:
+            if peaks[peaks["sample_short"] == sample_data.sample_short.iloc[0]].empty:
                 helper = helper.iloc[0:1]
                 # manually set time to NaN to indicate that no peak was found
                 helper["time_s"] = np.NaN
@@ -1937,6 +2150,46 @@ class Measurement:
 
                 # add to list of of selected points
             astm_times.append(helper.tail(1))
+
+            if helper.tail(1)["time_s"].isna().all():
+                continue
+
+            if show_plot:
+                # plot
+                if xunit == "h":
+                    helper_df["time_s"] = helper_df["time_s"] / 3600
+                    helper["time_s"] = helper["time_s"] / 3600
+                if isinstance(ax, matplotlib.axes._axes.Axes):
+                    ax.plot(
+                        helper_df["time_s"],
+                        helper_df["normalized_heat_flow_w_g"],
+                        label=sample,
+                    )
+                    ax.plot(
+                        helper.tail(1)["time_s"],
+                        helper.tail(1)["normalized_heat_flow_w_g"],
+                        marker="o",
+                        color="red",
+                    )
+                    ax.vlines(
+                        x=helper.tail(1)["time_s"],
+                        ymin=0,
+                        ymax=helper.tail(1)["normalized_heat_flow_w_g"],
+                        color="red",
+                        linestyle="--",
+                    )
+                    ax.text(
+                        x=helper.tail(1)["time_s"],
+                        y=helper.tail(1)["normalized_heat_flow_w_g"]/2,
+                        s=r" $t_{ASTM}$ =" + f"{helper.tail(1)['time_s'].values[0]:.1f}",
+                        color="red",
+                    )
+                else:
+                    plt.plot(
+                        data["time_s"],
+                        data["normalized_heat_flow_w_g"],
+                        label=sample,
+                    )
 
         # build overall DataFrame
         astm_times = pd.concat(astm_times)
@@ -2449,6 +2702,9 @@ class Measurement:
             # print(d.sample_short[0])
             # print(len(d))
             d = d.dropna(subset=["normalized_heat_flow_w_g"])
+
+            processor = HeatFlowProcessor(self.processparams)
+            d = processor.restrict_data_range(d)
             # apply adaptive downsampling
             if not self.processparams.downsample.section_split:
                 d = utils.adaptive_downsample(
@@ -2579,3 +2835,8 @@ class HeatFlowProcessor:
         df = self.calculate_hf_derivative(df, "second").copy()
 
         return df["first_derivative"], df["second_derivative"]
+
+    def restrict_data_range(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df.query(
+            f"time_s >= {self.processparams.cutoff.cutoff_min * 60} & time_s <= {self.processparams.cutoff.cutoff_max * 60}"
+        )

@@ -11,7 +11,7 @@ datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r".*data_4.*",
+    regex=r".*data_[1-3].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -23,7 +23,18 @@ tam = Measurement(
 processparams = ProcessingParameters()
 
 # get peak onsets via alternative method
-onsets = tam.get_astm_c1679_characteristics(processparams=processparams)
+fig, ax = plt.subplots()
+onsets = tam.get_astm_c1679_characteristics(
+    processparams=processparams,
+    show_plot=True,
+    individual=True,
+    ax=ax,
+    regex=".*data_1.*",
+    xunit="h",
+    )
+ax.set_xlim(0, 20)
+ax.set_ylim(0, 0.005)
+plt.show()
 
 print(onsets)
 # %%

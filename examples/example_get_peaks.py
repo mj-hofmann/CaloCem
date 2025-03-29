@@ -35,3 +35,15 @@ df = df.iloc[:,[0,4,5,10]]
 df.to_csv(plotpath / "example_get_peaks.csv", index=False)
 
 # %%
+fig, ax = plt.subplots()
+tam.get_peaks(
+    processparams=processparams,
+    ax=ax,
+    show_plot=True,
+    regex="4",
+    xunit="h",
+    plot_labels=True,
+    xmarker=True,
+)
+plt.show()
+# %%
