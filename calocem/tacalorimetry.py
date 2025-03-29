@@ -5,6 +5,7 @@ import pathlib
 import pickle
 import re
 from dataclasses import dataclass, field
+import warnings
 
 import matplotlib
 import matplotlib.axes
@@ -1230,23 +1231,40 @@ class Measurement:
     # get the cumulated heat flow a at a certain age
     #
 
-    def get_cumulated_heat_at_hours(self, target_h=4, cutoff_min=None):
+    def get_cumulated_heat_at_hours(self, processparams=None, target_h=4, **kwargs):
         """
         get the cumulated heat flow a at a certain age
 
         Parameters
         ----------
-        target_h : int | float
-            end time in hours
-        cutoff_min : int | float, optional
-            start time in minutes. All data before the cutoff_min time will be removed
+        processparams : ProcessingParameters, optional
+            Processing parameters. The default is None. If None, the default 
+            parameters are used. The most important parameter is the cutoff time
+            in minutes which describes the initial time period of the measurement 
+            which is not considered for the cumulated heat flow. It is defined in 
+            the ProcessingParameters class. The default value is 30 minutes.
 
+        target_h : int | float
+            end time in hourscv
+        
         Returns
         -------
         A Pandas dataframe
 
         """
+        if "cutoff_min" in kwargs:
+            cutoff_min = kwargs["cutoff_min"]
+            warnings.warn(
+                "The cutoff_min parameter is deprecated. Please use the ProcessingParameters class instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            if not processparams:
+                processparams = ProcessingParameters()
+            cutoff_min = processparams.cutoff.cutoff_min
 
+   
         def applicable(df, target_h=4, cutoff_min=None):
             # convert target time to seconds
             target_s = 3600 * target_h
