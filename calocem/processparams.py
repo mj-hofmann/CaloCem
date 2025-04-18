@@ -136,7 +136,18 @@ class DownSamplingParameters:
     section_split: bool = False
     section_split_time_s: int = 1000
 
+@dataclass
+class PreProcessParameters:
+    """
+    Parameters for preprocessing the data before analysis.
 
+    Attributes
+    ----------
+    infer_heat: bool
+        If True, the heat flow is inferred from the data. This is useful for data that does not have a heat flow column.
+    """
+
+    infer_heat: bool = False
 @dataclass
 class ProcessingParameters:
     """
@@ -205,4 +216,8 @@ class ProcessingParameters:
     spline_interpolation: SplineInterpolationParameters = field(
         default_factory=SplineInterpolationParameters
     )
+    # preprocessing params
     downsample: DownSamplingParameters = field(default_factory=DownSamplingParameters)
+    preprocess: PreProcessParameters = field(
+        default_factory=PreProcessParameters
+    )

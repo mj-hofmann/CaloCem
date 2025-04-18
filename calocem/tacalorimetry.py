@@ -283,10 +283,11 @@ class Measurement:
                             pass
 
         # get "heat_j" columns if the column is not part of the source files
-        try:
-            self._infer_heat_j_column()
-        except Exception:
-            pass
+        if self.processparams.preprocess.infer_heat:
+            try:
+                self._infer_heat_j_column()
+            except Exception:
+                pass
 
         # if self.processparams.downsample.apply is not False:
         #     self._apply_adaptive_downsampling()
