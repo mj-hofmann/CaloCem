@@ -4,33 +4,31 @@ import pysnooper
 import pytest
 
 from calocem import tacalorimetry
-
-
-#
-# run "time check" on each sample file
-# see https://www.youtube.com/watch?v=DhUpxWjOhME (~ at 12:20)
-# to use the the test:
-#       1) install the module locally with "pip install -e ."
-#       2) run "pytest" from shell
+from calocem.processparams import ProcessingParameters
 
 
 @pytest.mark.parametrize(
-    "target_h",
-    [(1), ([1, 2, 3, 4])],  # only one time  # list of times
+    "test_input,target_h,expected,expected_deprecated",
+    [
+        ("calorimetry_data_1.csv", 24, 134.03, 135.71),
+        ("calorimetry_data_2.csv", 24, 134.88, 136.59),
+    ],
 )
-@pysnooper.snoop()
-def test_get_cumulated_heat(target_h):
 
-    # path
+@pysnooper.snoop()
+def test_get_cumulated_heat(test_input, target_h, expected, expected_deprecated):
+
     path = pathlib.Path(__file__).parent.parent / "calocem" / "DATA"
     
-    files = "|".join(["calorimetry_data_1.csv", "calorimetry_data_2.csv" ])
+    processparams = ProcessingParameters()
+    processparams.cutoff.cutoff_min = 60
+    tam = tacalorimetry.Measurement(path, regex=test_input, auto_clean=False, show_info=True, cold_start=True)
 
-    # init object
-    tam = tacalorimetry.Measurement(path, auto_clean=False, regex=files, show_info=True, cold_start=True)
+    cumulated_heats = tam.get_cumulated_heat_at_hours(processparams=processparams, target_h=target_h)
 
-    # get cumulated heats
-    cumulated_heats = tam.get_cumulated_heat_at_hours(target_h=target_h, cutoff_min=10)
+    cumulated_heats_deprecated = tam.get_cumulated_heat_at_hours(cutoff_min=30, target_h=target_h)
 
-    # check
     assert isinstance(cumulated_heats, tacalorimetry.pd.DataFrame)
+    assert round(cumulated_heats.at[0,"cumulated_heat_at_hours"],2) == expected
+    assert round(cumulated_heats_deprecated.at[0,"cumulated_heat_at_hours"],2) == expected_deprecated
+
