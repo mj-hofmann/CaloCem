@@ -72,13 +72,14 @@ build-backend = "poetry.core.masonry.api"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist =  py310, py311, py312, mypy
+envlist =  py310, py311, py312, py313, mypy
 
 [gh-actions]
 python =
     3.10: py310, mypy
     3.11: py311
     3.12: py312
+    3.13: py313
 
 [testenv]
 commands = pytest
