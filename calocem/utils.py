@@ -12,7 +12,9 @@ from scipy import integrate
 
 def detect_delimiter(file_path):
     with open(file_path, 'r') as file:
-        sample = file.read(1024)  # Read the first 1 KB of the file
+        # read the first line of the file
+        sample = file.readline()
+        #sample = file.read(1024)  # Read the first 1 KB of the file
         sniffer = csv.Sniffer()
         delimiter = sniffer.sniff(sample).delimiter
         return delimiter

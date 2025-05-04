@@ -124,6 +124,7 @@ class Measurement:
         cold_start=True,
         processparams=None,
         new_code=False,
+        processed=False,
     ):
         """
         intialize measurements from folder
@@ -131,6 +132,7 @@ class Measurement:
 
         """
         self._new_code = new_code
+        self._processed = processed
 
         if not isinstance(processparams, ProcessingParameters):
             self.processparams = ProcessingParameters()
@@ -358,27 +360,32 @@ class Measurement:
         NEW IMPLEMENTATION
         """
         filetype = pathlib.Path(file).suffix
-        if filetype == ".csv":
-            delimiter = utils.detect_delimiter(file)
-            title_row = utils.find_title_row(file, delimiter)
-        else:
-            delimiter = None
-            title_row = 0
-
-        data = utils.load_data(file, delimiter, title_row)
-        start_time = utils.find_reaction_start_time(data)
-
-        if delimiter == "\t":
-            data = utils.prepare_tab_columns(data, file)
-        else:
+        if not self._processed:
             if filetype == ".csv":
-                data = utils.tidy_colnames(data)
+                delimiter = utils.detect_delimiter(file)
+                title_row = utils.find_title_row(file, delimiter)
+            else:
+                delimiter = None
+                title_row = 0
 
-        data = utils.remove_unnecessary_data(data)
-        data = utils.convert_df_to_float(data)
-        data = utils.correct_start_time(data, start_time)
-        data = utils.add_sample_info(data, file)
+            data = utils.load_data(file, delimiter, title_row)
+        
+            start_time = utils.find_reaction_start_time(data)
 
+            if delimiter == "\t":
+                data = utils.prepare_tab_columns(data, file)
+            else:
+                if filetype == ".csv":
+                    data = utils.tidy_colnames(data)
+
+            data = utils.remove_unnecessary_data(data)
+            data = utils.convert_df_to_float(data)
+            data = utils.correct_start_time(data, start_time)
+            data = utils.add_sample_info(data, file)
+        
+        elif self._processed:
+            data = pd.read_csv(file, sep=",", header=0)
+             
         return data
 
     #
@@ -1290,7 +1297,7 @@ class Measurement:
                     print(
                         f"Found NaN in Normalized heat of sample {name_wt_nan} searching for cumulated heat at {target_h}h and a cutoff of {cutoff_min}min."
                     )
-                    return np.NaN
+                    return np.nan
 
             # return
             return hf_at_target
@@ -2148,7 +2155,7 @@ class Measurement:
             if peaks[peaks["sample_short"] == sample_data.sample_short.iloc[0]].empty:
                 helper = helper.iloc[0:1]
                 # manually set time to NaN to indicate that no peak was found
-                helper["time_s"] = np.NaN
+                helper["time_s"] = np.nan
 
             else:
                 # restrict to times before the peak
