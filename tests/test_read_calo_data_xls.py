@@ -16,7 +16,7 @@ from calocem import tacalorimetry
 @pytest.mark.parametrize(
     "test_input,expected",
     [
-        ("excel_example1.xls", None),
+        ("excel_example4.xls", 238061),
         ("excel_example2.xls", 499440),
         ("excel_example3.xls", 336000),
     ],
