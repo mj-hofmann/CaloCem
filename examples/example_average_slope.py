@@ -43,7 +43,7 @@ plt.show()
 
 #%%
 fig, ax = plt.subplots()
-onsets = tam.get_average_slope(
+slopes = tam.get_average_slope(
     processparams=processparams,
     show_plot=True,
     xunit="s",
@@ -51,7 +51,7 @@ onsets = tam.get_average_slope(
     ax=ax,
     #intersection="abscissa",
 )
-ax.set_xlabel("Time / h")
+ax.set_xlabel("Time / s")
 ax.set_xlim(0, 1e5)
 ax.set_ylim(0, 0.006)
 plt.show()
