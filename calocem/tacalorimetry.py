@@ -1206,18 +1206,29 @@ class Measurement:
             color="red",
             linestyle="--",
         )
-        ax.axhline(
-            y=characteristics.dorm_normalized_heat_flow_w_g,
-            color="red",
-            linestyle="--",
-        )
-        ax.text(
-            x=characteristics.x_intersect,
-            y=characteristics.dorm_normalized_heat_flow_w_g,
-            s=rf"   $t_i=$ {characteristics.x_intersect:.1f} {characteristics.xunit}"
-            + "\n",
-            color="green",
-        )
+        if characteristics.intersection == "dormant_hf":
+            ax.axhline(
+                y=characteristics.dorm_normalized_heat_flow_w_g,
+                color="red",
+                linestyle="--",
+            )
+            ax.text(
+                x=characteristics.x_intersect,
+                y=characteristics.dorm_normalized_heat_flow_w_g,
+                s=rf"   $t_i=$ {characteristics.x_intersect:.1f} {characteristics.xunit}"
+                + "\n",
+                color="green",
+            )
+        elif characteristics.intersection == "abscissa":
+
+            ax.text(
+                x=characteristics.x_intersect,
+                y=0,
+                s=rf"   $t_i=$ {characteristics.x_intersect:.1f} {characteristics.xunit}"
+                + "\n",
+                color="green",
+            )
+        
         ax.axvline(
             x=characteristics.x_intersect,
             color="green",
@@ -1792,6 +1803,7 @@ class Measurement:
         save_path=None,
         xscale="linear",
         xunit="s",
+        intersection="dormant_hf",
     ):
         """
         get reaction onset based on tangent of maximum heat flow and heat flow
@@ -1832,14 +1844,19 @@ class Measurement:
             # calculate y-offset
             t = row["normalized_heat_flow_w_g"] - row["time_s"] * row["gradient"]
             # calculate point of intersection
-            x_intersect = (
-                float(
-                    dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                        "normalized_heat_flow_w_g"
-                    ]
-                )
-                - t
-            ) / row["gradient"]
+            if intersection == "dormant_hf":
+                # calculate x-intersect of tangent with dormant heat flow
+                x_intersect = (
+                    float(
+                        dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
+                            "normalized_heat_flow_w_g"
+                        ]
+                    )
+                    - t
+                ) / row["gradient"]
+            elif intersection == "abscissa":
+                # calculate x-intersect of tangent with abscissa (y=0)
+                x_intersect = row["time_s"] - (row["normalized_heat_flow_w_g"] / row["gradient"])
             # get maximum time value
             tmax = self._data.query("sample_short == @row['sample_short']")[
                 "time_s"
@@ -1868,6 +1885,7 @@ class Measurement:
             characteristics = pd.concat([row, dorm_hfs_sample.squeeze()])
             characteristics.loc["xunit"] = xunit
             characteristics.loc["x_intersect"] = x_intersect
+            characteristics.loc["intersection"] = intersection
             # print(characteristics.x_intersect)
 
             if show_plot:
