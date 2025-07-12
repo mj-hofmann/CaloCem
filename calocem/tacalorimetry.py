@@ -1788,7 +1788,253 @@ class Measurement:
             # return
             return max_slope_characteristics
 
-    #
+    
+    def get_average_slope(
+    self,
+    processparams,
+    target_col="normalized_heat_flow_w_g",
+    age_col="time_s",
+    regex=None,
+    show_plot=False,
+    ax=None,
+    save_path=None,
+    xscale="linear",
+    xunit="s",
+    ):
+        """
+        Calculate average slope by determining 4 additional slope values between 
+        onset time and heat flow maximum, in addition to the maximum slope.
+        
+        Parameters
+        ----------
+        processparams : ProcessingParameters
+            Processing parameters for analysis
+        target_col : str, optional
+            Target measurement column, by default "normalized_heat_flow_w_g"
+        age_col : str, optional
+            Time column name, by default "time_s"
+        regex : str, optional
+            Regex pattern to filter samples, by default None
+        show_plot : bool, optional
+            Whether to show plots, by default False
+        ax : matplotlib.axes.Axes, optional
+            Existing axis to plot on, by default None
+        save_path : Path, optional
+            Path to save plots, by default None
+        xscale : str, optional
+            X-axis scale, by default "log"
+        xunit : str, optional
+            Time unit for display, by default "s"
+            
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing average slope characteristics for each sample
+        """
+        
+        # Get maximum slopes using existing method
+        max_slopes = self.get_maximum_slope(
+            processparams,
+            target_col=target_col,
+            age_col=age_col,
+            regex=regex,
+            show_plot=False,
+            ax=ax,
+            save_path=save_path,
+            xscale=xscale,
+            xunit=xunit,
+        )
+        
+        if max_slopes is None or max_slopes.empty:
+            print("No maximum slopes found. Cannot calculate average slopes.")
+            return pd.DataFrame()
+        
+        # Get onset times using the peak onset method
+        onsets = self.get_peak_onset_via_max_slope(
+            processparams,
+            show_plot=False,
+            regex=regex,
+            age_col=age_col,
+            target_col=target_col,
+            xunit=xunit,
+        )
+        
+        if onsets.empty:
+            print("No onset times found. Cannot calculate average slopes.")
+            return pd.DataFrame()
+        
+        list_of_characteristics = []
+        
+        # Loop through samples
+        for sample, data in self._iter_samples(regex=regex):
+            sample_short = pathlib.Path(sample).stem
+            
+            # Get max slope data for this sample
+            max_slope_row = max_slopes[max_slopes["sample_short"] == sample_short]
+            if max_slope_row.empty:
+                continue
+                
+            # Get onset data for this sample
+            onset_row = onsets[onsets["sample"] == sample_short]
+            if onset_row.empty:
+                continue
+            
+            # Get time points
+            onset_time = onset_row["onset_time_s"].iloc[0]
+            max_slope_time = max_slope_row[age_col].iloc[0]
+            
+            # Find heat flow maximum after onset
+            data_after_onset = data[data[age_col] >= onset_time]
+            if data_after_onset.empty:
+                continue
+                
+            max_hf_time = data_after_onset.loc[data_after_onset[target_col].idxmax(), age_col]
+            
+            # Create 4 intermediate time points between onset and heat flow maximum
+            if max_hf_time <= onset_time:
+                print(f"Warning: Heat flow maximum occurs before onset for {sample_short}")
+                continue
+                
+            # Create 6 time points total (onset, 4 intermediate, max_hf)
+            time_points = np.linspace(onset_time + 3600, max_hf_time - 3600, 6)
+            
+            # Calculate slopes at each interval
+            slopes = []
+            slope_times = []
+            
+            for i in range(len(time_points) - 1):
+                t1, t2 = time_points[i], time_points[i + 1]
+                
+                # Get data points in this interval
+                interval_data = data[(data[age_col] >= t1) & (data[age_col] <= t2)]
+                
+                if len(interval_data) < 2:
+                    continue
+                    
+                # Calculate slope using linear regression
+                x_vals = interval_data[age_col].values
+                y_vals = interval_data[target_col].values
+                
+                # Simple slope calculation: (y2 - y1) / (x2 - x1)
+                slope = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
+                slopes.append(slope)
+                slope_times.append((t1 + t2) / 2)  # Midpoint time
+            
+            # Include the maximum slope
+            max_slope_value = max_slope_row["gradient"].iloc[0]
+            slopes.append(max_slope_value)
+            slope_times.append(max_slope_time)
+            
+            # Calculate average slope
+            if slopes:
+                avg_slope = np.mean(slopes)
+                std_slope = np.std(slopes)
+                
+                # Create characteristics dictionary
+                characteristics = {
+                    "sample": sample,
+                    "sample_short": sample_short,
+                    "onset_time_s": onset_time,
+                    "max_hf_time_s": max_hf_time,
+                    "max_slope_time_s": max_slope_time,
+                    "max_slope_value": max_slope_value,
+                    "average_slope": avg_slope,
+                    "slope_std": std_slope,
+                    "n_slopes": len(slopes),
+                    "individual_slopes": slopes,
+                    "slope_times": slope_times,
+                }
+                
+                # Optional plotting
+                if show_plot:
+                    self._plot_average_slope_analysis(
+                        data, characteristics, ax, age_col, target_col, 
+                        sample_short, save_path, xscale, xunit
+                    )
+                
+                list_of_characteristics.append(characteristics)
+        
+        if not list_of_characteristics:
+            print("No average slope characteristics calculated.")
+            return pd.DataFrame()
+        
+        # Convert to DataFrame
+        avg_slope_df = pd.DataFrame(list_of_characteristics)
+        
+        return avg_slope_df
+
+
+    @staticmethod
+    def _plot_average_slope_analysis(
+        data, characteristics, ax, age_col, target_col, 
+        sample_short, save_path=None, xscale="linear", xunit="s"
+    ):
+        """Plot average slope analysis for visualization"""
+        
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample_short, color="gray")
+        
+        # Plot the heat flow curve
+        #ax.plot(data[age_col], data[target_col], 'b-', alpha=0.7, label='Heat Flow')
+        
+        # Mark onset time
+        ax.axvline(characteristics["onset_time_s"], color='green', 
+                linestyle='--', alpha=0.7, label='Onset')
+        
+        # Mark max heat flow time
+        ax.axvline(characteristics["max_hf_time_s"], color='orange', 
+                linestyle='--', alpha=0.7, label='Max Heat Flow')
+        
+        # Mark max slope time
+        ax.axvline(characteristics["max_slope_time_s"], color='red', 
+                linestyle='--', alpha=0.7, label='Max Slope')
+        
+        # Plot individual slope lines
+        colors = plt.cm.viridis(np.linspace(0, 1, len(characteristics["individual_slopes"])))
+        
+        for i, (slope, time, color) in enumerate(zip(
+            characteristics["individual_slopes"], 
+            characteristics["slope_times"], 
+            colors
+        )):
+            # Find corresponding y-value
+            y_val = np.interp(time, data[age_col], data[target_col])
+            
+            # Plot slope line (extend ±10% of time range)
+            time_range = characteristics["max_hf_time_s"] - characteristics["onset_time_s"]
+            dt = 0.1 * time_range
+            
+            x_line = [time - dt, time + dt]
+            y_line = [y_val - slope * dt, y_val + slope * dt]
+            
+            ax.plot(x_line, y_line, color=color, alpha=0.6, linewidth=2,
+                    label=f'Slope {i+1}: {slope:.2e}')
+        
+        # Add text annotation for average slope
+        ax.text(0.05, 0.95, 
+                f'Avg Slope: {characteristics["average_slope"]:.2e}\n'
+                f'Std: {characteristics["slope_std"]:.2e}',
+                transform=ax.transAxes, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+        
+        ax.set_xscale(xscale)
+        ax.set_xlabel(f'Time [{xunit}]')
+        ax.set_ylabel(target_col.replace('_', ' ').title())
+        ax.set_title(f'Average Slope Analysis - {sample_short}')
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax.grid(True, alpha=0.3)
+        #ax.set_ylim(0,0.003)
+        
+        if new_ax:
+            if save_path:
+                plt.tight_layout()
+                plt.show()
+                #plt.savefig(save_path / f"average_slope_analysis_{sample_short}.pdf")
+                plt.close()
+            else:
+                plt.tight_layout()
+                plt.show() 
+   
+   
     # get reaction onset via maximum slope
     #
     def get_peak_onset_via_max_slope(
@@ -1826,7 +2072,6 @@ class Measurement:
             regex=regex,
             show_plot=False,
             ax=ax,
-            # show_plot=show_plot,
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
@@ -1844,9 +2089,8 @@ class Measurement:
             # calculate y-offset
             t = row["normalized_heat_flow_w_g"] - row["time_s"] * row["gradient"]
             # calculate point of intersection
-            if intersection == "dormant_hf":
-                # calculate x-intersect of tangent with dormant heat flow
-                x_intersect = (
+            # calculate x-intersect of tangent with dormant heat flow
+            x_intersect_dormant = (
                     float(
                         dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
                             "normalized_heat_flow_w_g"
@@ -1854,29 +2098,27 @@ class Measurement:
                     )
                     - t
                 ) / row["gradient"]
-            elif intersection == "abscissa":
+            # elif intersection == "abscissa":
                 # calculate x-intersect of tangent with abscissa (y=0)
-                x_intersect = row["time_s"] - (row["normalized_heat_flow_w_g"] / row["gradient"])
-            # get maximum time value
-            tmax = self._data.query("sample_short == @row['sample_short']")[
-                "time_s"
-            ].max()
-            # get maximum heat flow value
-            hmax = self._data.query(
-                "time_s > 3000 & sample_short == @row['sample_short']"
-            )["normalized_heat_flow_w_g"].max()
+            x_intersect = row["time_s"] - (row["normalized_heat_flow_w_g"] / row["gradient"])
+
+            data = self._data.query("sample_short == @row['sample_short']")
+            sample = row["sample_short"]
+
+            heat_at_intersect = np.interp(x_intersect, data["time_s"], data["normalized_heat_j_g"])
 
             # append to list
             list_characteristics.append(
                 {
                     "sample": row["sample_short"],
-                    "onset_time_s": x_intersect,
-                    "onset_time_min": x_intersect / 60,
+                    "onset_time_s_abscissa": x_intersect,
+                    "onset_time_min_abscissa": x_intersect / 60,
+                    "heat_at_onset_j_g": heat_at_intersect,
+                    "onset_time_s": x_intersect_dormant,
+                    "onset_time_min": x_intersect_dormant / 60,
                 }
             )
 
-            data = self._data.query("sample_short == @row['sample_short']")
-            sample = row["sample_short"]
 
             dorm_hfs_sample = dorm_hfs.query("sample_short == @sample")
             # add prefix dorm to all columns
@@ -1887,6 +2129,15 @@ class Measurement:
             characteristics.loc["x_intersect"] = x_intersect
             characteristics.loc["intersection"] = intersection
             # print(characteristics.x_intersect)
+
+            # get maximum time value
+            tmax = self._data.query("sample_short == @row['sample_short']")[
+                "time_s"
+            ].max()
+            # get maximum heat flow value
+            hmax = self._data.query(
+                "time_s > 3000 & sample_short == @row['sample_short']"
+            )["normalized_heat_flow_w_g"].max()
 
             if show_plot:
                 self._plot_intersection(
@@ -1904,83 +2155,7 @@ class Measurement:
                     hmax=hmax,
                     tmax=tmax,
                 )
-                # self._plot_intersection(
-                #     data,
-                #     ax,
-                #     age_col,
-                #     target_col,
-                #     sample,
-                #     # characteristics,
-                #     time_discarded_s,
-                #     save_path=None,
-                #     xscale="linear",
-                #     xunit="s",
-                # )
-                # if isinstance(ax, matplotlib.axes._axes.Axes):
-                #     # plot data
-                #     ax = self.plot(
-                #         t_unit="s", y_unit_milli=False, regex=row["sample_short"], ax=ax
-                #     )
-                #     ax.axline(
-                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
-                #         slope=row["gradient"],
-                #         color="k",
-                #     )
-                #     ax.axhline(
-                #         float(
-                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                #                 "normalized_heat_flow_w_g"
-                #             ]
-                #         ),
-                #         color="k",
-                #     )
-                #     # guide to the eye line
-                #     ax.axvline(x_intersect, color="red")
-                #     # info text
-                #     ax.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
-                #     # ax limits
-                #     ax.set_xlim(0, tmax)
-                #     ax.set_ylim(0, hmax)
-                #     # title
-                #     ax.set_title(row["sample_short"])
-
-                # else:
-                #     # plot data
-                #     self.plot(
-                #         t_unit="s",
-                #         y_unit_milli=False,
-                #         regex=row["sample_short"],
-                #     )
-                #     # max slope line
-                #     plt.axline(
-                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
-                #         slope=row["gradient"],
-                #         color="k",
-                #     )
-                #     # dormant heat plot
-                #     plt.axhline(
-                #         float(
-                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                #                 "normalized_heat_flow_w_g"
-                #             ]
-                #         ),
-                #         color="k",
-                #     )
-                #     # guide to the eye line
-                #     plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
-                #     # guide to the eye line
-                #     plt.axvline(x_intersect, color="red")
-                #     # info text
-                #     plt.text(
-                #         x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red"
-                #     )
-                #     # ax limits
-                #     plt.xlim(0, tmax)
-                #     plt.ylim(0, hmax)
-                #     # title
-                #     plt.title(row["sample_short"])
-                #     plt.show()
-
+        
         # build overall dataframe to be returned
         onsets = pd.DataFrame(list_characteristics)
 
@@ -2004,12 +2179,6 @@ class Measurement:
 
         # return
         return onsets
-        # if isinstance(ax, matplotlib.axes._axes.Axes):
-        #     # return onset characteristics and ax
-        #     return onsets, ax
-        # else:
-        #     # return onset characteristics exclusively
-        #     return onsets
 
     #
     # get dormant period heatflow
