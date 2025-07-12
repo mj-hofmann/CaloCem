@@ -1,6 +1,6 @@
 # %%
 import matplotlib.pyplot as plt
-from calocem.tacalorimetry import Measurement
+from calocem.measurement import Measurement
 from pathlib import Path
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
