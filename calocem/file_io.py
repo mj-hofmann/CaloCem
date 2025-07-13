@@ -236,18 +236,7 @@ class XLSReader(FileReader):
         # Replace init timestamp
         df.iloc[0, 0] = "time"
 
-        # Get new column names
-        new_columnames = []
-        for i, j in zip(df.iloc[0, :], df.iloc[1, :]):
-            # Build combined column name
-            new_columnames.append(
-                re.sub(r"[\s\n\[\]\(\)° _]+", "_", f"{i}_{j}".lower())
-                .replace("/", "_")
-                .replace("_signal_", "_")
-            )
-
-        # Set new column names
-        df.columns = new_columnames
+        df = utils.tidy_colnames(df)
 
         return df
 
@@ -265,6 +254,9 @@ class XLSReader(FileReader):
                 df_data = self.clean_column_names(df_data)
                 # Remove columns with too many NaNs
                 df_data = df_data.dropna(axis=1, thresh=3)
+
+                # cut away the initial three rows
+                df_data = df_data.iloc[2:, :].reset_index(drop=True)
 
                 # Convert columns to float
                 for col in df_data.columns:
