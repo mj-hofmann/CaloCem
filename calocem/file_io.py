@@ -240,7 +240,7 @@ class XLSReader(FileReader):
 
             # Try to read from "RawData" sheet
             try:
-                df_data = pd.read_excel(xl, "RawData")
+                df_data = pd.read_excel(xl, "Raw data")
 
                 # Remove columns with too many NaNs
                 df_data = df_data.dropna(axis=1, thresh=3)
