@@ -231,6 +231,26 @@ class XLSReader(FileReader):
     def can_read(self, file_path: pathlib.Path) -> bool:
         return file_path.suffix.lower() == ".xls"
 
+    def clean_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Clean and standardize column names from XLS data."""
+        # Replace init timestamp
+        df.iloc[0, 0] = "time"
+
+        # Get new column names
+        new_columnames = []
+        for i, j in zip(df.iloc[0, :], df.iloc[1, :]):
+            # Build combined column name
+            new_columnames.append(
+                re.sub(r"[\s\n\[\]\(\)° _]+", "_", f"{i}_{j}".lower())
+                .replace("/", "_")
+                .replace("_signal_", "_")
+            )
+
+        # Set new column names
+        df.columns = new_columnames
+
+        return df
+
     def read_data(
         self, file_path: pathlib.Path, show_info: bool = True
     ) -> pd.DataFrame:
@@ -240,8 +260,9 @@ class XLSReader(FileReader):
 
             # Try to read from "RawData" sheet
             try:
-                df_data = pd.read_excel(xl, "Raw data", header=0, skiprows=[1])
+                df_data = pd.read_excel(xl, "Raw data", header=None)
 
+                df_data = self.clean_column_names(df_data)
                 # Remove columns with too many NaNs
                 df_data = df_data.dropna(axis=1, thresh=3)
 
