@@ -1,9 +1,10 @@
+import pandas as pd
 import pathlib
 
 import pytest
 
 from calocem.measurement import Measurement
-
+from calocem.processparams import ProcessingParameters
 
 def test_get_maximum_slope():
 
@@ -17,11 +18,11 @@ def test_get_maximum_slope():
     tam = Measurement(path, auto_clean=False, regex=files, show_info=True)
     
 
-    processparams = tacalorimetry.ProcessingParameters() 
+    processparams = ProcessingParameters() 
     processparams.spline_interpolation.apply= True
     # get cumulated heats
     max_slopes = tam.get_maximum_slope(processparams)
     # check
-    assert isinstance(max_slopes, tacalorimetry.pd.DataFrame)
+    assert isinstance(max_slopes, pd.DataFrame)
     assert not max_slopes.empty
     #assert len(max_slopes) == len(tam._data)

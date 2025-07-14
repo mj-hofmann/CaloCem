@@ -156,8 +156,11 @@ class CSVReader(FileReader):
             # Get sample mass if available
             mass = None
             try:
-                mass_row = data[data[0].str.contains("Sample mass", na=False)].index[0]
-                mass_str = str(data.iloc[mass_row, 1])
+                # the convention is to have the sample mass in the 4th column, first and the second index is found
+                # and then the value is extracted
+                mass_index = data.index[data.iloc[:, 3].notna()]
+                if not mass_index.empty:
+                    mass_str = str(data.iloc[mass_index[1], 3])
                 mass = float(re.findall(r"[\d.]+", mass_str)[0])
             except (IndexError, ValueError):
                 if show_info:
@@ -166,9 +169,10 @@ class CSVReader(FileReader):
             # Get reaction start time if available
             t0 = None
             try:
-                t0_row = data[data[0].str.contains("Reaction start", na=False)].index[0]
-                t0_str = str(data.iloc[t0_row, 1])
-                t0 = float(re.findall(r"[\d.]+", t0_str)[0])
+                # reaction start string is in the 3rd
+                _helper = data[data.iloc[:, 2].str.lower() == "reaction start"].head(1)
+                t0 = float(_helper[0].values[0])
+
             except Exception:
                 pass
 
