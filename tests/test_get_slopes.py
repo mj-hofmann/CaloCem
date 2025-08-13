@@ -27,9 +27,7 @@ def test_get_average_slope(test_input, expected):
 
     average_slopes = tam.get_average_slope(processparams=processparams)
 
-    #cumulated_heats_deprecated = tam.get_cumulated_heat_at_hours(cutoff_min=30, target_h=target_h)
 
-    # assert isinstance(average_slopes, pd.DataFrame)
+    assert isinstance(average_slopes, pd.DataFrame)
     assert round(average_slopes.at[0,"average_slope"],9) == expected
-    #assert round(cumulated_heats_deprecated.at[0,"cumulated_heat_at_hours"],2) == expected_deprecated
 

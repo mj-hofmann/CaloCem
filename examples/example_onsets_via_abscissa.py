@@ -57,3 +57,10 @@ plt.show()
 
 
 # %%
+doof = tam.get_ascending_flank_tangent(
+    processparams=processparams,
+    flank_fraction_start=0.3,
+    flank_fraction_end=0.7,
+    cutoff_min=75,
+    show_plot=True,)
+# %%
