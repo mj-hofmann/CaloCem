@@ -1,7 +1,7 @@
 # %%
 from pathlib import Path
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+#import matplotlib.ticker as ticker
 
 # from calocem.tacalorimetry import Measurement
 from calocem.measurement import Measurement

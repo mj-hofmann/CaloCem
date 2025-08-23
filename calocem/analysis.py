@@ -612,3 +612,250 @@ class AverageSlopeAnalyzer:
 
         except Exception as e:
             raise DataProcessingException("get_average_slope", e)
+
+
+class FlankTangentAnalyzer:
+    """Analyzes ascending flank tangents of peaks."""
+
+    def __init__(self, processparams: ProcessingParameters):
+        self.processparams = processparams
+        self.peak_detector = PeakDetector(processparams)
+
+    def get_ascending_flank_tangent(
+        self,
+        data: pd.DataFrame,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        flank_fraction_start: float = 0.2,
+        flank_fraction_end: float = 0.8,
+        window_size: float = 0.1,
+        cutoff_min: Optional[float] = None,
+        regex: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Determine tangent to ascending flank of peak by averaging over sections.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Calorimetry data
+        target_col : str
+            Column containing heat flow data
+        age_col : str
+            Column containing time data
+        flank_fraction_start : float
+            Start of flank section as fraction of peak height (0-1)
+        flank_fraction_end : float
+            End of flank section as fraction of peak height (0-1)
+        window_size : float
+            Size of averaging window as fraction of flank time range
+        cutoff_min : float, optional
+            Initial cutoff time in minutes to ignore from analysis. If None,
+            uses processparams.cutoff.cutoff_min.
+        regex : str, optional
+            Regex to filter samples
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with tangent characteristics for each sample
+        """
+        try:
+            from scipy import signal
+
+            results = []
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                # Apply cutoff if specified
+                cutoff_time_min = (
+                    cutoff_min
+                    if cutoff_min is not None
+                    else self.processparams.cutoff.cutoff_min
+                )
+                if cutoff_time_min:
+                    sample_data = sample_data.query(
+                        f"{age_col} >= @cutoff_time_min * 60"
+                    )
+
+                sample_data = sample_data.reset_index(drop=True)
+
+                # Find the main peak
+                peaks, _ = signal.find_peaks(
+                    sample_data[target_col],
+                    prominence=self.processparams.peakdetection.prominence,
+                    distance=self.processparams.peakdetection.distance,
+                )
+
+                if len(peaks) == 0:
+                    logger.warning(f"No peak found in {pathlib.Path(str(sample)).stem}")
+                    continue
+
+                # Use the highest peak
+                peak_idx = peaks[np.argmax(sample_data.iloc[peaks][target_col])]
+                peak_time = sample_data.iloc[peak_idx][age_col]
+                peak_value = sample_data.iloc[peak_idx][target_col]
+
+                # Find baseline (minimum before peak)
+                baseline_data = sample_data[sample_data[age_col] < peak_time]
+                if len(baseline_data) == 0:
+                    baseline_value = 0
+                else:
+                    baseline_value = baseline_data[target_col].min()
+
+                # Define flank region
+                flank_height_range = peak_value - baseline_value
+                flank_start_value = (
+                    baseline_value + flank_fraction_start * flank_height_range
+                )
+                flank_end_value = (
+                    baseline_value + flank_fraction_end * flank_height_range
+                )
+
+                # Calculate gradient to ensure we only consider regions with positive slope
+                sample_data["gradient"] = np.gradient(
+                    sample_data[target_col], sample_data[age_col]
+                )
+
+                # Extract ascending flank data - only include points with positive gradient
+                flank_data = sample_data[
+                    (sample_data[target_col] >= flank_start_value)
+                    & (sample_data[target_col] <= flank_end_value)
+                    & (sample_data[age_col] <= peak_time)
+                    & (sample_data["gradient"] > 0)  # Only positive gradients
+                ].copy()
+
+                # If no positive gradient data in initial range, try to find the lowest point with positive gradient
+                if len(flank_data) < 3:
+                    # Find data points with positive gradient before peak
+                    positive_gradient_data = sample_data[
+                        (sample_data[age_col] <= peak_time)
+                        & (sample_data["gradient"] > 0)
+                    ]
+
+                    if len(positive_gradient_data) >= 3:
+                        # Adjust flank start to the minimum value with positive gradient
+                        min_positive_value = positive_gradient_data[target_col].min()
+                        adjusted_flank_start = max(
+                            flank_start_value, min_positive_value
+                        )
+
+                        flank_data = sample_data[
+                            (sample_data[target_col] >= adjusted_flank_start)
+                            & (sample_data[target_col] <= flank_end_value)
+                            & (sample_data[age_col] <= peak_time)
+                            & (sample_data["gradient"] > 0)
+                        ].copy()
+
+                        # Update the flank_start_value for recording
+                        flank_start_value = adjusted_flank_start
+
+                if len(flank_data) < 3:
+                    logger.warning(
+                        f"Insufficient flank data in {pathlib.Path(str(sample)).stem}"
+                    )
+                    continue
+
+                # Calculate moving tangents over windows
+                flank_time_range = flank_data[age_col].max() - flank_data[age_col].min()
+                window_time = window_size * flank_time_range
+
+                tangent_slopes = []
+                tangent_times = []
+                tangent_values = []
+
+                # Slide window across flank
+                start_time = flank_data[age_col].min()
+                end_time = flank_data[age_col].max() - window_time
+
+                step_size = window_time * 0.1  # 10% overlap
+                current_time = start_time
+
+                while current_time <= end_time:
+                    window_end = current_time + window_time
+                    window_data = flank_data[
+                        (flank_data[age_col] >= current_time)
+                        & (flank_data[age_col] <= window_end)
+                    ]
+
+                    if len(window_data) >= 3:
+                        # Linear regression for this window
+                        x = window_data[age_col].values
+                        y = window_data[target_col].values
+
+                        # Use numpy polyfit for linear regression
+                        slope, intercept = np.polyfit(x, y, 1)
+
+                        # Only consider positive gradients (ascending flank)
+                        if slope > 0:
+                            tangent_slopes.append(slope)
+                            tangent_times.append(np.mean(x))
+                            tangent_values.append(np.mean(y))
+
+                    current_time += step_size
+
+                if not tangent_slopes:
+                    logger.warning(
+                        f"No valid tangent windows with positive gradients found in {pathlib.Path(str(sample)).stem}"
+                    )
+                    continue
+
+                # Calculate representative tangent (median to avoid outliers)
+                representative_slope = np.median(tangent_slopes)
+                representative_time = np.median(tangent_times)
+                representative_value = np.median(tangent_values)
+
+                # Calculate tangent line parameters
+                # y = mx + b, so b = y - mx
+                tangent_intercept = (
+                    representative_value - representative_slope * representative_time
+                )
+                # calculate x intersection
+                # y=0, so x = -b/m
+                x_intersection = (
+                    -tangent_intercept / representative_slope
+                    if representative_slope != 0
+                    else np.nan
+                )
+
+                # Calculate intersection with horizontal line at minimum before tangent_time_s
+                data_before_tangent = sample_data[
+                    sample_data[age_col] <= representative_time
+                ]
+                if len(data_before_tangent) > 0:
+                    min_value_before_tangent = data_before_tangent[target_col].min()
+                    # Intersection: y = min_value = slope * x + intercept
+                    # x = (y - intercept) / slope
+                    x_intersection_min = (
+                        (min_value_before_tangent - tangent_intercept)
+                        / representative_slope
+                        if representative_slope != 0
+                        else np.nan
+                    )
+                else:
+                    min_value_before_tangent = np.nan
+                    x_intersection_min = np.nan
+
+                result = {
+                    "sample": sample,
+                    "sample_short": pathlib.Path(str(sample)).stem,
+                    "peak_time_s": peak_time,
+                    "peak_value": peak_value,
+                    "tangent_slope": representative_slope,
+                    "tangent_time_s": representative_time,
+                    "tangent_value": representative_value,
+                    "tangent_intercept": tangent_intercept,
+                    "flank_start_value": flank_start_value,
+                    "flank_end_value": flank_end_value,
+                    "n_windows": len(tangent_slopes),
+                    "slope_std": np.std(tangent_slopes),
+                    "x_intersection": x_intersection,
+                    "min_value_before_tangent": min_value_before_tangent,
+                    "x_intersection_min": x_intersection_min,
+                }
+
+                results.append(result)
+
+            return pd.DataFrame(results)
+
+        except Exception as e:
+            raise DataProcessingException("get_ascending_flank_tangent", e)

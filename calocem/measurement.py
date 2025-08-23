@@ -13,6 +13,7 @@ from .analysis import (
     ASTMC1679Analyzer,
     AverageSlopeAnalyzer,
     DormantPeriodAnalyzer,
+    FlankTangentAnalyzer,
     HeatCalculator,
     OnsetAnalyzer,
     PeakAnalyzer,
@@ -318,7 +319,12 @@ class Measurement:
                 sample_result = result[result["sample_short"] == sample_short]
                 if not sample_result.empty:
                     self._plotter.plot_slopes(
-                        sample_data, sample_result, str(sample), ax, age_col, target_col
+                        sample_data,
+                        sample_result,
+                        str(sample_short),
+                        ax,
+                        age_col,
+                        target_col,
                     )
 
         return result
@@ -359,7 +365,20 @@ class Measurement:
             self._data, max_slopes, dormant_hfs, intersection, xunit
         )
 
-        # TODO: Implement plotting for intersections if show_plot=True
+        # Implement plotting for intersections if show_plot=True
+        if show_plot and not result.empty:
+            self._plot_onset_intersections(
+                result,
+                max_slopes,
+                dormant_hfs,
+                target_col,
+                age_col,
+                regex,
+                intersection,
+                xunit,
+                time_discarded_s,
+                ax,
+            )
 
         return result
 
@@ -459,6 +478,185 @@ class Measurement:
         return analyzer.get_average_slope(
             self._data, max_slopes, onsets, target_col, age_col, regex
         )
+
+    def get_ascending_flank_tangent(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        flank_fraction_start: float = 0.2,
+        flank_fraction_end: float = 0.8,
+        window_size: float = 0.1,
+        cutoff_min: Optional[float] = None,
+        show_plot: bool = False,
+        regex: Optional[str] = None,
+        plotpath: Optional[pathlib.Path] = None,
+    ) -> pd.DataFrame:
+        """
+        Determine tangent to ascending flank of peak by averaging over sections.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters, by default None
+        target_col : str
+            Column containing heat flow data
+        age_col : str
+            Column containing time data
+        flank_fraction_start : float
+            Start of flank section as fraction of peak height (0-1)
+        flank_fraction_end : float
+            End of flank section as fraction of peak height (0-1)
+        window_size : float
+            Size of averaging window as fraction of flank time range
+        cutoff_min : float, optional
+            Initial cutoff time in minutes to ignore from analysis. If None,
+            uses processparams.cutoff.cutoff_min. The default is None.
+        show_plot : bool
+            Whether to plot the results
+        regex : str
+            Regex to filter samples
+        plotpath : pathlib.Path, optional
+            Path to save plots
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with tangent characteristics for each sample
+        """
+        params = processparams or self.processparams
+        analyzer = FlankTangentAnalyzer(params)
+
+        result = analyzer.get_ascending_flank_tangent(
+            self._data,
+            target_col,
+            age_col,
+            flank_fraction_start,
+            flank_fraction_end,
+            window_size,
+            cutoff_min,
+            regex,
+        )
+
+        if show_plot and not result.empty:
+            # Determine the actual cutoff time used
+            cutoff_time_min = (
+                cutoff_min if cutoff_min is not None else params.cutoff.cutoff_min
+            )
+            self._plot_flank_tangent_results(
+                result, target_col, age_col, regex, plotpath, cutoff_time_min
+            )
+
+        return result
+
+    def _plot_flank_tangent_results(
+        self,
+        results: pd.DataFrame,
+        target_col: str,
+        age_col: str,
+        regex: Optional[str] = None,
+        plotpath: Optional[pathlib.Path] = None,
+        cutoff_time_min: Optional[float] = None,
+    ):
+        """Plot flank tangent analysis results using SimplePlotter."""
+        try:
+            for _, result_row in results.iterrows():
+                sample = result_row["sample"]
+                sample_short = result_row["sample_short"]
+
+                # Get sample data
+                sample_data = self._data[self._data["sample"] == sample]
+                if sample_data.empty:
+                    continue
+
+                # Apply cutoff if specified
+                if cutoff_time_min is not None:
+                    cutoff_seconds = cutoff_time_min * 60
+                    sample_data = sample_data[sample_data[age_col] >= cutoff_seconds]
+
+                # Create a DataFrame with just this result for plotting
+                single_result = pd.DataFrame([result_row])
+
+                # Use SimplePlotter to create the plot
+                self._plotter.plot_flank_tangent(
+                    sample_data,
+                    single_result,
+                    sample_short,
+                    ax=None,
+                    age_col=age_col,
+                    target_col=target_col,
+                    cutoff_time_min=cutoff_time_min,
+                )
+
+                if plotpath:
+                    plot_file = plotpath / f"flank_tangent_{sample_short}.png"
+                    import matplotlib.pyplot as plt
+
+                    plt.savefig(plot_file, dpi=300, bbox_inches="tight")
+
+                # Show the plot
+                import matplotlib.pyplot as plt
+
+                plt.show()
+
+        except Exception as e:
+            logger.error(f"Error plotting flank tangent results: {e}")
+            # Fallback to simple message
+            print(f"Plotting failed: {e}")
+
+    def _plot_onset_intersections(
+        self,
+        onsets: pd.DataFrame,
+        max_slopes: pd.DataFrame,
+        dormant_hfs: pd.DataFrame,
+        target_col: str,
+        age_col: str,
+        regex: Optional[str] = None,
+        intersection: str = "dormant_hf",
+        xunit: str = "s",
+        time_discarded_s: float = 900,
+        ax=None,
+    ):
+        """Plot onset intersection analysis results using SimplePlotter."""
+        try:
+            for _, onset_row in onsets.iterrows():
+                sample = onset_row["sample"]
+
+                # Get sample data
+                sample_data = self._data[self._data["sample_short"] == sample]
+                if sample_data.empty:
+                    continue
+
+                # Apply time filtering if specified
+                if time_discarded_s > 0:
+                    sample_data = sample_data[
+                        sample_data[age_col] >= time_discarded_s
+                    ]  # Keep all data for visualization
+
+                # Use SimplePlotter to create the plot
+                self._plotter.plot_onset_intersections(
+                    sample_data,
+                    max_slopes,
+                    dormant_hfs,
+                    onsets,
+                    sample,
+                    ax=ax,
+                    age_col=age_col,
+                    target_col=target_col,
+                    intersection=intersection,
+                    xunit=xunit,
+                    cutoff_time_min=None,  # Could be added as parameter if needed
+                )
+
+                # Show the plot
+                import matplotlib.pyplot as plt
+
+                if not ax:
+                    plt.show()
+
+        except Exception as e:
+            logger.error(f"Error plotting onset intersections: {e}")
+            print(f"Plotting failed: {e}")
 
     # Data manipulation methods
     def normalize_sample_to_mass(

@@ -2782,6 +2782,7 @@ class Measurement:
         cutoff_min=None,  # Initial cutoff time in minutes to ignore
         show_plot=False,
         regex=None,
+        plotpath=None,
     ):
         """
         Determine tangent to ascending flank of peak by averaging over sections.
@@ -2956,6 +2957,20 @@ class Measurement:
             x_intersection = (
                 -tangent_intercept / representative_slope if representative_slope != 0 else np.nan
             )
+            
+            # Calculate intersection with horizontal line at minimum before tangent_time_s
+            data_before_tangent = data[data[age_col] <= representative_time]
+            if len(data_before_tangent) > 0:
+                min_value_before_tangent = data_before_tangent[target_col].min()
+                # Intersection: y = min_value = slope * x + intercept
+                # x = (y - intercept) / slope
+                x_intersection_min = (
+                    (min_value_before_tangent - tangent_intercept) / representative_slope 
+                    if representative_slope != 0 else np.nan
+                )
+            else:
+                min_value_before_tangent = np.nan
+                x_intersection_min = np.nan
 
             result = {
                 "sample": sample,
@@ -2971,6 +2986,8 @@ class Measurement:
                 "n_windows": len(tangent_slopes),
                 "slope_std": np.std(tangent_slopes),
                 "x_intersection": x_intersection,
+                "min_value_before_tangent": min_value_before_tangent,
+                "x_intersection_min": x_intersection_min,
             }
 
             results.append(result)
@@ -3030,6 +3047,26 @@ class Measurement:
                         arrowprops=dict(arrowstyle='->', color='orange', alpha=0.6)
                     )
 
+                # Add horizontal line at minimum and its intersection with tangent
+                if not np.isnan(min_value_before_tangent) and not np.isnan(x_intersection_min):
+                    # Draw horizontal line at minimum value
+                    ax1.axhline(min_value_before_tangent, color='purple', linestyle='--', 
+                               alpha=0.7, label=f'Min before tangent: {min_value_before_tangent:.4f}')
+                    
+                    # Add vertical line at intersection with minimum
+                    if x_intersection_min > data[age_col].min() and x_intersection_min < peak_time:
+                        ax1.axvline(x_intersection_min, color='purple', linestyle=':', alpha=0.8)
+                        ax1.annotate(
+                            f"Min-int: {x_intersection_min:.0f}s",
+                            xy=(x_intersection_min, min_value_before_tangent),
+                            xytext=(10, -30),
+                            textcoords='offset points',
+                            fontsize=10,
+                            color='purple',
+                            bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8),
+                            arrowprops=dict(arrowstyle='->', color='purple', alpha=0.6)
+                        )
+
                 ax1.set_xlabel(age_col)
                 ax1.set_ylabel(target_col)
                 ax1.set_title(f"Peak Analysis: {pathlib.Path(sample).stem}")
@@ -3053,7 +3090,11 @@ class Measurement:
                 # ax2.set_ylim(0,)
 
                 plt.tight_layout()
-                plt.show()
+                if plotpath is not None:
+                    filename = pathlib.Path(sample).stem
+                    plt.savefig(plotpath / f"{filename}.png")
+                else:
+                    plt.show()
 
         return pd.DataFrame(results)
 
