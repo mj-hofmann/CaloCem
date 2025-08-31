@@ -13,8 +13,8 @@ assetpath = Path(__file__).parent.parent / "docs" / "assets"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    #regex=".*calorimetry_data_[4].*",
-    regex=r".*peak_detection_example[4].*",
+    regex=".*calorimetry_data_[1-4].*",
+    #regex=r".*peak_detection_example[4].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,

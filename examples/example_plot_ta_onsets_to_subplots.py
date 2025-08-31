@@ -1,5 +1,6 @@
 from pathlib import Path
 from calocem.tacalorimetry import Measurement
+import matplotlib.pyplot as plt
 
 parentfolder = Path(__file__).parent.parent
 
