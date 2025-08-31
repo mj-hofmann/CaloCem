@@ -164,7 +164,7 @@ class SlopeAnalysisParameters:
 
     flank_fraction_start: float = 0.35
     flank_fraction_end: float = 0.55
-    window_size: float = 0.05  # as fraction of total data points
+    window_size: float = 0.1  # as fraction of total data points
 
 
 @dataclass

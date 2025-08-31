@@ -795,7 +795,7 @@ class FlankTangentAnalyzer:
                 start_time = flank_data[age_col].min()
                 end_time = flank_data[age_col].max() - window_time
 
-                step_size = window_time * 0.1  # 10% overlap
+                step_size = window_time * 1.1  # 10% overlap
                 current_time = start_time
 
                 while current_time <= end_time:

@@ -13,7 +13,8 @@ assetpath = Path(__file__).parent.parent / "docs" / "assets"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=".*calorimetry_data_[5].*",
+    #regex=".*calorimetry_data_[4].*",
+    regex=r".*peak_detection_example[4].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -36,7 +37,7 @@ for sample_name in sample_names:
 
     onsets_spline = tam.get_maximum_slope(
         processparams=processparams,
-        time_discarded_s=9000,
+        time_discarded_s=3000,
         exclude_discarded_time=True,
         show_plot=True,
         save_path=assetpath,
