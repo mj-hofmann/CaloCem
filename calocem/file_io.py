@@ -115,13 +115,18 @@ class CSVReader(FileReader):
 
             # Look for potential index indicating in-situ-file
             if data[0].str.contains("Reaction start").any():
-                # Handle in-situ files
-                pass
+                #get name of column that contains "Reaction start"
+                reaction_start_row = data[0].str.contains("Reaction start").idxmax()
 
             data = utils.parse_rowwise_data(data)
             data = utils.tidy_colnames(data)
             data = utils.remove_unnecessary_data(data)
             data = utils.convert_df_to_float(data)
+
+
+            if reaction_start_row:
+                reaction_start = float(data.at[reaction_start_row, "time_s"])
+                data["time_s"] = data["time_s"] - reaction_start
 
             # Check for "in-situ" sample and reset if needed
             try:

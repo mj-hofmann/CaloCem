@@ -287,16 +287,16 @@ class Measurement:
         processparams: Optional[ProcessingParameters] = None,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        #time_discarded_s: float = 900,
+        time_discarded_s: float = 900,
         show_plot: bool = False,
         show_info: bool = True,
-        #exclude_discarded_time: bool = False,
+        exclude_discarded_time: bool = False,
         regex: Optional[str] = None,
         read_start_c3s: bool = False,
         ax=None,
         save_path: Optional[pathlib.Path] = None,
-        #xscale: str = "log",
-        #xunit: str = "s",
+        xscale: str = "linear",
+        xunit: str = "s",
     ):
         """Find the point in time of the maximum slope."""
         params = processparams or self.processparams
@@ -310,8 +310,8 @@ class Measurement:
             self._data,
             target_col,
             age_col,
-            #time_discarded_s,
-            #exclude_discarded_time,
+            time_discarded_s,
+            exclude_discarded_time,
             regex,
             #read_start_c3s,
             #self._metadata,
@@ -321,6 +321,7 @@ class Measurement:
             for sample, sample_data in SampleIterator.iter_samples(self._data, regex):
                 sample_short = pathlib.Path(str(sample)).stem
                 sample_result = result[result["sample_short"] == sample_short]
+                sample_result = sample_result[sample_result[age_col] >= time_discarded_s]
                 if not sample_result.empty:
                     self._plotter.plot_slopes(
                         sample_data,

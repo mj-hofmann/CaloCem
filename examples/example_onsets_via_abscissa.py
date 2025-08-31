@@ -19,12 +19,6 @@ processparams.downsample.num_points = 3000
 # processparams.downsample.section_split = True
 # processparams.downsample.section_split_time_s = 3600
 processparams.downsample.baseline_weight = 0.1
-# processparams.gradient_peakdetection.use_largest_width = True
-# processparams.spline_interpolation.apply = True
-# processparams.spline_interpolation.smoothing_1st_deriv = 1e-13
-# processparams.spline_interpolation.smoothing_2nd_deriv = 1e-10
-# processparams.median_filter.apply = True
-# processparams.median_filter.size = 5
 
 # experiments via class
 tam = Measurement(
@@ -38,21 +32,6 @@ tam = Measurement(
 )
 
 
-#%%
-# get peak onsets via alternative method
-# fig, ax = plt.subplots()
-# maxslopes = tam.get_maximum_slope(
-#     processparams=processparams,
-#     show_plot=True,
-#     regex=".*example2.*",
-#     #time_discarded_s=3600,
-#     #exclude_discarded_time=True,
-#     ax=ax,
-# )
-# ax.set_xlim(0, 100000)
-# ax.set_ylim(0, 0.005)
-# ax.set_xlabel("Time / s")
-# plt.show()
 
 #%%
 fig, ax = plt.subplots()
@@ -60,29 +39,11 @@ onsets = tam.get_peak_onset_via_slope(
     processparams=processparams,
     show_plot=True,
     plot_type="mean",
-    #xunit="s",
     regex=".*example[2].*",
-    #time_discarded_s=3600,
     #ax=ax,
-    #intersection="abscissa",
 )
 ax.set_xlabel("Time / h")
 # ax.set_xlim(0, 40)
 # ax.set_ylim(0, 0.0025)
 plt.show()
 
-
-# %%
-
-# fig, ax = plt.subplots()
-# mytest = tam.get_ascending_flank_tangent(
-#     processparams=processparams,
-#     flank_fraction_start=0.35,
-#     flank_fraction_end=0.55,
-#     cutoff_min=75,
-#     regex=".*example1.*",
-#     ax=ax,
-#     show_plot=True,)
-# ax.set_xlabel("Time / s")
-# plt.show()
-# %%
