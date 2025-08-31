@@ -8,6 +8,7 @@ import warnings
 from typing import Optional, Union
 
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from .analysis import (
     ASTMC1679Analyzer,
@@ -455,6 +456,8 @@ class Measurement:
                 # time_discarded_s,
                 ax,
             )
+            if not ax:
+                plt.show()
         elif mean_slope_results.empty:
             # logger.warning("No slope analysis results to plot.")
             print("No mean slope analysis obtained - check the processing parameters.")

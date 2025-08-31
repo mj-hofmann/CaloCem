@@ -17,12 +17,12 @@ processparams.slope_analysis.flank_fraction_end = 0.75
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r"processed_data.*",
+    regex=r"calorimetry_data.*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
     new_code=True,
-    processed=True,
+    processed=False,
     processparams=processparams
 )
 
@@ -33,7 +33,7 @@ print(tam._data.head(10))
 onsets = tam.get_peak_onset_via_slope(
     processparams=processparams,
     show_plot=True,
-    plot_type="max",
+    plot_type="mean",
     #regex=".*example[1-7].*",
     #ax=ax,
 )
