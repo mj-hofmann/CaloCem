@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class CutOffParameters:
-    cutoff_min: int = 30
+    cutoff_min: int = 60
     cutoff_max: int = 2880 # 2 days in minutes
 
 
@@ -148,6 +148,25 @@ class PreProcessParameters:
     """
 
     infer_heat: bool = False
+
+@dataclass
+class SlopeAnalysisParameters:
+    """
+    Parameters for slope analysis of heat flow data.
+
+    Attributes
+    ----------
+    flank_fraction_start: float
+        The start fraction of the flank to consider for slope analysis.
+    flank_fraction_end: float
+        The end fraction of the flank to consider for slope analysis.
+    """
+
+    flank_fraction_start: float = 0.35
+    flank_fraction_end: float = 0.55
+    window_size: float = 0.05  # as fraction of total data points
+
+
 @dataclass
 class ProcessingParameters:
     """
@@ -221,3 +240,8 @@ class ProcessingParameters:
     preprocess: PreProcessParameters = field(
         default_factory=PreProcessParameters
     )
+    # slope analysis params
+    slope_analysis: SlopeAnalysisParameters = field(
+        default_factory=SlopeAnalysisParameters
+    )
+    

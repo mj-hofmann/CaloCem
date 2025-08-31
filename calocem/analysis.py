@@ -101,41 +101,41 @@ class SlopeAnalyzer:
         data: pd.DataFrame,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        time_discarded_s: float = 900,
-        exclude_discarded_time: bool = False,
+        #time_discarded_s: float = 900,
+        # exclude_discarded_time: bool = False,
         regex: Optional[str] = None,
-        read_start_c3s: bool = False,
-        metadata: Optional[pd.DataFrame] = None,
+        #read_start_c3s: bool = False,
+        #metadata: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """Find the point in time of the maximum slope and calculate gradient."""
         try:
             list_of_characteristics = []
-
+            time_discarded_s = self.processparams.cutoff.cutoff_min * 60 if self.processparams.cutoff.cutoff_min else 0
             for sample, sample_data in SampleIterator.iter_samples(data, regex):
                 sample_name = pathlib.Path(str(sample)).stem
 
                 # Apply time filtering
                 filtered_data = sample_data.copy()
-                if exclude_discarded_time:
+                if time_discarded_s > 0:
                     filtered_data = filtered_data[
                         filtered_data[age_col] >= time_discarded_s
                     ]
 
                 # Manual C3S time definition if requested
-                if read_start_c3s and metadata is not None:
-                    try:
-                        c3s_start = metadata.query(f"sample_number == '{sample_name}'")[
-                            "t_c3s_min_s"
-                        ].values[0]
-                        c3s_end = metadata.query(f"sample_number == '{sample_name}'")[
-                            "t_c3s_max_s"
-                        ].values[0]
-                        filtered_data = filtered_data[
-                            (filtered_data[age_col] >= c3s_start)
-                            & (filtered_data[age_col] <= c3s_end)
-                        ]
-                    except (IndexError, KeyError):
-                        logger.warning(f"No C3S time data found for {sample_name}")
+                # if read_start_c3s and metadata is not None:
+                #     try:
+                #         c3s_start = metadata.query(f"sample_number == '{sample_name}'")[
+                #             "t_c3s_min_s"
+                #         ].values[0]
+                #         c3s_end = metadata.query(f"sample_number == '{sample_name}'")[
+                #             "t_c3s_max_s"
+                #         ].values[0]
+                #         filtered_data = filtered_data[
+                #             (filtered_data[age_col] >= c3s_start)
+                #             & (filtered_data[age_col] <= c3s_end)
+                #         ]
+                #     except (IndexError, KeyError):
+                #         logger.warning(f"No C3S time data found for {sample_name}")
 
                 if filtered_data.empty:
                     continue
@@ -232,8 +232,8 @@ class OnsetAnalyzer:
         data: pd.DataFrame,
         max_slopes: pd.DataFrame,
         dormant_hfs: pd.DataFrame,
-        intersection: str = "dormant_hf",
-        xunit: str = "s",
+        #intersection: str = "dormant_hf",
+        #xunit: str = "s",
     ) -> pd.DataFrame:
         """Calculate peak onset via maximum slope intersection method."""
         try:
@@ -250,18 +250,18 @@ class OnsetAnalyzer:
                     continue
 
                 dorm_hf_value = float(
-                    sample_dorm_hf["normalized_heat_flow_w_g"].iloc[0]
+                    sample_dorm_hf["dorm_normalized_heat_flow_w_g"].iloc[0]
                 )
 
-                # Calculate intersection
-                if intersection == "dormant_hf":
-                    x_intersect = (
-                        self.intersection_calc.calculate_dormant_hf_intersection(
+                # Calculate intersection with tangent to dormant heat flow
+                #if intersection == "dormant_hf":
+                x_intersect = (
+                    self.intersection_calc.calculate_dormant_hf_intersection(
                             row, dorm_hf_value
-                        )
                     )
-                else:  # abscissa
-                    x_intersect = (
+                )
+                # intersection with abscissa
+                x_intersect_abscissa = (
                         self.intersection_calc.calculate_abscissa_intersection(row)
                     )
 
@@ -276,6 +276,7 @@ class OnsetAnalyzer:
                         "sample": sample_short,
                         "onset_time_s": x_intersect,
                         "onset_time_min": x_intersect / 60,
+                        "onset_time_s_abscissa": x_intersect_abscissa,
                     }
                 )
 
@@ -364,13 +365,33 @@ class DormantPeriodAnalyzer:
                 list_dfs.append(dormant_data)
 
             if list_dfs:
-                return pd.concat(list_dfs, ignore_index=True)
+                dormant_hf = pd.concat(list_dfs, ignore_index=True)
+                dormant_hf = self.rename_and_select_columns(dormant_hf)
+                return dormant_hf
+            #pd.concat([dormant_hf, self.rename_and_select_columns(dormant_hf)], ignore_index=True)
             else:
                 return pd.DataFrame()
 
         except Exception as e:
             raise DataProcessingException("get_dormant_period_heatflow", e)
 
+    def rename_and_select_columns(
+        self, dormant_hf: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Rename and select relevant columns for dormant heat flow DataFrame."""
+        if dormant_hf.empty:
+            return dormant_hf
+
+        rename_map = {
+            "time_s": "dorm_time_s",
+            "normalized_heat_flow_w_g": "dorm_normalized_heat_flow_w_g",
+            "normalized_heat_j_g": "dorm_normalized_heat_j_g",
+        }
+        cols_to_select = ["sample", "sample_short"] + list(rename_map.keys())
+
+        available_cols = [col for col in cols_to_select if col in dormant_hf.columns]
+        reduced_df = dormant_hf[available_cols].rename(columns=rename_map)
+        return reduced_df
 
 class ASTMC1679Analyzer:
     """Analyzes characteristics according to ASTM C1679."""
@@ -626,10 +647,10 @@ class FlankTangentAnalyzer:
         data: pd.DataFrame,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        flank_fraction_start: float = 0.2,
-        flank_fraction_end: float = 0.8,
-        window_size: float = 0.1,
-        cutoff_min: Optional[float] = None,
+        #flank_fraction_start: float = 0.2,
+        #flank_fraction_end: float = 0.8,
+        #window_size: float = 0.1,
+        #cutoff_min: Optional[float] = None,
         regex: Optional[str] = None,
     ) -> pd.DataFrame:
         """
@@ -663,18 +684,25 @@ class FlankTangentAnalyzer:
         try:
             from scipy import signal
 
+            cutoff_min = self.processparams.cutoff.cutoff_min if self.processparams.cutoff.cutoff_min else 0
+            flank_fraction_start = (
+                self.processparams.slope_analysis.flank_fraction_start
+            )
+            flank_fraction_end = self.processparams.slope_analysis.flank_fraction_end
+            window_size = self.processparams.slope_analysis.window_size
+
             results = []
 
             for sample, sample_data in SampleIterator.iter_samples(data, regex):
                 # Apply cutoff if specified
-                cutoff_time_min = (
-                    cutoff_min
-                    if cutoff_min is not None
-                    else self.processparams.cutoff.cutoff_min
-                )
-                if cutoff_time_min:
+                # cutoff_time_min = (
+                #     cutoff_min
+                #     if cutoff_min is not None
+                #     else self.processparams.cutoff.cutoff_min
+                # )
+                if cutoff_min > 0:
                     sample_data = sample_data.query(
-                        f"{age_col} >= @cutoff_time_min * 60"
+                        f"{age_col} >= @cutoff_min * 60"
                     )
 
                 sample_data = sample_data.reset_index(drop=True)

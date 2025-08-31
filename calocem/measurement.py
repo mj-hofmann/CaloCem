@@ -287,30 +287,34 @@ class Measurement:
         processparams: Optional[ProcessingParameters] = None,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        time_discarded_s: float = 900,
+        #time_discarded_s: float = 900,
         show_plot: bool = False,
         show_info: bool = True,
-        exclude_discarded_time: bool = False,
+        #exclude_discarded_time: bool = False,
         regex: Optional[str] = None,
         read_start_c3s: bool = False,
         ax=None,
         save_path: Optional[pathlib.Path] = None,
-        xscale: str = "log",
-        xunit: str = "s",
+        #xscale: str = "log",
+        #xunit: str = "s",
     ):
         """Find the point in time of the maximum slope."""
         params = processparams or self.processparams
+        
+        time_discarded_s = (
+            params.cutoff.cutoff_min * 60 if params.cutoff.cutoff_min else 0
+        )
         analyzer = SlopeAnalyzer(params)
 
         result = analyzer.get_maximum_slope(
             self._data,
             target_col,
             age_col,
-            time_discarded_s,
-            exclude_discarded_time,
+            #time_discarded_s,
+            #exclude_discarded_time,
             regex,
-            read_start_c3s,
-            self._metadata,
+            #read_start_c3s,
+            #self._metadata,
         )
 
         if show_plot and not result.empty:
@@ -329,6 +333,458 @@ class Measurement:
 
         return result
 
+    def get_peak_onset_via_slope(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        #cutoff_min: Optional[float] = None,
+        show_plot: bool = False,
+        plot_type: str = "both",
+        regex: Optional[str] = None,
+        plotpath: Optional[pathlib.Path] = None,
+        ax=None,
+        # Max slope parameters
+        #time_discarded_s: float = 3600,
+        #intersection: str = "dormant_hf",
+        #xunit: str = "s",
+        # Mean slope (flank tangent) parameters
+        #flank_fraction_start: float = 0.35,
+        #flank_fraction_end: float = 0.55,
+        #window_size: float = 0.1,
+    ) -> pd.DataFrame:
+        """
+        Unified method that calculates BOTH maximum and mean slope onset analyses.
+
+        This method performs both slope-based analysis approaches simultaneously:
+        - Maximum slope: Uses single point with maximum gradient for onset determination
+        - Mean slope: Uses averaged slope over flank windows for onset determination
+
+        Both results are returned in a single DataFrame with all slope values and onsets.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters, by default None
+        target_col : str
+            Column containing heat flow data
+        age_col : str
+            Column containing time data
+        cutoff_min : float, optional
+            Initial cutoff time in minutes to ignore from analysis
+        show_plot : bool
+            Whether to plot the results
+        plot_type : str
+            Type of plot to show: 'max', 'mean', or 'both', by default 'both'
+            - 'max': Shows only maximum slope analysis plot
+            - 'mean': Shows only mean slope (flank tangent) analysis plot
+            - 'both': Shows both analysis types (separate plots)
+        regex : str, optional
+            Regex to filter samples
+        plotpath : pathlib.Path, optional
+            Path to save plots
+        ax : matplotlib.axes.Axes, optional
+            Matplotlib axes to plot on
+        time_discarded_s : float
+            Time to discard for max slope analysis
+        intersection : str
+            Type of intersection for max slope analysis ('dormant_hf' or 'abscissa')
+        xunit : str
+            Time unit for plotting
+        flank_fraction_start : float
+            Start of flank section as fraction of peak height (0-1)
+        flank_fraction_end : float
+            End of flank section as fraction of peak height (0-1)
+        window_size : float
+            Size of averaging window as fraction of flank time range
+
+        Returns
+        -------
+        pd.DataFrame
+            Comprehensive DataFrame with both max and mean slope results including:
+            - max_slope_value, max_slope_time_s, max_slope_onset_time_s
+            - mean_slope_value, mean_slope_time_s, mean_slope_onset_time_s
+            - sample identification and other metadata
+        """
+        params = processparams or self.processparams
+
+        # Calculate both slope analyses
+        max_slope_results = self._calculate_max_slope_analysis(
+            params, target_col, age_col, regex, 
+        )
+
+        mean_slope_results = self._calculate_mean_slope_analysis(
+            params,
+            target_col,
+            age_col,
+            #flank_fraction_start,
+            #flank_fraction_end,
+            #window_size,
+            #cutoff_min,
+            regex,
+        )
+
+        dormant_minimum_heatflow = self.get_dormant_period_heatflow(params, regex, show_plot=False)
+
+        # Merge results into comprehensive DataFrame
+        combined_results = self._merge_slope_results(
+            max_slope_results, mean_slope_results, dormant_minimum_heatflow
+        )
+
+
+        # Plot if requested
+        if show_plot and not (mean_slope_results.empty or max_slope_results.empty):
+            self._plot_combined_slope_analysis(
+                combined_results,
+                params,
+                target_col,
+                age_col,
+                plot_type,
+                regex,
+                plotpath,
+                #cutoff_min,
+                #intersection,
+                #xunit,
+                #time_discarded_s,
+                ax,
+            )
+        elif mean_slope_results.empty:
+            #logger.warning("No slope analysis results to plot.")
+            print("No mean slope analysis obtained - check the processing parameters.")
+
+        elif max_slope_results.empty:
+            print("No maximum slope analysis obtained - check the processing parameters.")
+        
+
+        return combined_results
+
+    def _calculate_max_slope_analysis(
+        self,
+        params: ProcessingParameters,
+        target_col: str,
+        age_col: str,
+        #time_discarded_s: float,
+        #intersection: str,
+        #xunit: str,
+        regex: Optional[str],
+    ) -> pd.DataFrame:
+        """Calculate maximum slope analysis and return structured results."""
+        # Get required data
+        max_slope_analyzer = SlopeAnalyzer(params)
+        #max_slopes = self.get_maximum_slope(
+        #    params, target_col, age_col, regex
+        #)
+        max_slopes = max_slope_analyzer.get_maximum_slope(
+            self._data,
+            target_col,
+            age_col,
+            regex,
+        )
+
+        if max_slopes.empty:
+            logger.warning("No maximum slopes found. Check processing parameters.")
+            return pd.DataFrame()
+
+        dormant_hfs = self.get_dormant_period_heatflow(params, regex, show_plot=False)
+        if dormant_hfs.empty:
+            logger.warning("No dormant period heat flows found.")
+            return pd.DataFrame()
+
+        # Calculate onsets
+        analyzer = OnsetAnalyzer(params)
+        onsets = analyzer.get_peak_onset_via_max_slope(
+            self._data, max_slopes, dormant_hfs, #intersection, xunit
+        )
+
+        # Structure results with consistent naming
+        results = []
+        for _, slope_row in max_slopes.iterrows():
+            sample = slope_row.get("sample", slope_row.get("sample_short", ""))
+            sample_short = slope_row.get("sample_short", slope_row.get("sample", ""))
+
+            # Find corresponding onset
+            onset_row = (
+                onsets[onsets["sample_short"] == sample_short]
+                if not onsets.empty
+                else pd.DataFrame()
+            )
+            onset_time = (
+                onset_row.iloc[0]["onset_time_s"] if not onset_row.empty else None
+            )
+
+            result_data = {
+                "sample": sample,
+                "sample_short": sample_short,
+                "max_slope_gradient": slope_row.get("gradient", 0),
+                "max_slope_curvature": slope_row.get("curvature", 0),
+                "max_slope_time_s": slope_row.get("time_s", 0),
+                "max_slope_normalized_heat_flow_w_g": slope_row.get("normalized_heat_flow_w_g", 0),
+                "onset_time_s_max_slope": onset_time,
+                "onset_time_min_max_slope": onset_time / 60 if onset_time else None,
+                "onset_time_s_max_slope_abscissa": onset_row.iloc[0]["onset_time_s_abscissa"] if not onset_row.empty else None,
+            }
+            results.append(result_data)
+
+        return pd.DataFrame(results)
+
+    def _calculate_mean_slope_analysis(
+        self,
+        params: ProcessingParameters,
+        target_col: str,
+        age_col: str,
+        #flank_fraction_start: float,
+        #flank_fraction_end: float,
+        #window_size: float,
+        #cutoff_min: Optional[float],
+        regex: Optional[str],
+    ) -> pd.DataFrame:
+        """Calculate mean slope (flank tangent) analysis and return structured results."""
+        analyzer = FlankTangentAnalyzer(params)
+
+        # Get flank tangent results
+        tangent_results = analyzer.get_ascending_flank_tangent(
+            self._data,
+            target_col,
+            age_col,
+            #flank_fraction_start,
+            #flank_fraction_end,
+            #window_size,
+            #cutoff_min,
+            regex,
+        )
+
+        if tangent_results.empty:
+            logger.warning("No flank tangent results found.")
+            return pd.DataFrame()
+
+        # Structure results with consistent naming
+        results = []
+        for _, row in tangent_results.iterrows():
+            sample = row.get("sample", row.get("sample_short", ""))
+            sample_short = row.get("sample_short", row.get("sample", ""))
+
+            # onset by intersection with tangent to dormant period
+            onset_time = row.get("x_intersection_min", row.get("tangent_time_s", 0))
+
+            result_data = {
+                "sample": sample,
+                "sample_short": sample_short,
+                "mean_slope_gradient": row.get("tangent_slope", 0),
+                "mean_slope_time_s": row.get("tangent_time_s", 0),
+                "mean_slope_normalized_heat_flow_w_g": row.get("tangent_value", 0),
+                "onset_time_s_mean_slope": onset_time,
+                "onset_time_min_mean_slope": onset_time / 60 if onset_time else None,
+                "onset_time_s_mean_slope_abscissa": row.get("x_intersection", 0),
+                "flank_start_value": row.get("flank_start_value", 0),
+                "flank_end_value": row.get("flank_end_value", 0),
+                "peak_time_s": row.get("peak_time_s", 0),
+                "peak_heat_flow_w_g": row.get("peak_value", 0),
+            }
+            results.append(result_data)
+
+        return pd.DataFrame(results)
+
+    def _merge_slope_results(
+        self, max_slope_results: pd.DataFrame, mean_slope_results: pd.DataFrame, dormant_hf_results: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Merge max slope and mean slope results into comprehensive DataFrame."""
+        if max_slope_results.empty and mean_slope_results.empty and dormant_hf_results.empty:
+            return pd.DataFrame()
+
+        # Use outer join to combine results by sample
+        if max_slope_results.empty:
+            return mean_slope_results
+        if mean_slope_results.empty:
+            return max_slope_results
+
+        # Merge on sample identification
+        combined = pd.merge(
+            max_slope_results,
+            mean_slope_results,
+            on=["sample", "sample_short"],
+            how="outer",
+            suffixes=("", "_duplicate"),
+        )
+
+        combined = pd.merge(
+            combined,
+            dormant_hf_results,
+            on=["sample", "sample_short"],
+            how="outer",
+            suffixes=("", "_duplicate"),
+        )
+
+        # Remove duplicate columns
+        duplicate_cols = [col for col in combined.columns if col.endswith("_duplicate")]
+        combined = combined.drop(columns=duplicate_cols)
+
+        return combined
+
+    def _plot_combined_slope_analysis(
+        self,
+        results: pd.DataFrame,
+        params: ProcessingParameters,
+        target_col: str,
+        age_col: str,
+        plot_type: str,
+        regex: Optional[str],
+        plotpath: Optional[pathlib.Path],
+        #cutoff_min: Optional[float],
+        #intersection: str,
+        #xunit: str,
+        #time_discarded_s: float,
+        ax,
+    ):
+        """
+        Plot combined slope analysis results based on plot_type parameter.
+
+        Parameters
+        ----------
+        results : pd.DataFrame
+            Combined results containing both max and mean slope data
+        target_col : str
+            Column name for heat flow data
+        age_col : str
+            Column name for time data
+        plot_type : str
+            Type of plot to show: 'max', 'mean', or 'both'
+            - 'max': Shows only maximum slope analysis plot
+            - 'mean': Shows only mean slope (flank tangent) analysis plot
+            - 'both': Shows both analysis types (separate plots for each)
+        regex : str, optional
+            Regex to filter samples
+        plotpath : pathlib.Path, optional
+            Path to save plots
+        cutoff_min : float, optional
+            Cutoff time in minutes
+        intersection : str
+            Type of intersection for max slope analysis
+        xunit : str
+            Time unit for plotting
+        time_discarded_s : float
+            Time to discard for max slope analysis
+        ax : matplotlib.axes.Axes, optional
+            Matplotlib axes to plot on
+        """
+        # Validate plot_type parameter
+        valid_plot_types = ["max", "mean", "both"]
+        cutoff_min = params.cutoff.cutoff_min
+
+        if plot_type not in valid_plot_types:
+            raise ValueError(
+                f"plot_type must be one of {valid_plot_types}, got '{plot_type}'"
+            )
+
+        # For now, plot using the existing unified plotting approach
+        # This could be enhanced to show both slope methods simultaneously
+        for _, result_row in results.iterrows():
+            sample = result_row["sample"]
+            sample_short = result_row["sample_short"]
+
+            # Get sample data
+            sample_data = self._get_filtered_sample_data(
+                sample, age_col, cutoff_time_min=cutoff_min
+            )
+            if sample_data.empty:
+                continue
+
+            # Plot based on plot_type
+            #if plot_type == "max" or plot_type == "both":
+                # Plot max slope analysis - need to get the original max slope data
+                # slope_max_analyzer = SlopeAnalyzer(params)
+                # max_slopes = slope_max_analyzer.get_maximum_slope(
+                #     self._data,
+                #     target_col,
+                #     age_col,
+                #     regex,
+                # )
+                # max_slopes = self.get_maximum_slope(
+                #     params,
+                #     target_col,
+                #     age_col,
+                #     #time_discarded_s,
+                #     #False,
+                #     #False,
+                #     #False,
+                #     regex,
+                # )
+                # dormant_hfs = self.get_dormant_period_heatflow(
+                #     params, regex, show_plot=False
+                # )
+
+                # Create onset results from combined data in expected format
+                # onsets_for_sample = pd.DataFrame(
+                #     [
+                #         {
+                #             "sample": result_row["sample"],
+                #             "sample_short": result_row["sample_short"],
+                #             "onset_time_s": result_row.get("max_slope_onset_time_s", 0),
+                #             "onset_time_min": result_row.get(
+                #                 "max_slope_onset_time_min", 0
+                #             ),
+                #         }
+                #     ]
+                # )
+
+                #onsets_for_sample = pd.DataFrame(
+            if not pd.isna(result_row.onset_time_s_mean_slope or result_row.onset_time_s_max_slope):
+                self._plotter.plot_tangent_analysis(
+                    sample_data,
+                    sample_short,
+                    ax=ax,
+                    age_col=age_col,
+                    target_col=target_col,
+                    cutoff_time_min=cutoff_min,
+                    analysis_type=plot_type,  # Use correct analysis type
+                    results=result_row.to_frame().T,
+                    #max_slopes=max_slopes,
+                    #dormant_hfs=dormant_hfs,
+                    #onsets=onsets_for_sample,
+                    #intersection=intersection,
+                    #xunit=xunit,
+                    figsize=(10, 6),
+                )
+            self._save_and_show_plot(plotpath, f"{plot_type}_slope_{sample_short}.png", ax)
+
+            # if plot_type == "mean" or plot_type == "both":
+            #     # Plot mean slope (flank tangent) analysis - convert combined results to tangent format
+            #     # tangent_result = pd.DataFrame(
+            #     #     [
+            #     #         {
+            #     #             "sample": result_row["sample"],
+            #     #             "sample_short": result_row["sample_short"],
+            #     #             "peak_time_s": result_row.get("peak_time_s", 0),
+            #     #             "peak_value": result_row.get("peak_value", 0),
+            #     #             "tangent_slope": result_row.get("mean_slope_value", 0),
+            #     #             "tangent_time_s": result_row.get("mean_slope_time_s", 0),
+            #     #             "x_intersection": result_row.get(
+            #     #                 "mean_slope_onset_time_s", 0
+            #     #             ),
+            #     #             "tangent_intercept": result_row.get("peak_value", 0)
+            #     #             - result_row.get("mean_slope_value", 0)
+            #     #             * result_row.get("mean_slope_time_s", 0),
+            #     #             "flank_start_value": result_row.get("peak_value", 0)
+            #     #             * 0.2,  # Approximate values
+            #     #             "flank_end_value": result_row.get("peak_value", 0) * 0.8,
+            #     #         }
+            #     #     ]
+            #     # )
+
+            #     self._plotter.plot_tangent_analysis(
+            #         sample_data,
+            #         sample_short,
+            #         ax=ax,
+            #         age_col=age_col,
+            #         target_col=target_col,
+            #         #cutoff_time_min=cutoff_min,
+            #         analysis_type="mean",  # Use correct analysis type
+            #         results=result_row.to_frame().T,
+            #         #tangent_results=tangent_result,
+            #         figsize=(10, 6),
+            #     )
+            #     self._save_and_show_plot(plotpath, f"mean_slope_{sample_short}.png", ax)
+
+    # Backward compatibility methods
     def get_peak_onset_via_max_slope(
         self,
         processparams: Optional[ProcessingParameters] = None,
@@ -343,42 +799,107 @@ class Measurement:
         xunit: str = "s",
         intersection: str = "dormant_hf",
     ):
-        """Get reaction onset via maximum slope intersection method."""
-        params = processparams or self.processparams
+        """
+        Get reaction onset via maximum slope intersection method.
 
-        # Get required data
-        max_slopes = self.get_maximum_slope(
-            params, target_col, age_col, time_discarded_s, False, False, False, regex
-        )
-        if max_slopes.empty:
-            print("No maximum slopes found. Check processing parameters.")
-            return pd.DataFrame()
-
-        dormant_hfs = self.get_dormant_period_heatflow(params, regex, show_plot=False)
-        if dormant_hfs.empty:
-            print("No dormant period heat flows found.")
-            return pd.DataFrame()
-
-        # Calculate onsets
-        analyzer = OnsetAnalyzer(params)
-        result = analyzer.get_peak_onset_via_max_slope(
-            self._data, max_slopes, dormant_hfs, intersection, xunit
+        This is a wrapper around get_peak_onset_via_slope for backward compatibility.
+        Returns only the max slope related columns for compatibility.
+        """
+        full_results = self.get_peak_onset_via_slope(
+            processparams=processparams,
+            target_col=target_col,
+            age_col=age_col,
+            show_plot=show_plot,
+            regex=regex,
+            ax=ax,
+            time_discarded_s=time_discarded_s,
+            intersection=intersection,
+            xunit=xunit,
         )
 
-        # Implement plotting for intersections if show_plot=True
-        if show_plot and not result.empty:
-            self._plot_onset_intersections(
-                result,
-                max_slopes,
-                dormant_hfs,
-                target_col,
-                age_col,
-                regex,
-                intersection,
-                xunit,
-                time_discarded_s,
-                ax,
-            )
+        if full_results.empty:
+            return full_results
+
+        # Extract only max slope related columns for backward compatibility
+        max_slope_cols = [
+            col
+            for col in full_results.columns
+            if col.startswith("max_slope_") or col in ["sample", "sample_short"]
+        ]
+
+        result = full_results[max_slope_cols].copy()
+
+        # Rename columns to match old API
+        column_mapping = {
+            "max_slope_onset_time_s": "onset_time_s",
+            "max_slope_onset_time_min": "onset_time_min",
+            "max_slope_value": "maximum_slope",
+            "max_slope_time_s": "maximum_slope_time_s",
+        }
+
+        for old_name, new_name in column_mapping.items():
+            if old_name in result.columns:
+                result = result.rename(columns={old_name: new_name})
+
+        return result
+
+    def get_ascending_flank_tangent(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        flank_fraction_start: float = 0.2,
+        flank_fraction_end: float = 0.8,
+        window_size: float = 0.1,
+        cutoff_min: Optional[float] = None,
+        show_plot: bool = False,
+        regex: Optional[str] = None,
+        plotpath: Optional[pathlib.Path] = None,
+        ax=None,
+    ) -> pd.DataFrame:
+        """
+        Determine tangent to ascending flank of peak by averaging over sections.
+
+        This is a wrapper around get_peak_onset_via_slope for backward compatibility.
+        Returns only the mean slope related columns for compatibility.
+        """
+        full_results = self.get_peak_onset_via_slope(
+            processparams=processparams,
+            target_col=target_col,
+            age_col=age_col,
+            cutoff_min=cutoff_min,
+            show_plot=show_plot,
+            regex=regex,
+            plotpath=plotpath,
+            ax=ax,
+            flank_fraction_start=flank_fraction_start,
+            flank_fraction_end=flank_fraction_end,
+            window_size=window_size,
+        )
+
+        if full_results.empty:
+            return full_results
+
+        # Extract only mean slope related columns for backward compatibility
+        mean_slope_cols = [
+            col
+            for col in full_results.columns
+            if col.startswith("mean_slope_")
+            or col in ["sample", "sample_short", "peak_time_s", "peak_value"]
+        ]
+
+        result = full_results[mean_slope_cols].copy()
+
+        # Rename columns to match old API
+        column_mapping = {
+            "mean_slope_onset_time_s": "x_intersection",
+            "mean_slope_value": "tangent_slope",
+            "mean_slope_time_s": "tangent_time_s",
+        }
+
+        for old_name, new_name in column_mapping.items():
+            if old_name in result.columns:
+                result = result.rename(columns={old_name: new_name})
 
         return result
 
@@ -479,75 +1000,218 @@ class Measurement:
             self._data, max_slopes, onsets, target_col, age_col, regex
         )
 
-    def get_ascending_flank_tangent(
+    def _plot_tangent_analysis_unified(
         self,
-        processparams: Optional[ProcessingParameters] = None,
-        target_col: str = "normalized_heat_flow_w_g",
-        age_col: str = "time_s",
-        flank_fraction_start: float = 0.2,
-        flank_fraction_end: float = 0.8,
-        window_size: float = 0.1,
-        cutoff_min: Optional[float] = None,
-        show_plot: bool = False,
+        results: pd.DataFrame,
+        analysis_type: str,
+        target_col: str,
+        age_col: str,
         regex: Optional[str] = None,
         plotpath: Optional[pathlib.Path] = None,
-    ) -> pd.DataFrame:
+        cutoff_time_min: Optional[float] = None,
+        intersection: str = "dormant_hf",
+        xunit: str = "s",
+        time_discarded_s: float = 900,
+        ax=None,
+        # Additional data for onset intersection analysis
+        max_slopes: Optional[pd.DataFrame] = None,
+        dormant_hfs: Optional[pd.DataFrame] = None,
+        onsets: Optional[pd.DataFrame] = None,
+    ):
         """
-        Determine tangent to ascending flank of peak by averaging over sections.
+        Unified plotting method for tangent-based analysis results.
+
+        This method handles both flank tangent and onset intersection analysis,
+        with the main difference being how the slope is determined:
+        - Flank tangent: Uses averaged slope over a window
+        - Max slope: Uses single point with maximum gradient
 
         Parameters
         ----------
-        processparams : ProcessingParameters, optional
-            Processing parameters, by default None
+        results : pd.DataFrame
+            Results from the analysis (tangent results for flank, onsets for max slope)
+        analysis_type : str
+            Either 'flank_tangent' or 'max_slope_onset'
         target_col : str
-            Column containing heat flow data
+            Column name for heat flow data
         age_col : str
-            Column containing time data
-        flank_fraction_start : float
-            Start of flank section as fraction of peak height (0-1)
-        flank_fraction_end : float
-            End of flank section as fraction of peak height (0-1)
-        window_size : float
-            Size of averaging window as fraction of flank time range
-        cutoff_min : float, optional
-            Initial cutoff time in minutes to ignore from analysis. If None,
-            uses processparams.cutoff.cutoff_min. The default is None.
-        show_plot : bool
-            Whether to plot the results
-        regex : str
+            Column name for time data
+        regex : str, optional
             Regex to filter samples
         plotpath : pathlib.Path, optional
             Path to save plots
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with tangent characteristics for each sample
+        cutoff_time_min : float, optional
+            Cutoff time in minutes
+        intersection : str
+            Type of intersection for onset analysis ('dormant_hf' or 'abscissa')
+        xunit : str
+            Time unit for plotting
+        time_discarded_s : float
+            Time to discard for onset analysis
+        ax : matplotlib.axes.Axes, optional
+            Matplotlib axes to plot on
+        max_slopes : pd.DataFrame, optional
+            Required for onset intersection analysis
+        dormant_hfs : pd.DataFrame, optional
+            Required for onset intersection analysis with dormant_hf
+        onsets : pd.DataFrame, optional
+            Required for onset intersection analysis
         """
-        params = processparams or self.processparams
-        analyzer = FlankTangentAnalyzer(params)
+        try:
+            if analysis_type == "flank_tangent":
+                self._plot_flank_tangent_unified(
+                    results, target_col, age_col, regex, plotpath, cutoff_time_min, ax
+                )
+            elif analysis_type == "max_slope_onset":
+                self._plot_onset_intersection_unified(
+                    results,
+                    max_slopes,
+                    dormant_hfs,
+                    target_col,
+                    age_col,
+                    regex,
+                    intersection,
+                    xunit,
+                    time_discarded_s,
+                    ax,
+                )
+            else:
+                raise ValueError(f"Unknown analysis_type: {analysis_type}")
 
-        result = analyzer.get_ascending_flank_tangent(
-            self._data,
-            target_col,
-            age_col,
-            flank_fraction_start,
-            flank_fraction_end,
-            window_size,
-            cutoff_min,
-            regex,
-        )
+        except Exception as e:
+            logger.error(f"Error plotting tangent analysis results: {e}")
+            print(f"Plotting failed: {e}")
 
-        if show_plot and not result.empty:
-            # Determine the actual cutoff time used
-            cutoff_time_min = (
-                cutoff_min if cutoff_min is not None else params.cutoff.cutoff_min
+    def _plot_flank_tangent_unified(
+        self,
+        results: pd.DataFrame,
+        target_col: str,
+        age_col: str,
+        regex: Optional[str] = None,
+        plotpath: Optional[pathlib.Path] = None,
+        cutoff_time_min: Optional[float] = None,
+        ax=None,
+    ):
+        """Plot flank tangent analysis results using unified SimplePlotter."""
+        for _, result_row in results.iterrows():
+            sample = result_row["sample"]
+            sample_short = result_row["sample_short"]
+
+            # Get sample data
+            sample_data = self._get_filtered_sample_data(
+                sample, age_col, cutoff_time_min=cutoff_time_min
             )
-            self._plot_flank_tangent_results(
-                result, target_col, age_col, regex, plotpath, cutoff_time_min
+            if sample_data.empty:
+                continue
+
+            # Create a DataFrame with just this result for plotting
+            single_result = pd.DataFrame([result_row])
+
+            # Use unified plotting method
+            self._plotter.plot_tangent_analysis(
+                sample_data,
+                sample_short,
+                ax=ax,
+                age_col=age_col,
+                target_col=target_col,
+                cutoff_time_min=cutoff_time_min,
+                analysis_type="flank_tangent",
+                tangent_results=single_result,
+                figsize=(7, 5),
             )
 
-        return result
+            self._save_and_show_plot(plotpath, f"flank_tangent_{sample_short}.png", ax)
+
+    def _plot_onset_intersection_unified(
+        self,
+        onsets: pd.DataFrame,
+        max_slopes: Optional[pd.DataFrame],
+        dormant_hfs: Optional[pd.DataFrame],
+        target_col: str,
+        age_col: str,
+        regex: Optional[str] = None,
+        intersection: str = "dormant_hf",
+        xunit: str = "s",
+        time_discarded_s: float = 900,
+        ax=None,
+    ):
+        """Plot onset intersection analysis results using unified SimplePlotter."""
+        if max_slopes is None:
+            raise ValueError("max_slopes required for onset intersection analysis")
+
+        for _, onset_row in onsets.iterrows():
+            sample = onset_row["sample"]
+
+            # Get sample data
+            sample_data = self._get_filtered_sample_data(
+                sample, age_col, time_discarded_s=time_discarded_s
+            )
+            if sample_data.empty:
+                continue
+
+            # Use unified plotting method
+            self._plotter.plot_tangent_analysis(
+                sample_data,
+                sample,
+                ax=ax,
+                age_col=age_col,
+                target_col=target_col,
+                analysis_type="onset_intersection",
+                max_slopes=max_slopes,
+                dormant_hfs=dormant_hfs,
+                onsets=onsets,
+                intersection=intersection,
+                xunit=xunit,
+                figsize=(12, 8),
+            )
+
+            # Note: plotpath not available in this context, only show plot
+            self._save_and_show_plot(None, f"onset_intersection_{sample}.png", ax)
+
+    def _get_filtered_sample_data(
+        self,
+        sample: str,
+        age_col: str,
+        cutoff_time_min: Optional[float] = None,
+        time_discarded_s: Optional[float] = None,
+    ) -> pd.DataFrame:
+        """
+        Get sample data with appropriate filtering applied.
+
+        This consolidates the common data filtering logic used in both analysis types.
+        """
+        # Get sample data - handle both 'sample' and 'sample_short' columns
+        sample_data = self._data[
+            (self._data["sample"] == sample)
+            | (self._data.get("sample_short", "") == sample)
+        ]
+
+        if sample_data.empty:
+            return sample_data
+
+        # Apply cutoff time filtering
+        if cutoff_time_min is not None:
+            cutoff_seconds = cutoff_time_min * 60
+            sample_data = sample_data[sample_data[age_col] >= cutoff_seconds]
+
+        # Apply time discarded filtering (for onset analysis)
+        if time_discarded_s is not None and time_discarded_s > 0:
+            sample_data = sample_data[sample_data[age_col] >= time_discarded_s]
+
+        return sample_data
+
+    def _save_and_show_plot(self, plotpath: Optional[pathlib.Path], filename: str, ax):
+        """Handle plot saving and showing - common logic for both analysis types."""
+        if plotpath:
+            plot_file = plotpath / filename
+            import matplotlib.pyplot as plt
+
+            plt.savefig(plot_file, dpi=300, bbox_inches="tight")
+
+        import matplotlib.pyplot as plt
+
+        if not ax:
+            plt.show()
 
     def _plot_flank_tangent_results(
         self,
@@ -557,52 +1221,23 @@ class Measurement:
         regex: Optional[str] = None,
         plotpath: Optional[pathlib.Path] = None,
         cutoff_time_min: Optional[float] = None,
+        ax=None,
     ):
-        """Plot flank tangent analysis results using SimplePlotter."""
-        try:
-            for _, result_row in results.iterrows():
-                sample = result_row["sample"]
-                sample_short = result_row["sample_short"]
+        """
+        Plot flank tangent analysis results using SimplePlotter.
 
-                # Get sample data
-                sample_data = self._data[self._data["sample"] == sample]
-                if sample_data.empty:
-                    continue
-
-                # Apply cutoff if specified
-                if cutoff_time_min is not None:
-                    cutoff_seconds = cutoff_time_min * 60
-                    sample_data = sample_data[sample_data[age_col] >= cutoff_seconds]
-
-                # Create a DataFrame with just this result for plotting
-                single_result = pd.DataFrame([result_row])
-
-                # Use SimplePlotter to create the plot
-                self._plotter.plot_flank_tangent(
-                    sample_data,
-                    single_result,
-                    sample_short,
-                    ax=None,
-                    age_col=age_col,
-                    target_col=target_col,
-                    cutoff_time_min=cutoff_time_min,
-                )
-
-                if plotpath:
-                    plot_file = plotpath / f"flank_tangent_{sample_short}.png"
-                    import matplotlib.pyplot as plt
-
-                    plt.savefig(plot_file, dpi=300, bbox_inches="tight")
-
-                # Show the plot
-                import matplotlib.pyplot as plt
-
-                plt.show()
-
-        except Exception as e:
-            logger.error(f"Error plotting flank tangent results: {e}")
-            # Fallback to simple message
-            print(f"Plotting failed: {e}")
+        This is a wrapper around the unified plotting method for backward compatibility.
+        """
+        return self._plot_tangent_analysis_unified(
+            results=results,
+            analysis_type="flank_tangent",
+            target_col=target_col,
+            age_col=age_col,
+            regex=regex,
+            plotpath=plotpath,
+            cutoff_time_min=cutoff_time_min,
+            ax=ax,
+        )
 
     def _plot_onset_intersections(
         self,
@@ -617,46 +1252,25 @@ class Measurement:
         time_discarded_s: float = 900,
         ax=None,
     ):
-        """Plot onset intersection analysis results using SimplePlotter."""
-        try:
-            for _, onset_row in onsets.iterrows():
-                sample = onset_row["sample"]
+        """
+        Plot onset intersection analysis results using SimplePlotter.
 
-                # Get sample data
-                sample_data = self._data[self._data["sample_short"] == sample]
-                if sample_data.empty:
-                    continue
-
-                # Apply time filtering if specified
-                if time_discarded_s > 0:
-                    sample_data = sample_data[
-                        sample_data[age_col] >= time_discarded_s
-                    ]  # Keep all data for visualization
-
-                # Use SimplePlotter to create the plot
-                self._plotter.plot_onset_intersections(
-                    sample_data,
-                    max_slopes,
-                    dormant_hfs,
-                    onsets,
-                    sample,
-                    ax=ax,
-                    age_col=age_col,
-                    target_col=target_col,
-                    intersection=intersection,
-                    xunit=xunit,
-                    cutoff_time_min=None,  # Could be added as parameter if needed
-                )
-
-                # Show the plot
-                import matplotlib.pyplot as plt
-
-                if not ax:
-                    plt.show()
-
-        except Exception as e:
-            logger.error(f"Error plotting onset intersections: {e}")
-            print(f"Plotting failed: {e}")
+        This is a wrapper around the unified plotting method for backward compatibility.
+        """
+        return self._plot_tangent_analysis_unified(
+            results=onsets,
+            analysis_type="max_slope_onset",
+            target_col=target_col,
+            age_col=age_col,
+            regex=regex,
+            intersection=intersection,
+            xunit=xunit,
+            time_discarded_s=time_discarded_s,
+            ax=ax,
+            max_slopes=max_slopes,
+            dormant_hfs=dormant_hfs,
+            onsets=onsets,
+        )
 
     # Data manipulation methods
     def normalize_sample_to_mass(
