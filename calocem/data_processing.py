@@ -357,6 +357,11 @@ class SampleIterator:
             sample (str): Name of the current sample
             sample_data (pd.DataFrame): Data corresponding to the current sample
         """
+        
+        #if pd.isna(data["sample"]).all():
+        #    data["sample"] = data["sample_short"]
+        data["sample"] = data["sample"].fillna(data["sample_short"])
+
         for sample, sample_data in data.groupby(by="sample"):
             if regex:
                 if not re.search(regex, str(sample)):

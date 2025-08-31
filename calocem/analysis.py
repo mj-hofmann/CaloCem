@@ -336,6 +336,9 @@ class DormantPeriodAnalyzer:
             for sample, sample_data in SampleIterator.iter_samples(data, regex):
                 sample_short = pathlib.Path(str(sample)).stem
 
+                if peaks.empty:
+                    continue
+
                 # Get corresponding peaks
                 sample_peaks = peaks[peaks["sample_short"] == sample_short]
 

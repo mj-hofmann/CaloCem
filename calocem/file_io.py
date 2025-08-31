@@ -45,6 +45,17 @@ class FileReader(ABC):
 class CSVReader(FileReader):
     """Handles CSV file reading."""
 
+    def __init__(self, processed: bool = False):
+        """
+        Initialize CSV reader.
+
+        Parameters
+        ----------
+        processed : bool
+            Whether the data is already processed
+        """
+        self.processed = processed
+
     def can_read(self, file_path: pathlib.Path) -> bool:
         return file_path.suffix.lower() == ".csv"
 
@@ -53,10 +64,14 @@ class CSVReader(FileReader):
     ) -> pd.DataFrame:
         """Read calorimetry data from CSV file."""
         try:
-            # Try different reading strategies
-            data = self._read_comma_separated(file_path, show_info)
-            if data is None:
-                data = self._read_tab_separated(file_path, show_info)
+            if self.processed:
+                # For processed data, read directly with headers
+                data = self._read_processed_csv(file_path, show_info)
+            else:
+                # Try different reading strategies for raw data
+                data = self._read_comma_separated(file_path, show_info)
+                if data is None:
+                    data = self._read_tab_separated(file_path, show_info)
 
             if data is None:
                 raise FileReadingException(file_path, "No valid CSV format found")
@@ -67,6 +82,37 @@ class CSVReader(FileReader):
         except Exception as e:
             logger.error(f"✗ reading {file_path} FAILED: {e}")
             raise FileReadingException(file_path, e)
+
+    def _read_processed_csv(
+        self, file_path: pathlib.Path, show_info: bool = True
+    ) -> pd.DataFrame:
+        """
+        Read already processed CSV data with standard headers.
+
+        This method assumes the CSV file has proper headers and is already
+        in the expected format (like the output from previous processing).
+        """
+        try:
+            # Read CSV with headers - assume comma separated
+            data = pd.read_csv(file_path, sep=",", header=0)
+
+            # Ensure sample information is present
+            if "sample" not in data.columns:
+                data["sample"] = str(file_path)
+            if "sample_short" not in data.columns:
+                data["sample_short"] = file_path.stem
+
+            if show_info:
+                print(
+                    f"Read processed data from {file_path.name} with {len(data)} rows"
+                )
+
+            return data
+
+        except Exception as e:
+            if show_info:
+                print(f"Error reading processed CSV {file_path.name}: {e}")
+            raise
 
     def read_info(
         self, file_path: pathlib.Path, show_info: bool = True
@@ -115,14 +161,13 @@ class CSVReader(FileReader):
 
             # Look for potential index indicating in-situ-file
             if data[0].str.contains("Reaction start").any():
-                #get name of column that contains "Reaction start"
+                # get name of column that contains "Reaction start"
                 reaction_start_row = data[0].str.contains("Reaction start").idxmax()
 
             data = utils.parse_rowwise_data(data)
             data = utils.tidy_colnames(data)
             data = utils.remove_unnecessary_data(data)
             data = utils.convert_df_to_float(data)
-
 
             if reaction_start_row:
                 reaction_start = float(data.at[reaction_start_row, "time_s"])
@@ -344,8 +389,17 @@ class XLSReader(FileReader):
 class FileReaderFactory:
     """Factory for creating appropriate file readers."""
 
-    def __init__(self):
-        self.readers = [CSVReader(), XLSReader()]
+    def __init__(self, processed: bool = False):
+        """
+        Initialize file reader factory.
+
+        Parameters
+        ----------
+        processed : bool
+            Whether the data is already processed
+        """
+        self.processed = processed
+        self.readers = [CSVReader(processed=processed), XLSReader()]
 
     def get_reader(self, file_path: Union[str, pathlib.Path]) -> Optional[FileReader]:
         """Get appropriate reader for file."""
@@ -430,8 +484,16 @@ class DataPersistence:
 class FolderDataLoader:
     """Loads data from a folder containing calorimetry files."""
 
-    def __init__(self):
-        self.file_factory = FileReaderFactory()
+    def __init__(self, processed: bool = False):
+        """
+        Initialize folder data loader.
+
+        Parameters
+        ----------
+        processed : bool
+            Whether the data is already processed
+        """
+        self.file_factory = FileReaderFactory(processed=processed)
 
     def load_from_folder(
         self,

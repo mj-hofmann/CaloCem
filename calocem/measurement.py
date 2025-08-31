@@ -87,7 +87,7 @@ class Measurement:
             self.processparams = processparams
 
         # Initialize components
-        self._folder_loader = FolderDataLoader()
+        self._folder_loader = FolderDataLoader(processed=processed)
         self._data_persistence = DataPersistence()
         self._data_cleaner = DataCleaner()
         self._plotter = SimplePlotter()
@@ -300,7 +300,7 @@ class Measurement:
     ):
         """Find the point in time of the maximum slope."""
         params = processparams or self.processparams
-        
+
         time_discarded_s = (
             params.cutoff.cutoff_min * 60 if params.cutoff.cutoff_min else 0
         )
@@ -313,15 +313,17 @@ class Measurement:
             time_discarded_s,
             exclude_discarded_time,
             regex,
-            #read_start_c3s,
-            #self._metadata,
+            # read_start_c3s,
+            # self._metadata,
         )
 
         if show_plot and not result.empty:
             for sample, sample_data in SampleIterator.iter_samples(self._data, regex):
                 sample_short = pathlib.Path(str(sample)).stem
                 sample_result = result[result["sample_short"] == sample_short]
-                sample_result = sample_result[sample_result[age_col] >= time_discarded_s]
+                sample_result = sample_result[
+                    sample_result[age_col] >= time_discarded_s
+                ]
                 if not sample_result.empty:
                     self._plotter.plot_slopes(
                         sample_data,
@@ -339,20 +341,20 @@ class Measurement:
         processparams: Optional[ProcessingParameters] = None,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        #cutoff_min: Optional[float] = None,
+        # cutoff_min: Optional[float] = None,
         show_plot: bool = False,
         plot_type: str = "both",
         regex: Optional[str] = None,
         plotpath: Optional[pathlib.Path] = None,
         ax=None,
         # Max slope parameters
-        #time_discarded_s: float = 3600,
-        #intersection: str = "dormant_hf",
-        #xunit: str = "s",
+        # time_discarded_s: float = 3600,
+        # intersection: str = "dormant_hf",
+        # xunit: str = "s",
         # Mean slope (flank tangent) parameters
-        #flank_fraction_start: float = 0.35,
-        #flank_fraction_end: float = 0.55,
-        #window_size: float = 0.1,
+        # flank_fraction_start: float = 0.35,
+        # flank_fraction_end: float = 0.55,
+        # window_size: float = 0.1,
     ) -> pd.DataFrame:
         """
         Unified method that calculates BOTH maximum and mean slope onset analyses.
@@ -411,27 +413,31 @@ class Measurement:
 
         # Calculate both slope analyses
         max_slope_results = self._calculate_max_slope_analysis(
-            params, target_col, age_col, regex, 
+            params,
+            target_col,
+            age_col,
+            regex,
         )
 
         mean_slope_results = self._calculate_mean_slope_analysis(
             params,
             target_col,
             age_col,
-            #flank_fraction_start,
-            #flank_fraction_end,
-            #window_size,
-            #cutoff_min,
+            # flank_fraction_start,
+            # flank_fraction_end,
+            # window_size,
+            # cutoff_min,
             regex,
         )
 
-        dormant_minimum_heatflow = self.get_dormant_period_heatflow(params, regex, show_plot=False)
+        dormant_minimum_heatflow = self.get_dormant_period_heatflow(
+            params, regex, show_plot=False
+        )
 
         # Merge results into comprehensive DataFrame
         combined_results = self._merge_slope_results(
             max_slope_results, mean_slope_results, dormant_minimum_heatflow
         )
-
 
         # Plot if requested
         if show_plot and not (mean_slope_results.empty or max_slope_results.empty):
@@ -443,19 +449,20 @@ class Measurement:
                 plot_type,
                 regex,
                 plotpath,
-                #cutoff_min,
-                #intersection,
-                #xunit,
-                #time_discarded_s,
+                # cutoff_min,
+                # intersection,
+                # xunit,
+                # time_discarded_s,
                 ax,
             )
         elif mean_slope_results.empty:
-            #logger.warning("No slope analysis results to plot.")
+            # logger.warning("No slope analysis results to plot.")
             print("No mean slope analysis obtained - check the processing parameters.")
 
         elif max_slope_results.empty:
-            print("No maximum slope analysis obtained - check the processing parameters.")
-        
+            print(
+                "No maximum slope analysis obtained - check the processing parameters."
+            )
 
         return combined_results
 
@@ -464,17 +471,17 @@ class Measurement:
         params: ProcessingParameters,
         target_col: str,
         age_col: str,
-        #time_discarded_s: float,
-        #intersection: str,
-        #xunit: str,
+        # time_discarded_s: float,
+        # intersection: str,
+        # xunit: str,
         regex: Optional[str],
     ) -> pd.DataFrame:
         """Calculate maximum slope analysis and return structured results."""
         # Get required data
         max_slope_analyzer = SlopeAnalyzer(params)
-        #max_slopes = self.get_maximum_slope(
+        # max_slopes = self.get_maximum_slope(
         #    params, target_col, age_col, regex
-        #)
+        # )
         max_slopes = max_slope_analyzer.get_maximum_slope(
             self._data,
             target_col,
@@ -494,7 +501,9 @@ class Measurement:
         # Calculate onsets
         analyzer = OnsetAnalyzer(params)
         onsets = analyzer.get_peak_onset_via_max_slope(
-            self._data, max_slopes, dormant_hfs, #intersection, xunit
+            self._data,
+            max_slopes,
+            dormant_hfs,  # intersection, xunit
         )
 
         # Structure results with consistent naming
@@ -519,10 +528,16 @@ class Measurement:
                 "max_slope_gradient": slope_row.get("gradient", 0),
                 "max_slope_curvature": slope_row.get("curvature", 0),
                 "max_slope_time_s": slope_row.get("time_s", 0),
-                "max_slope_normalized_heat_flow_w_g": slope_row.get("normalized_heat_flow_w_g", 0),
+                "max_slope_normalized_heat_flow_w_g": slope_row.get(
+                    "normalized_heat_flow_w_g", 0
+                ),
                 "onset_time_s_max_slope": onset_time,
                 "onset_time_min_max_slope": onset_time / 60 if onset_time else None,
-                "onset_time_s_max_slope_abscissa": onset_row.iloc[0]["onset_time_s_abscissa"] if not onset_row.empty else None,
+                "onset_time_s_max_slope_abscissa": (
+                    onset_row.iloc[0]["onset_time_s_abscissa"]
+                    if not onset_row.empty
+                    else None
+                ),
             }
             results.append(result_data)
 
@@ -533,10 +548,10 @@ class Measurement:
         params: ProcessingParameters,
         target_col: str,
         age_col: str,
-        #flank_fraction_start: float,
-        #flank_fraction_end: float,
-        #window_size: float,
-        #cutoff_min: Optional[float],
+        # flank_fraction_start: float,
+        # flank_fraction_end: float,
+        # window_size: float,
+        # cutoff_min: Optional[float],
         regex: Optional[str],
     ) -> pd.DataFrame:
         """Calculate mean slope (flank tangent) analysis and return structured results."""
@@ -547,10 +562,10 @@ class Measurement:
             self._data,
             target_col,
             age_col,
-            #flank_fraction_start,
-            #flank_fraction_end,
-            #window_size,
-            #cutoff_min,
+            # flank_fraction_start,
+            # flank_fraction_end,
+            # window_size,
+            # cutoff_min,
             regex,
         )
 
@@ -586,10 +601,17 @@ class Measurement:
         return pd.DataFrame(results)
 
     def _merge_slope_results(
-        self, max_slope_results: pd.DataFrame, mean_slope_results: pd.DataFrame, dormant_hf_results: pd.DataFrame
+        self,
+        max_slope_results: pd.DataFrame,
+        mean_slope_results: pd.DataFrame,
+        dormant_hf_results: pd.DataFrame,
     ) -> pd.DataFrame:
         """Merge max slope and mean slope results into comprehensive DataFrame."""
-        if max_slope_results.empty and mean_slope_results.empty and dormant_hf_results.empty:
+        if (
+            max_slope_results.empty
+            and mean_slope_results.empty
+            and dormant_hf_results.empty
+        ):
             return pd.DataFrame()
 
         # Use outer join to combine results by sample
@@ -630,10 +652,10 @@ class Measurement:
         plot_type: str,
         regex: Optional[str],
         plotpath: Optional[pathlib.Path],
-        #cutoff_min: Optional[float],
-        #intersection: str,
-        #xunit: str,
-        #time_discarded_s: float,
+        # cutoff_min: Optional[float],
+        # intersection: str,
+        # xunit: str,
+        # time_discarded_s: float,
         ax,
     ):
         """
@@ -690,45 +712,47 @@ class Measurement:
                 continue
 
             # Plot based on plot_type
-            #if plot_type == "max" or plot_type == "both":
-                # Plot max slope analysis - need to get the original max slope data
-                # slope_max_analyzer = SlopeAnalyzer(params)
-                # max_slopes = slope_max_analyzer.get_maximum_slope(
-                #     self._data,
-                #     target_col,
-                #     age_col,
-                #     regex,
-                # )
-                # max_slopes = self.get_maximum_slope(
-                #     params,
-                #     target_col,
-                #     age_col,
-                #     #time_discarded_s,
-                #     #False,
-                #     #False,
-                #     #False,
-                #     regex,
-                # )
-                # dormant_hfs = self.get_dormant_period_heatflow(
-                #     params, regex, show_plot=False
-                # )
+            # if plot_type == "max" or plot_type == "both":
+            # Plot max slope analysis - need to get the original max slope data
+            # slope_max_analyzer = SlopeAnalyzer(params)
+            # max_slopes = slope_max_analyzer.get_maximum_slope(
+            #     self._data,
+            #     target_col,
+            #     age_col,
+            #     regex,
+            # )
+            # max_slopes = self.get_maximum_slope(
+            #     params,
+            #     target_col,
+            #     age_col,
+            #     #time_discarded_s,
+            #     #False,
+            #     #False,
+            #     #False,
+            #     regex,
+            # )
+            # dormant_hfs = self.get_dormant_period_heatflow(
+            #     params, regex, show_plot=False
+            # )
 
-                # Create onset results from combined data in expected format
-                # onsets_for_sample = pd.DataFrame(
-                #     [
-                #         {
-                #             "sample": result_row["sample"],
-                #             "sample_short": result_row["sample_short"],
-                #             "onset_time_s": result_row.get("max_slope_onset_time_s", 0),
-                #             "onset_time_min": result_row.get(
-                #                 "max_slope_onset_time_min", 0
-                #             ),
-                #         }
-                #     ]
-                # )
+            # Create onset results from combined data in expected format
+            # onsets_for_sample = pd.DataFrame(
+            #     [
+            #         {
+            #             "sample": result_row["sample"],
+            #             "sample_short": result_row["sample_short"],
+            #             "onset_time_s": result_row.get("max_slope_onset_time_s", 0),
+            #             "onset_time_min": result_row.get(
+            #                 "max_slope_onset_time_min", 0
+            #             ),
+            #         }
+            #     ]
+            # )
 
-                #onsets_for_sample = pd.DataFrame(
-            if not pd.isna(result_row.onset_time_s_mean_slope or result_row.onset_time_s_max_slope):
+            # onsets_for_sample = pd.DataFrame(
+            if not pd.isna(
+                result_row.onset_time_s_mean_slope or result_row.onset_time_s_max_slope
+            ):
                 self._plotter.plot_tangent_analysis(
                     sample_data,
                     sample_short,
@@ -738,14 +762,16 @@ class Measurement:
                     cutoff_time_min=cutoff_min,
                     analysis_type=plot_type,  # Use correct analysis type
                     results=result_row.to_frame().T,
-                    #max_slopes=max_slopes,
-                    #dormant_hfs=dormant_hfs,
-                    #onsets=onsets_for_sample,
-                    #intersection=intersection,
-                    #xunit=xunit,
+                    # max_slopes=max_slopes,
+                    # dormant_hfs=dormant_hfs,
+                    # onsets=onsets_for_sample,
+                    # intersection=intersection,
+                    # xunit=xunit,
                     figsize=(10, 6),
                 )
-            self._save_and_show_plot(plotpath, f"{plot_type}_slope_{sample_short}.png", ax)
+            self._save_and_show_plot(
+                plotpath, f"{plot_type}_slope_{sample_short}.png", ax
+            )
 
             # if plot_type == "mean" or plot_type == "both":
             #     # Plot mean slope (flank tangent) analysis - convert combined results to tangent format
@@ -922,9 +948,14 @@ class Measurement:
 
         # Analyze dormant period
         analyzer = DormantPeriodAnalyzer(params)
-        return analyzer.get_dormant_period_heatflow(
+        dorm_hf = analyzer.get_dormant_period_heatflow(
             self._data, peaks, regex, upper_dormant_thresh_w_g
         )
+
+        if not dorm_hf.empty:
+            return dorm_hf
+        else:
+            return pd.DataFrame()
 
     def get_astm_c1679_characteristics(
         self,
