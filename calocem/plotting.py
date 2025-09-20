@@ -618,6 +618,8 @@ class SimplePlotter:
             flank_start_value = results["flank_start_value"].iloc[0]
             flank_end_value = results["flank_end_value"].iloc[0]
 
+        peak_time = results["peak_time_s"].iloc[0]
+        peak_heatflow = results["peak_heat_flow_w_g"].iloc[0]
         dormant_minimum_time = results["dorm_time_s"].iloc[0]
         onset_heat_flow = results["dorm_normalized_heat_flow_w_g"].iloc[0]
 
@@ -658,10 +660,14 @@ class SimplePlotter:
             data, hf_end, dorm_time_s, age_col=age_col, target_col=target_col
         )
 
-        x_start = dormant_minimum_time#onset_time - onset_time * flank_fraction_start
-        x_end = slope_time + slope_time * 0.25
+        x_start = 0
+        x_end = peak_time  #slope_time + slope_time * 0.25
         x_tangent = np.linspace(x_start, x_end, 100)
         y_tangent = gradient * x_tangent + tangent_intercept
+
+        mask = (y_tangent <= peak_heatflow) & (y_tangent >= 0)
+        x_tangent = x_tangent[mask]
+        y_tangent = y_tangent[mask]
 
         ax.plot(
             x_tangent,
