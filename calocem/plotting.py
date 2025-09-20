@@ -618,6 +618,7 @@ class SimplePlotter:
             flank_start_value = results["flank_start_value"].iloc[0]
             flank_end_value = results["flank_end_value"].iloc[0]
 
+        dormant_minimum_time = results["dorm_time_s"].iloc[0]
         onset_heat_flow = results["dorm_normalized_heat_flow_w_g"].iloc[0]
 
         # Plot maximum slope point
@@ -657,7 +658,7 @@ class SimplePlotter:
             data, hf_end, dorm_time_s, age_col=age_col, target_col=target_col
         )
 
-        x_start = onset_time - onset_time * flank_fraction_start
+        x_start = dormant_minimum_time#onset_time - onset_time * flank_fraction_start
         x_end = slope_time + slope_time * 0.25
         x_tangent = np.linspace(x_start, x_end, 100)
         y_tangent = gradient * x_tangent + tangent_intercept
@@ -669,7 +670,7 @@ class SimplePlotter:
             linestyle="--",
             linewidth=2,
             alpha=0.8,
-            label=f"{analysis_type.title()} Slope Tangent",
+            label=f"{analysis_type.title()} Gradient {gradient:.2e}",
         )
 
         if (
@@ -694,13 +695,10 @@ class SimplePlotter:
                     fill_data[age_col],
                     flank_start_value,
                     flank_end_value,
-                    alpha=0.4,
-                    color="cyan",
+                    alpha=0.3,
+                    color="orange",
                     label="y-vals averaged",
                 )
-        # ax.set_title(
-        #     f"Peak Onset via {analysis_type} Slope - Intersection\nSample: {sample}"
-        # )
 
         if not pd.isna(intersection_abscissa) and intersection_abscissa is not None:
             ax.plot(
@@ -785,6 +783,8 @@ class SimplePlotter:
                 alpha=0.7,
                 label=rf"$t_{{peak}}$: {peak_time:,.0f} s".replace(",", "\u2009"),
             )
+
+        ax.set_title(f"C3S Peak Analysis - {sample}")
 
         return ax
 
