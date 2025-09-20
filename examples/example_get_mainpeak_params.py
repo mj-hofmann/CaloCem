@@ -11,7 +11,7 @@ datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r".*peak_detection_example[1-3].*",
+    regex=r".*peak_detection_example[1-5].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -29,7 +29,9 @@ processparams.spline_interpolation.smoothing_1st_deriv = 1e-13
 processparams.spline_interpolation.smoothing_2nd_deriv = 1e-10
 processparams.median_filter.apply = True
 processparams.median_filter.size = 5
-
+processparams.cutoff.cutoff_min = 75
+processparams.slope_analysis.flank_fraction_start = 0.45
+processparams.slope_analysis.flank_fraction_end = 0.6
 
 
 # %%
@@ -39,3 +41,5 @@ mainpeak = tam.get_mainpeak_params(
     plot_type="mean"
     #regex=".*example3.*",
 )
+
+# %%

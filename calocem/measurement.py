@@ -740,7 +740,7 @@ class Measurement:
                     # onsets=onsets_for_sample,
                     # intersection=intersection,
                     # xunit=xunit,
-                    figsize=(6, 4),
+                    figsize=(7, 5),
                 )
             self._save_and_show_plot(
                 plotpath, f"{plot_type}_slope_{sample_short}.png", ax

@@ -741,6 +741,7 @@ class FlankTangentAnalyzer:
                     distance=self.processparams.peakdetection.distance,
                 )
 
+
                 if len(peaks) == 0:
                     logger.warning(f"No peak found in {pathlib.Path(str(sample)).stem}")
                     continue
