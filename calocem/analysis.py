@@ -461,13 +461,32 @@ class ASTMC1679Analyzer:
                     )
 
             if astm_times:
-                return pd.concat(astm_times, ignore_index=True)
+                df = pd.concat(astm_times, ignore_index=True) 
+                df = self.rename_and_select_columns(df)
+                return df
             else:
                 return pd.DataFrame()
 
         except Exception as e:
             raise DataProcessingException("get_astm_c1679_characteristics", e)
 
+    def rename_and_select_columns(
+        self, astm_df: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Rename and select relevant columns for ASTM DataFrame."""
+        if astm_df.empty:
+            return astm_df
+
+        rename_map = {
+            "time_s": "astm_time_s",
+            "normalized_heat_flow_w_g": "astm_normalized_heat_flow_w_g",
+            "normalized_heat_j_g": "astm_normalized_heat_j_g",
+        }
+        cols_to_select = ["sample", "sample_short"] + list(rename_map.keys())
+
+        available_cols = [col for col in cols_to_select if col in astm_df.columns]
+        reduced_df = astm_df[available_cols].rename(columns=rename_map)
+        return reduced_df
 
 class HeatCalculator:
     """Calculates cumulative heat at specific times."""

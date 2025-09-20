@@ -411,7 +411,6 @@ class Measurement:
         """
         params = processparams or self.processparams
 
-        # Calculate both slope analyses
         max_slope_results = self._calculate_max_slope_analysis(
             params,
             target_col,
@@ -434,9 +433,11 @@ class Measurement:
             params, regex, show_plot=False
         )
 
+        astm_values = self.get_astm_c1679_characteristics(params, regex, show_plot=False)
+
         # Merge results into comprehensive DataFrame
         combined_results = self._merge_slope_results(
-            max_slope_results, mean_slope_results, dormant_minimum_heatflow
+            max_slope_results, mean_slope_results, dormant_minimum_heatflow, astm_values
         )
 
         # Plot if requested
@@ -607,12 +608,14 @@ class Measurement:
         max_slope_results: pd.DataFrame,
         mean_slope_results: pd.DataFrame,
         dormant_hf_results: pd.DataFrame,
+        astm_results: pd.DataFrame,
     ) -> pd.DataFrame:
         """Merge max slope and mean slope results into comprehensive DataFrame."""
         if (
             max_slope_results.empty
             and mean_slope_results.empty
             and dormant_hf_results.empty
+            and astm_results.empty
         ):
             return pd.DataFrame()
 
@@ -622,7 +625,6 @@ class Measurement:
         if mean_slope_results.empty:
             return max_slope_results
 
-        # Merge on sample identification
         combined = pd.merge(
             max_slope_results,
             mean_slope_results,
@@ -639,7 +641,14 @@ class Measurement:
             suffixes=("", "_duplicate"),
         )
 
-        # Remove duplicate columns
+        combined = pd.merge(
+            combined,
+            astm_results,
+            on=["sample", "sample_short"],
+            how="outer",
+            suffixes=("", "_duplicate"),
+        )
+
         duplicate_cols = [col for col in combined.columns if col.endswith("_duplicate")]
         combined = combined.drop(columns=duplicate_cols)
 
@@ -713,45 +722,6 @@ class Measurement:
             if sample_data.empty:
                 continue
 
-            # Plot based on plot_type
-            # if plot_type == "max" or plot_type == "both":
-            # Plot max slope analysis - need to get the original max slope data
-            # slope_max_analyzer = SlopeAnalyzer(params)
-            # max_slopes = slope_max_analyzer.get_maximum_slope(
-            #     self._data,
-            #     target_col,
-            #     age_col,
-            #     regex,
-            # )
-            # max_slopes = self.get_maximum_slope(
-            #     params,
-            #     target_col,
-            #     age_col,
-            #     #time_discarded_s,
-            #     #False,
-            #     #False,
-            #     #False,
-            #     regex,
-            # )
-            # dormant_hfs = self.get_dormant_period_heatflow(
-            #     params, regex, show_plot=False
-            # )
-
-            # Create onset results from combined data in expected format
-            # onsets_for_sample = pd.DataFrame(
-            #     [
-            #         {
-            #             "sample": result_row["sample"],
-            #             "sample_short": result_row["sample_short"],
-            #             "onset_time_s": result_row.get("max_slope_onset_time_s", 0),
-            #             "onset_time_min": result_row.get(
-            #                 "max_slope_onset_time_min", 0
-            #             ),
-            #         }
-            #     ]
-            # )
-
-            # onsets_for_sample = pd.DataFrame(
             if not pd.isna(
                 result_row.onset_time_s_mean_slope or result_row.onset_time_s_max_slope
             ):
@@ -775,43 +745,6 @@ class Measurement:
                 plotpath, f"{plot_type}_slope_{sample_short}.png", ax
             )
 
-            # if plot_type == "mean" or plot_type == "both":
-            #     # Plot mean slope (flank tangent) analysis - convert combined results to tangent format
-            #     # tangent_result = pd.DataFrame(
-            #     #     [
-            #     #         {
-            #     #             "sample": result_row["sample"],
-            #     #             "sample_short": result_row["sample_short"],
-            #     #             "peak_time_s": result_row.get("peak_time_s", 0),
-            #     #             "peak_value": result_row.get("peak_value", 0),
-            #     #             "tangent_slope": result_row.get("mean_slope_value", 0),
-            #     #             "tangent_time_s": result_row.get("mean_slope_time_s", 0),
-            #     #             "x_intersection": result_row.get(
-            #     #                 "mean_slope_onset_time_s", 0
-            #     #             ),
-            #     #             "tangent_intercept": result_row.get("peak_value", 0)
-            #     #             - result_row.get("mean_slope_value", 0)
-            #     #             * result_row.get("mean_slope_time_s", 0),
-            #     #             "flank_start_value": result_row.get("peak_value", 0)
-            #     #             * 0.2,  # Approximate values
-            #     #             "flank_end_value": result_row.get("peak_value", 0) * 0.8,
-            #     #         }
-            #     #     ]
-            #     # )
-
-            #     self._plotter.plot_tangent_analysis(
-            #         sample_data,
-            #         sample_short,
-            #         ax=ax,
-            #         age_col=age_col,
-            #         target_col=target_col,
-            #         #cutoff_time_min=cutoff_min,
-            #         analysis_type="mean",  # Use correct analysis type
-            #         results=result_row.to_frame().T,
-            #         #tangent_results=tangent_result,
-            #         figsize=(10, 6),
-            #     )
-            #     self._save_and_show_plot(plotpath, f"mean_slope_{sample_short}.png", ax)
 
     # Backward compatibility methods
     def get_peak_onset_via_max_slope(
@@ -983,9 +916,10 @@ class Measurement:
 
         # Analyze ASTM characteristics
         analyzer = ASTMC1679Analyzer(params)
-        return analyzer.get_astm_c1679_characteristics(
+        df = analyzer.get_astm_c1679_characteristics(
             self._data, peaks, individual, regex
         )
+        return df
 
     def get_cumulated_heat_at_hours(
         self,
