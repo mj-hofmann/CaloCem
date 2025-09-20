@@ -36,5 +36,6 @@ processparams.median_filter.size = 5
 mainpeak = tam.get_mainpeak_params(
     processparams=processparams,
     show_plot=True,
+    plot_type="mean"
     #regex=".*example3.*",
 )

@@ -274,7 +274,7 @@ class SimplePlotter:
         #intersection: str = "dormant_hf",
         #xunit: str = "s",
         # Common styling parameters
-        figsize: tuple = (10, 6),
+        figsize: tuple = (8, 5),
     ):
         """
         Unified plotting method for tangent-based analysis results.
@@ -329,7 +329,7 @@ class SimplePlotter:
                         color="gray",
                         linestyle="-.",
                         alpha=0.8,
-                        label=f"Cutoff: {cutoff_time_min:.0f} min",
+                        label=f"Cutoff: {cutoff_time_min:,.0f} min",
                     )
 
             # if analysis_type == "mean" or analysis_type == "max":
@@ -653,9 +653,9 @@ class SimplePlotter:
                     color="green",
                     label="y-vals averaged",
                 )
-        ax.set_title(
-            f"Peak Onset via {analysis_type} Slope - Intersection\nSample: {sample}"
-        )
+        # ax.set_title(
+        #     f"Peak Onset via {analysis_type} Slope - Intersection\nSample: {sample}"
+        # )
         
         if not pd.isna(intersection_abscissa) and intersection_abscissa is not None:
             ax.plot(
@@ -664,7 +664,7 @@ class SimplePlotter:
                 "k*",
                 markersize=7,
                 alpha=0.7,
-                label=f"Onset (Abscissa): {intersection_abscissa:.0f}s",
+                label=fr"$t_{{onset,abscissa}}$: {intersection_abscissa:,.0f} s".replace(",", "\u2009"),
             )   
 
         if onset_time is not None and not np.isnan(onset_time):
@@ -673,7 +673,7 @@ class SimplePlotter:
                 onset_heat_flow,
                 "rv",
                 markersize=6,
-                label=f"Onset (Dormant HF): {onset_time:.0f}s",
+                label=fr"$t_{{onset,dormant}}$: {onset_time:,.0f} s".replace(",", "\u2009"),
                 zorder=5,
             )
             ax.axhline(
@@ -681,7 +681,7 @@ class SimplePlotter:
                 color="orange",
                 linestyle=":",
                 alpha=1,
-                label=f"Dormant Heat Flow: {onset_heat_flow:.2e}",
+                label=fr"$\dot{{Q}}_{{dormant}}$: {onset_heat_flow:.2e} W/g",
             )
             
         else:
@@ -695,7 +695,7 @@ class SimplePlotter:
                     0,
                     "ro",
                     markersize=6,
-                    label=f"Onset (Abscissa): {intersection_abscissa:.0f}s",
+                    label=fr"$t_{{onset,abcissa}}$: {intersection_abscissa:,.0f} s".replace(",", "\u2009"),
                     zorder=5,
                 )
 
@@ -706,7 +706,7 @@ class SimplePlotter:
                     results["astm_normalized_heat_flow_w_g"],
                     "gs",
                     alpha=0.7,
-                    label=f"ASTM C1679: {astm_time:.0f}s",
+                    label=fr"$t_{{ASTM\; C1679}}$: {astm_time:,.0f} s".replace(",", "\u2009"),
             )   
 
         if results["max_slope_time_s"] is not None:
@@ -716,7 +716,7 @@ class SimplePlotter:
                 results["max_slope_normalized_heat_flow_w_g"],
                 "c^",
                 alpha=0.7,
-                label=f"Max Slope Time: {max_slope_time:.0f}s",
+                label=fr"$t_{{max\; slope}}$: {max_slope_time:,.0f} s".replace(",", "\u2009"),
             )
         
         if results["peak_time_s"] is not None:
@@ -726,7 +726,7 @@ class SimplePlotter:
                 results["peak_heat_flow_w_g"],
                 "mD",
                 alpha=0.7,
-                label=f"Peak Time: {peak_time:.0f}s",
+                label=fr"$t_{{peak}}$: {peak_time:,.0f} s".replace(",", "\u2009"),
             )
 
         return ax
