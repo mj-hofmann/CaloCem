@@ -406,7 +406,7 @@ class ASTMC1679Analyzer:
         self,
         data: pd.DataFrame,
         peaks: pd.DataFrame,
-        individual: bool = False,
+        individual: bool = True,
         regex: Optional[str] = None,
     ) -> pd.DataFrame:
         """
@@ -447,10 +447,15 @@ class ASTMC1679Analyzer:
                     mean_peak_height = highest_peaks["normalized_heat_flow_w_g"].mean()
                     target_value = mean_peak_height / 2
 
-                # Find time at half-maximum
-                sample_data_filtered = sample_data[
-                    sample_data["normalized_heat_flow_w_g"] <= target_value
-                ]
+                # get time_s for half the maximum heat flow, i.e. find the time for which normalized_heat_flow_w_g <= target_value
+                #peak_time_s = highest_peaks.query(f"sample == {sample}")#["time_s"].values[0]
+                peak_time_s = float(sample_peak["time_s"].iloc[0])
+                sample_data_filtered = sample_data.query(f"time_s < {peak_time_s} and normalized_heat_flow_w_g <= {target_value}")
+                # Get heat at target time   
+
+                # sample_data_filtered = sample_data[
+                #     sample_data["normalized_heat_flow_w_g"] <= target_value
+                # ]
 
                 if not sample_data_filtered.empty:
                     astm_time = sample_data_filtered.tail(1)

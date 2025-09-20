@@ -433,7 +433,7 @@ class Measurement:
             params, regex, show_plot=False
         )
 
-        astm_values = self.get_astm_c1679_characteristics(params, regex, show_plot=False)
+        astm_values = self.get_astm_c1679_characteristics(params, individual=True, show_plot=False, regex=regex)
 
         # Merge results into comprehensive DataFrame
         combined_results = self._merge_slope_results(
@@ -728,6 +728,7 @@ class Measurement:
                 self._plotter.plot_tangent_analysis(
                     sample_data,
                     sample_short,
+                    params,
                     ax=ax,
                     age_col=age_col,
                     target_col=target_col,
@@ -901,7 +902,7 @@ class Measurement:
     def get_astm_c1679_characteristics(
         self,
         processparams: Optional[ProcessingParameters] = None,
-        individual: bool = False,
+        individual: bool = True,
         show_plot: bool = False,
         ax=None,
         regex: Optional[str] = None,
