@@ -337,14 +337,14 @@ class Measurement:
 
         return result
 
-    def get_peak_onset_via_slope(
+    def get_mainpeak_params(
         self,
         processparams: Optional[ProcessingParameters] = None,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
         # cutoff_min: Optional[float] = None,
         show_plot: bool = False,
-        plot_type: str = "both",
+        plot_type: str = "mean",
         regex: Optional[str] = None,
         plotpath: Optional[pathlib.Path] = None,
         ax=None,
@@ -379,10 +379,9 @@ class Measurement:
         show_plot : bool
             Whether to plot the results
         plot_type : str
-            Type of plot to show: 'max', 'mean', or 'both', by default 'both'
+            Type of plot to show: 'max', 'mean',
             - 'max': Shows only maximum slope analysis plot
             - 'mean': Shows only mean slope (flank tangent) analysis plot
-            - 'both': Shows both analysis types (separate plots)
         regex : str, optional
             Regex to filter samples
         plotpath : pathlib.Path, optional
@@ -835,16 +834,18 @@ class Measurement:
         This is a wrapper around get_peak_onset_via_slope for backward compatibility.
         Returns only the max slope related columns for compatibility.
         """
-        full_results = self.get_peak_onset_via_slope(
+        full_results = self.get_mainpeak_params(
             processparams=processparams,
             target_col=target_col,
             age_col=age_col,
             show_plot=show_plot,
             regex=regex,
             ax=ax,
-            time_discarded_s=time_discarded_s,
-            intersection=intersection,
-            xunit=xunit,
+            plot_type="max",
+
+            #time_discarded_s=time_discarded_s,
+            #intersection=intersection,
+            #xunit=xunit,
         )
 
         if full_results.empty:
@@ -872,6 +873,10 @@ class Measurement:
                 result = result.rename(columns={old_name: new_name})
 
         return result
+    
+    # def get_peak_onset_via_max_slope(self, *args, **kwargs):
+    #     return self.get_mainpeak_params(*args, **kwargs)
+
 
     def get_ascending_flank_tangent(
         self,

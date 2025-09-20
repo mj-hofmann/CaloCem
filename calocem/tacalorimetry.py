@@ -1787,8 +1787,10 @@ class Measurement:
             # return
             return max_slope_characteristics
 
+
+
     #
-    # get reaction onset via maximum slope
+    # get main peak parameters
     #
     def get_peak_onset_via_max_slope(
         self,
@@ -2011,6 +2013,9 @@ class Measurement:
         # else:
         #     # return onset characteristics exclusively
         #     return onsets
+
+
+
 
     #
     # get dormant period heatflow

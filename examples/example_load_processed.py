@@ -17,12 +17,12 @@ processparams.slope_analysis.flank_fraction_end = 0.75
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r"calorimetry_data.*",
+    regex=r"process.*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
     new_code=True,
-    processed=False,
+    processed=True,
     processparams=processparams
 )
 
