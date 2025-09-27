@@ -386,7 +386,7 @@ class SimplePlotter:
             ax.set_xlabel("Time / s")
             ax.set_ylabel("Normalized Heat Flow / W$g^{-1}$")
 
-            ax.legend(loc="best", labelspacing=0.1)
+            ax.legend(loc="best", labelspacing=0.1, fontsize=8)
             max_time = results.peak_time_s.values[0] * 4
             if max_time < data[age_col].max():
                 ax.set_xlim(right=max_time)
@@ -676,7 +676,7 @@ class SimplePlotter:
             linestyle="--",
             linewidth=2,
             alpha=0.8,
-            label=f"{analysis_type.title()} Gradient {gradient:.2e}",
+            label=f"{analysis_type.title()} Grad. {gradient:.2e} W/(gs)",
         )
 
         if (

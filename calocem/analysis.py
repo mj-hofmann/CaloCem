@@ -890,16 +890,39 @@ class FlankTangentAnalyzer:
                 else:
                     min_value_before_tangent = np.nan
                     x_intersection_min = np.nan
+                
+                # get normalized_heat_j_g at representative_time
+                tangent_j_g = np.interp(
+                    representative_time,
+                    sample_data[age_col],
+                    sample_data["normalized_heat_j_g"],
+                )
+
+                # get normalized_heat_j_g at peak_time
+                peak_j_g = np.interp(
+                    peak_time,
+                    sample_data[age_col],
+                    sample_data["normalized_heat_j_g"],
+                )
+
+                # get normalized_heat_j_g at x_intersection
+                x_intersection_j_g = np.interp(
+                    x_intersection,
+                    sample_data[age_col],
+                    sample_data["normalized_heat_j_g"],
+                ) if not np.isnan(x_intersection) else np.nan
 
                 result = {
                     "sample": sample,
                     "sample_short": pathlib.Path(str(sample)).stem,
                     "peak_time_s": peak_time,
                     "peak_value": peak_value,
+                    "peak_j_g": peak_j_g,
                     "tangent_slope": representative_slope,
                     "tangent_time_s": representative_time,
                     "tangent_value": representative_value,
                     "tangent_intercept": tangent_intercept,
+                    "tangent_j_g": tangent_j_g,
                     "flank_start_value": flank_start_value,
                     "flank_end_value": flank_end_value,
                     "n_windows": len(tangent_slopes),
@@ -907,6 +930,7 @@ class FlankTangentAnalyzer:
                     "x_intersection": x_intersection,
                     "min_value_before_tangent": min_value_before_tangent,
                     "x_intersection_min": x_intersection_min,
+                    "x_intersection_j_g": x_intersection_j_g,
                 }
 
                 results.append(result)

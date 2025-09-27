@@ -7,6 +7,7 @@ import pathlib
 import warnings
 from typing import Optional, Union
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -525,6 +526,16 @@ class Measurement:
                 onset_row.iloc[0]["onset_time_s"] if not onset_row.empty else None
             )
 
+            # get normalized_heat_j_g at onset_time
+            if onset_time and not pd.isna(onset_time):
+                onset_j_g = np.interp(
+                    onset_time,
+                    self._data[age_col],
+                    self._data["normalized_heat_j_g"],
+                )
+            else:
+                onset_j_g = None
+
             result_data = {
                 "sample": sample,
                 "sample_short": sample_short,
@@ -534,6 +545,8 @@ class Measurement:
                 "max_slope_normalized_heat_flow_w_g": slope_row.get(
                     "normalized_heat_flow_w_g", 0
                 ),
+                "normalized_heat_at_max_slope_j_g": slope_row.get("normalized_heat_j_g", 0),
+                "normalized_heat_at_onset_time_max_slope_j_g": onset_j_g,
                 "onset_time_s_max_slope": onset_time,
                 "onset_time_min_max_slope": onset_time / 60 if onset_time else None,
                 "onset_time_s_max_slope_abscissa": (
@@ -591,13 +604,16 @@ class Measurement:
                 "mean_slope_gradient": row.get("tangent_slope", 0),
                 "mean_slope_time_s": row.get("tangent_time_s", 0),
                 "mean_slope_normalized_heat_flow_w_g": row.get("tangent_value", 0),
+                "mean_slope_normalized_heat_j_g": row.get("tangent_j_g", 0),
                 "onset_time_s_mean_slope": onset_time,
                 "onset_time_min_mean_slope": onset_time / 60 if onset_time else None,
                 "onset_time_s_mean_slope_abscissa": row.get("x_intersection", 0),
+                "normalized_heat_at_onset_time_mean_slope_abscissa_j_g": row.get("x_intersection_j_g", 0),
                 "flank_start_value": row.get("flank_start_value", 0),
                 "flank_end_value": row.get("flank_end_value", 0),
                 "peak_time_s": row.get("peak_time_s", 0),
                 "peak_heat_flow_w_g": row.get("peak_value", 0),
+                "peak_heat_j_g": row.get("peak_j_g", 0),
             }
             results.append(result_data)
 
