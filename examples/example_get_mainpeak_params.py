@@ -11,7 +11,7 @@ datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r".*peak_detection_example[1-5].*",
+    regex=r".*peak_detection_example[1-2].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -38,7 +38,7 @@ processparams.slope_analysis.flank_fraction_end = 0.6
 mainpeak = tam.get_mainpeak_params(
     processparams=processparams,
     show_plot=True,
-    plot_type="mean"
+    plot_type="max"
     #regex=".*example3.*",
 )
 

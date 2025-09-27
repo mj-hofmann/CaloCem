@@ -539,15 +539,15 @@ class Measurement:
             result_data = {
                 "sample": sample,
                 "sample_short": sample_short,
-                "max_slope_gradient": slope_row.get("gradient", 0),
-                "max_slope_curvature": slope_row.get("curvature", 0),
+                "gradient_from_max_slope": slope_row.get("gradient", 0),
+                "curvature_at_max_slope": slope_row.get("curvature", 0),
                 "max_slope_time_s": slope_row.get("time_s", 0),
-                "max_slope_normalized_heat_flow_w_g": slope_row.get(
+                "normalized_heat_flow_w_g_at_max_slope": slope_row.get(
                     "normalized_heat_flow_w_g", 0
                 ),
-                "normalized_heat_at_max_slope_j_g": slope_row.get("normalized_heat_j_g", 0),
-                "normalized_heat_at_onset_time_max_slope_j_g": onset_j_g,
-                "onset_time_s_max_slope": onset_time,
+                "normalized_heat_j_g_at_max_slope": slope_row.get("normalized_heat_j_g", 0),
+                "normalized_heat_j_g_at_onset_time_max_slope": onset_j_g,
+                "onset_time_s_from_max_slope": onset_time,
                 "onset_time_min_max_slope": onset_time / 60 if onset_time else None,
                 "onset_time_s_max_slope_abscissa": (
                     onset_row.iloc[0]["onset_time_s_abscissa"]
@@ -596,24 +596,25 @@ class Measurement:
             sample_short = row.get("sample_short", row.get("sample", ""))
 
             # onset by intersection with tangent to dormant period
-            onset_time = row.get("x_intersection_min", row.get("tangent_time_s", 0))
+            onset_time = row.get("x_intersection_dormant", row.get("tangent_time_s", 0))
 
             result_data = {
                 "sample": sample,
                 "sample_short": sample_short,
-                "mean_slope_gradient": row.get("tangent_slope", 0),
+                "gradient_of_mean_slope": row.get("tangent_slope", 0),
                 "mean_slope_time_s": row.get("tangent_time_s", 0),
-                "mean_slope_normalized_heat_flow_w_g": row.get("tangent_value", 0),
-                "mean_slope_normalized_heat_j_g": row.get("tangent_j_g", 0),
-                "onset_time_s_mean_slope": onset_time,
-                "onset_time_min_mean_slope": onset_time / 60 if onset_time else None,
-                "onset_time_s_mean_slope_abscissa": row.get("x_intersection", 0),
+                "normalized_heat_flow_w_g_at_mean_slope": row.get("tangent_value", 0),
+                "normalized_heat_j_g_at_mean_slope": row.get("tangent_j_g", 0),
+                "onset_time_s_from_mean_slope": onset_time,
+                "onset_time_min_from_mean_slope": onset_time / 60 if onset_time else None,
+                "onset_time_s_from_mean_slope_abscissa": row.get("x_intersection", 0),
                 "normalized_heat_at_onset_time_mean_slope_abscissa_j_g": row.get("x_intersection_j_g", 0),
+                "normalized_heat_at_onset_time_mean_slope_dormant_j_g": row.get("x_intersection_dormant_j_g", 0),
                 "flank_start_value": row.get("flank_start_value", 0),
                 "flank_end_value": row.get("flank_end_value", 0),
                 "peak_time_s": row.get("peak_time_s", 0),
-                "peak_heat_flow_w_g": row.get("peak_value", 0),
-                "peak_heat_j_g": row.get("peak_j_g", 0),
+                "normalized_heat_flow_w_g_at_peak": row.get("peak_value", 0),
+                "normalized_heat_j_g_at_peak": row.get("peak_j_g", 0),
             }
             results.append(result_data)
 
@@ -739,7 +740,7 @@ class Measurement:
                 continue
 
             if not pd.isna(
-                result_row.onset_time_s_mean_slope or result_row.onset_time_s_max_slope
+                result_row.onset_time_s_from_mean_slope or result_row.onset_time_s_from_max_slope
             ):
                 self._plotter.plot_tangent_analysis(
                     sample_data,

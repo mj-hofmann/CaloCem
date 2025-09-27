@@ -32,7 +32,7 @@ class OnsetCharacteristics:
     normalized_heat_flow_w_g: float
     gradient: float
     dorm_time_s: float
-    dorm_normalized_heat_flow_w_g: float
+    normalized_heat_flow_w_g_dormant: float
     x_intersect: float
     intersection_type: str
     xunit: str
@@ -250,7 +250,7 @@ class OnsetAnalyzer:
                     continue
 
                 dorm_hf_value = float(
-                    sample_dorm_hf["dorm_normalized_heat_flow_w_g"].iloc[0]
+                    sample_dorm_hf["normalized_heat_flow_w_g_dormant"].iloc[0]
                 )
 
                 # Calculate intersection with tangent to dormant heat flow
@@ -387,8 +387,8 @@ class DormantPeriodAnalyzer:
 
         rename_map = {
             "time_s": "dorm_time_s",
-            "normalized_heat_flow_w_g": "dorm_normalized_heat_flow_w_g",
-            "normalized_heat_j_g": "dorm_normalized_heat_j_g",
+            "normalized_heat_flow_w_g": "normalized_heat_flow_w_g_dormant",
+            "normalized_heat_j_g": "normalized_heat_j_g_dormant",
         }
         cols_to_select = ["sample", "sample_short"] + list(rename_map.keys())
 
@@ -484,8 +484,8 @@ class ASTMC1679Analyzer:
 
         rename_map = {
             "time_s": "astm_time_s",
-            "normalized_heat_flow_w_g": "astm_normalized_heat_flow_w_g",
-            "normalized_heat_j_g": "astm_normalized_heat_j_g",
+            "normalized_heat_flow_w_g": "normalized_heat_flow_w_g_astm",
+            "normalized_heat_j_g": "normalized_heat_j_g_astm",
         }
         cols_to_select = ["sample", "sample_short"] + list(rename_map.keys())
 
@@ -912,6 +912,13 @@ class FlankTangentAnalyzer:
                     sample_data["normalized_heat_j_g"],
                 ) if not np.isnan(x_intersection) else np.nan
 
+                # get normalized_heat_j_g at x_intersection_min
+                x_intersection_dormant_j_g = np.interp(
+                    x_intersection_min,
+                    sample_data[age_col],
+                    sample_data["normalized_heat_j_g"],
+                ) if not np.isnan(x_intersection_min) else np.nan
+
                 result = {
                     "sample": sample,
                     "sample_short": pathlib.Path(str(sample)).stem,
@@ -929,7 +936,8 @@ class FlankTangentAnalyzer:
                     "slope_std": np.std(tangent_slopes),
                     "x_intersection": x_intersection,
                     "min_value_before_tangent": min_value_before_tangent,
-                    "x_intersection_min": x_intersection_min,
+                    "x_intersection_dormant": x_intersection_min,
+                    "x_intersection_dormant_j_g": x_intersection_dormant_j_g,
                     "x_intersection_j_g": x_intersection_j_g,
                 }
 

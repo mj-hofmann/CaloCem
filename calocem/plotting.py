@@ -602,26 +602,26 @@ class SimplePlotter:
         # Extract slope characteristics
         if analysis_type == "max":
             slope_time = results["max_slope_time_s"].iloc[0]
-            slope_value = results["max_slope_normalized_heat_flow_w_g"].iloc[0]
-            gradient = results["max_slope_gradient"].iloc[0]
-            onset_time = results["onset_time_s_max_slope"].iloc[0]
+            slope_value = results["normalized_heat_flow_w_g_at_max_slope"].iloc[0]
+            gradient = results["gradient_from_max_slope"].iloc[0]
+            onset_time = results["onset_time_s_from_max_slope"].iloc[0]
             intersection_abscissa = results["onset_time_s_max_slope_abscissa"].iloc[0]
             flank_start_value = None
             flank_end_value = None
 
         elif analysis_type == "mean":
             slope_time = results["mean_slope_time_s"].iloc[0]
-            slope_value = results["mean_slope_normalized_heat_flow_w_g"].iloc[0]
-            gradient = results["mean_slope_gradient"].iloc[0]
-            onset_time = results["onset_time_s_mean_slope"].iloc[0]
-            intersection_abscissa = results["onset_time_s_mean_slope_abscissa"].iloc[0]
+            slope_value = results["normalized_heat_flow_w_g_at_mean_slope"].iloc[0]
+            gradient = results["gradient_of_mean_slope"].iloc[0]
+            onset_time = results["onset_time_s_from_mean_slope"].iloc[0]
+            intersection_abscissa = results["onset_time_s_from_mean_slope_abscissa"].iloc[0]
             flank_start_value = results["flank_start_value"].iloc[0]
             flank_end_value = results["flank_end_value"].iloc[0]
 
         peak_time = results["peak_time_s"].iloc[0]
-        peak_heatflow = results["peak_heat_flow_w_g"].iloc[0]
+        peak_heatflow = results["normalized_heat_flow_w_g_at_peak"].iloc[0]
         dormant_minimum_time = results["dorm_time_s"].iloc[0]
-        onset_heat_flow = results["dorm_normalized_heat_flow_w_g"].iloc[0]
+        onset_heat_flow = results["normalized_heat_flow_w_g_dormant"].iloc[0]
 
         # Plot maximum slope point
         ax.scatter(
@@ -640,13 +640,13 @@ class SimplePlotter:
         flank_fraction_start = processparams.slope_analysis.flank_fraction_start
         flank_fraction_end = processparams.slope_analysis.flank_fraction_end
         # get time_s for the flank_fraction_start
-        hf_start = float(results.dorm_normalized_heat_flow_w_g.values[0]) + (
-            float(results.peak_heat_flow_w_g.values[0])
-            - float(results.dorm_normalized_heat_flow_w_g.values[0])
+        hf_start = float(results.normalized_heat_flow_w_g_dormant.values[0]) + (
+            float(results.normalized_heat_flow_w_g_at_peak.values[0])
+            - float(results.normalized_heat_flow_w_g_dormant.values[0])
         ) * float(flank_fraction_start)
-        hf_end = float(results.dorm_normalized_heat_flow_w_g.values[0]) + (
-            float(results.peak_heat_flow_w_g.values[0])
-            - float(results.dorm_normalized_heat_flow_w_g.values[0])
+        hf_end = float(results.normalized_heat_flow_w_g_dormant.values[0]) + (
+            float(results.normalized_heat_flow_w_g_at_peak.values[0])
+            - float(results.normalized_heat_flow_w_g_dormant.values[0])
         ) * float(flank_fraction_end)
         # find the first time after the dormant period where hf >= hf_start
         dorm_time_s = (
@@ -760,7 +760,7 @@ class SimplePlotter:
             astm_time = results["astm_time_s"].values[0]
             ax.plot(
                 results["astm_time_s"],
-                results["astm_normalized_heat_flow_w_g"],
+                results["normalized_heat_flow_w_g_astm"],
                 "gs",
                 alpha=0.7,
                 label=rf"$t_{{ASTM\; C1679}}$: {astm_time:,.0f} s".replace(
@@ -772,7 +772,7 @@ class SimplePlotter:
             max_slope_time = results["max_slope_time_s"].values[0]
             ax.plot(
                 results["max_slope_time_s"],
-                results["max_slope_normalized_heat_flow_w_g"],
+                results["normalized_heat_flow_w_g_at_max_slope"],
                 "c^",
                 alpha=0.7,
                 label=rf"$t_{{max\; slope}}$: {max_slope_time:,.0f} s".replace(
@@ -784,7 +784,7 @@ class SimplePlotter:
             peak_time = results["peak_time_s"].values[0]
             ax.plot(
                 results["peak_time_s"],
-                results["peak_heat_flow_w_g"],
+                results["normalized_heat_flow_w_g_at_peak"],
                 "mD",
                 alpha=0.7,
                 label=rf"$t_{{peak}}$: {peak_time:,.0f} s".replace(",", "\u2009"),
