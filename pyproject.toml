@@ -43,11 +43,11 @@ dev = [
     "mkdocs-git-revision-date-localized-plugin>=1.2.6,<2",
     "mkdocs-git-committers-plugin-2>=2.3.0,<3",
     "mkdocs-git-authors-plugin>=0.9.0,<0.10",
-    "mkdocstrings[python]>=0.25.1,<0.26",
     "mkdocs-table-reader-plugin>=2.2.2,<3",
-    "mkdocs-jupyter>=0.24.0,<0.25",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
+    "mkdocstrings[python]>=0.30.1",
+    "mkdocs-jupyter>=0.25.1",
 ]
 
 [tool.hatch.build.targets.sdist]
