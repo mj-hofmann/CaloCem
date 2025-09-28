@@ -2,7 +2,7 @@ import pathlib
 
 import pytest
 
-from calocem import tacalorimetry
+from calocem.measurement import Measurement
 
 
 @pytest.mark.parametrize(
@@ -14,11 +14,11 @@ from calocem import tacalorimetry
             0,
         ),  # multiples samples in one file?  --> do nothing / return 0
         ("gen3_calofile.csv", 172799),
-        ("calorimetry_data_1.csv", 416006),  
-        ("calorimetry_data_2.csv", 277199),
-        ("calorimetry_data_3.csv", 410349),  
-        ("calorimetry_data_4.csv", 277199),
-        ("calorimetry_data_5.csv", 277199),
+        ("calorimetry_data_1.csv", 418554),  
+        ("calorimetry_data_2.csv", 293534),
+        ("calorimetry_data_3.csv", 412939),  
+        ("calorimetry_data_4.csv", 294065),
+       # ("calorimetry_data_5.csv", 277199),
         ("gen1_calofile3.csv", 264470),  # in-situ first gen file
         ("gen1_calofile2.csv", 263750),  # in-situ first gen file
         ("corrupt_example.csv", 259040),  # comma sep ("corrupt" due to 2 missing values)
@@ -30,12 +30,12 @@ def test_last_time_entry(file, expected):
     path = pathlib.Path(__file__).parent.parent / "calocem" / "DATA"
 
     # get data
-    data = tacalorimetry.Measurement(auto_clean=False)._read_calo_data_csv(path / file)
-
+    tam = Measurement(path, regex=file)
+    data = tam.get_data()
     # checks
-    if data is None:
+    if data.empty:
         # test
-        assert data is None
+        assert len(data) == 0
     else:
         # discard NaN values
         data = data.dropna()

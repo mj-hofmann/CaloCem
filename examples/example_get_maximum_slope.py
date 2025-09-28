@@ -1,9 +1,10 @@
 # %%
 from pathlib import Path
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+#import matplotlib.ticker as ticker
 
-from calocem.tacalorimetry import Measurement
+# from calocem.tacalorimetry import Measurement
+from calocem.measurement import Measurement
 from calocem.processparams import ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
@@ -12,7 +13,8 @@ assetpath = Path(__file__).parent.parent / "docs" / "assets"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=".*calorimetry_data_[6].*",
+    regex=".*calorimetry_data_[1-4].*",
+    #regex=r".*peak_detection_example[4].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -35,24 +37,26 @@ for sample_name in sample_names:
 
     onsets_spline = tam.get_maximum_slope(
         processparams=processparams,
-        time_discarded_s=3600,
+        time_discarded_s=3000,
+        exclude_discarded_time=True,
         show_plot=True,
         save_path=assetpath,
         regex=sample_name,
         ax=ax,
         xunit="h",
-        xscale="linear",
     )
     # ax.set_xlim(0, 24)
     # ax.set_ylim(0, 0.005)
-    ax.set_xscale("log")
+    #ax.set_xscale("log")
     ax.set_title("")
-    ax, ax2 = fig.get_axes()
+    #ax, ax2 = fig.get_axes()
     handles, labels = ax.get_legend_handles_labels()
-    handles2, labels2 = ax2.get_legend_handles_labels()
-    handles = handles + handles2
+    #handles2, labels2 = ax2.get_legend_handles_labels()
+    #handles = handles + handles2
+    ax.set_ylim(0, 0.03)
     labels = ["Sample", "Gradient"]
     ax.legend(handles, labels, loc="upper right")
+    ax.set_title(f"Maximum Slope - {sample_name}")
     plt.show()
 # ta.plt.savefig(assetpath / "example_detect_maximum_slope.png")
 # %%

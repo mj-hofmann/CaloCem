@@ -4,7 +4,7 @@ from pathlib import Path
 
 from calocem.tacalorimetry import Measurement
 
-datapath = Path(__file__).parent.parent / "CaloCem" / "DATA"
+datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 plotpath = Path(__file__).parent.parent / "docs" / "assets"
 
 # %% use class based approach

@@ -3,7 +3,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-from calocem.tacalorimetry import Measurement
+from calocem.tacalorimetry import Measurement, ProcessingParameters
+
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 
@@ -19,7 +20,7 @@ tam2 = Measurement(
 
 # define processing parameters
 processparams = ProcessingParameters()
-processparams.tau_values = {"tau1": 300, "tau2": None}
+processparams.time_constants.tau1 = 300
 
 tam2.apply_tian_correction(processparams)
 

@@ -288,7 +288,7 @@ def add_sample_info(df, file):
     return df
 
 
-def tidy_colnames(df):
+def tidy_colnames(df: pd.DataFrame) -> pd.DataFrame:
     # get new column names
     new_columnames = []
     for i in df.iloc[0, :]:
