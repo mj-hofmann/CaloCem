@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class SimplePlotter:
-    """Simplified plotting functionality to avoid complex type issues."""
+    """Simplified plotting functionality."""
 
     def _find_time_for_hf_after_dorm(
         self,
@@ -292,15 +292,6 @@ class SimplePlotter:
         cutoff_time_min: Optional[float] = None,
         analysis_type: str = "mean",
         results: Optional[pd.DataFrame] = None,
-        # Flank tangent specific parameters
-        # tangent_results: Optional[pd.DataFrame] = None,
-        # Onset intersection specific parameters
-        # max_slopes: Optional[pd.DataFrame] = None,
-        # dormant_hfs: Optional[pd.DataFrame] = None,
-        # onsets: Optional[pd.DataFrame] = None,
-        # intersection: str = "dormant_hf",
-        # xunit: str = "s",
-        # Common styling parameters
         figsize: tuple = (8, 5),
     ):
         """
@@ -325,18 +316,8 @@ class SimplePlotter:
             Cutoff time in minutes to show as vertical line if data was filtered
         analysis_type : str
             Type of analysis: 'mean' or 'max'
-        tangent_results : pd.DataFrame, optional
-            For flank_tangent: DataFrame with tangent characteristics
-        max_slopes : pd.DataFrame, optional
-            For onset_intersection: DataFrame with maximum slope characteristics
-        dormant_hfs : pd.DataFrame, optional
-            For onset_intersection: DataFrame with dormant heat flow data
-        onsets : pd.DataFrame, optional
-            For onset_intersection: DataFrame with calculated onset times
-        intersection : str
-            For onset_intersection: Type of intersection ('dormant_hf' or 'abscissa')
-        xunit : str
-            Time unit for plotting
+        results : pd.DataFrame, optional
+            DataFrame containing analysis results
         figsize : tuple
             Figure size for the plot
         """
@@ -361,24 +342,16 @@ class SimplePlotter:
                         label=f"Cutoff: {cutoff_time_min:,.0f} min",
                     )
 
-            # if analysis_type == "mean" or analysis_type == "max":
-            #     self._plot_flank_tangent_elements(
-            #         ax, data, results, sample, age_col, target_col
-            #     )
             if analysis_type == "max" or analysis_type == "mean":
                 self._plot_onset_intersection_elements(
                     ax,
                     data,
                     results,
                     processparams,
-                    # max_slopes,
-                    # dormant_hfs,
-                    # onsets,
                     sample,
                     age_col,
                     target_col,
                     analysis_type,
-                    # intersection,
                 )
             else:
                 raise ValueError(f"Unknown analysis_type: {analysis_type}")

@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 class Measurement:
     """
-    Refactored class for handling and processing isothermal heat flow calorimetry data.
+    Class for handling and processing isothermal heat flow calorimetry data.
 
     This class coordinates file I/O, data processing, analysis, and visualization
     operations while maintaining the same API as the original implementation.
@@ -65,11 +65,11 @@ class Measurement:
         cold_start : bool, optional
             Whether to read from files or use cached data, by default True
         processparams : ProcessingParameters, optional
-            Processing parameters, by default None
+            Processing parameters, by default None. If None, the default parameters will be used
         new_code : bool, optional
             Flag for new code features, by default False
         processed : bool, optional
-            Whether data is already processed, by default False
+            Whether data is already processed, i.e., if a .csv file is used which was processed  by Calocem. By default False
         """
         # Initialize attributes
         self._data = pd.DataFrame()
@@ -343,20 +343,11 @@ class Measurement:
         processparams: Optional[ProcessingParameters] = None,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        # cutoff_min: Optional[float] = None,
         show_plot: bool = False,
         plot_type: str = "mean",
         regex: Optional[str] = None,
         plotpath: Optional[pathlib.Path] = None,
         ax=None,
-        # Max slope parameters
-        # time_discarded_s: float = 3600,
-        # intersection: str = "dormant_hf",
-        # xunit: str = "s",
-        # Mean slope (flank tangent) parameters
-        # flank_fraction_start: float = 0.35,
-        # flank_fraction_end: float = 0.55,
-        # window_size: float = 0.1,
     ) -> pd.DataFrame:
         """
         Unified method that calculates BOTH maximum and mean slope onset analyses.
@@ -372,11 +363,9 @@ class Measurement:
         processparams : ProcessingParameters, optional
             Processing parameters, by default None
         target_col : str
-            Column containing heat flow data
+            Column containing heat flow data. The default is 'normalized_heat_flow_w_g'.
         age_col : str
-            Column containing time data
-        cutoff_min : float, optional
-            Initial cutoff time in minutes to ignore from analysis
+            Column containing time data. The default is 'time_s'.
         show_plot : bool
             Whether to plot the results
         plot_type : str
@@ -389,26 +378,26 @@ class Measurement:
             Path to save plots
         ax : matplotlib.axes.Axes, optional
             Matplotlib axes to plot on
-        time_discarded_s : float
-            Time to discard for max slope analysis
-        intersection : str
-            Type of intersection for max slope analysis ('dormant_hf' or 'abscissa')
-        xunit : str
-            Time unit for plotting
-        flank_fraction_start : float
-            Start of flank section as fraction of peak height (0-1)
-        flank_fraction_end : float
-            End of flank section as fraction of peak height (0-1)
-        window_size : float
-            Size of averaging window as fraction of flank time range
 
         Returns
         -------
         pd.DataFrame
             Comprehensive DataFrame with both max and mean slope results including:
-            - max_slope_value, max_slope_time_s, max_slope_onset_time_s
-            - mean_slope_value, mean_slope_time_s, mean_slope_onset_time_s
-            - sample identification and other metadata
+            - Gradients and curvatures at max slope
+            - Gradients of mean slope
+            - Onset times from both methods
+            - Normalized heat flow and heat values at key points
+            - Dormant period heat flow values
+            - ASTM C1679 characteristic values
+        
+        Examples
+        --------
+        >>> measurement = Measurement(folder="data/")
+        >>> mainpeak_params = measurement.get_mainpeak_params(
+        ...     processparams=ProcessingParameters(),
+        ...     show_plot=False,
+        ...     plot_type="mean",
+        ... )
         """
         params = processparams or self.processparams
 
@@ -423,10 +412,6 @@ class Measurement:
             params,
             target_col,
             age_col,
-            # flank_fraction_start,
-            # flank_fraction_end,
-            # window_size,
-            # cutoff_min,
             regex,
         )
 
@@ -451,10 +436,6 @@ class Measurement:
                 plot_type,
                 regex,
                 plotpath,
-                # cutoff_min,
-                # intersection,
-                # xunit,
-                # time_discarded_s,
                 ax,
             )
             if not ax:
@@ -475,17 +456,11 @@ class Measurement:
         params: ProcessingParameters,
         target_col: str,
         age_col: str,
-        # time_discarded_s: float,
-        # intersection: str,
-        # xunit: str,
         regex: Optional[str],
     ) -> pd.DataFrame:
         """Calculate maximum slope analysis and return structured results."""
         # Get required data
         max_slope_analyzer = SlopeAnalyzer(params)
-        # max_slopes = self.get_maximum_slope(
-        #    params, target_col, age_col, regex
-        # )
         max_slopes = max_slope_analyzer.get_maximum_slope(
             self._data,
             target_col,
@@ -516,7 +491,6 @@ class Measurement:
             sample = slope_row.get("sample", slope_row.get("sample_short", ""))
             sample_short = slope_row.get("sample_short", slope_row.get("sample", ""))
 
-            # Find corresponding onset
             onset_row = (
                 onsets[onsets["sample_short"] == sample_short]
                 if not onsets.empty
@@ -564,10 +538,6 @@ class Measurement:
         params: ProcessingParameters,
         target_col: str,
         age_col: str,
-        # flank_fraction_start: float,
-        # flank_fraction_end: float,
-        # window_size: float,
-        # cutoff_min: Optional[float],
         regex: Optional[str],
     ) -> pd.DataFrame:
         """Calculate mean slope (flank tangent) analysis and return structured results."""
@@ -578,10 +548,6 @@ class Measurement:
             self._data,
             target_col,
             age_col,
-            # flank_fraction_start,
-            # flank_fraction_end,
-            # window_size,
-            # cutoff_min,
             regex,
         )
 
@@ -589,7 +555,6 @@ class Measurement:
             logger.warning("No flank tangent results found.")
             return pd.DataFrame()
 
-        # Structure results with consistent naming
         results = []
         for _, row in tangent_results.iterrows():
             sample = row.get("sample", row.get("sample_short", ""))
@@ -680,10 +645,6 @@ class Measurement:
         plot_type: str,
         regex: Optional[str],
         plotpath: Optional[pathlib.Path],
-        # cutoff_min: Optional[float],
-        # intersection: str,
-        # xunit: str,
-        # time_discarded_s: float,
         ax,
     ):
         """
@@ -708,12 +669,6 @@ class Measurement:
             Path to save plots
         cutoff_min : float, optional
             Cutoff time in minutes
-        intersection : str
-            Type of intersection for max slope analysis
-        xunit : str
-            Time unit for plotting
-        time_discarded_s : float
-            Time to discard for max slope analysis
         ax : matplotlib.axes.Axes, optional
             Matplotlib axes to plot on
         """
@@ -752,11 +707,6 @@ class Measurement:
                     cutoff_time_min=cutoff_min,
                     analysis_type=plot_type,  # Use correct analysis type
                     results=result_row.to_frame().T,
-                    # max_slopes=max_slopes,
-                    # dormant_hfs=dormant_hfs,
-                    # onsets=onsets_for_sample,
-                    # intersection=intersection,
-                    # xunit=xunit,
                     figsize=(7, 5),
                 )
             self._save_and_show_plot(
@@ -825,9 +775,6 @@ class Measurement:
 
         return result
     
-    # def get_peak_onset_via_max_slope(self, *args, **kwargs):
-    #     return self.get_mainpeak_params(*args, **kwargs)
-
 
     def get_ascending_flank_tangent(
         self,
