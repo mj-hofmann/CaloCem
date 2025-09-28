@@ -577,12 +577,12 @@ class AverageSlopeAnalyzer:
                     continue
 
                 # Get onset data for this sample
-                onset_row = onsets[onsets["sample"] == sample_short]
+                onset_row = onsets[onsets["sample_short"] == sample_short]
                 if onset_row.empty:
                     continue
 
                 # Get time points
-                onset_time = onset_row["onset_time_s"].iloc[0]
+                onset_time = onset_row["onset_time_s_from_max_slope"].iloc[0]
                 max_slope_time = max_slope_row[age_col].iloc[0]
 
                 # Find heat flow maximum after onset

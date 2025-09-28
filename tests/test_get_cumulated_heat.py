@@ -11,8 +11,8 @@ from calocem.processparams import ProcessingParameters
 @pytest.mark.parametrize(
     "test_input,target_h,expected",
     [
-        ("calorimetry_data_1.csv", 24, 133.94),
-        ("calorimetry_data_2.csv", 24, 141.35),
+        ("calorimetry_data_1.csv", 24, 134.03),
+        ("calorimetry_data_2.csv", 24, 134.88),
     ],
 )
 

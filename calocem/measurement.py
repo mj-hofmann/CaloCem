@@ -753,27 +753,27 @@ class Measurement:
             return full_results
 
         # Extract only max slope related columns for backward compatibility
-        max_slope_cols = [
-            col
-            for col in full_results.columns
-            if col.startswith("max_slope_") or col in ["sample", "sample_short"]
-        ]
+        # max_slope_cols = [
+        #     col
+        #     for col in full_results.columns
+        #     if col.startswith("max_slope_") or col in ["sample", "sample_short"]
+        # ]
 
-        result = full_results[max_slope_cols].copy()
+        # result = full_results[max_slope_cols].copy()
 
         # Rename columns to match old API
-        column_mapping = {
-            "max_slope_onset_time_s": "onset_time_s",
-            "max_slope_onset_time_min": "onset_time_min",
-            "max_slope_value": "maximum_slope",
-            "max_slope_time_s": "maximum_slope_time_s",
-        }
+        # column_mapping = {
+        #     "onset_time_s_from_max_slope": "onset_time_s",
+        #     "max_slope_onset_time_min": "onset_time_min",
+        #     "max_slope_value": "maximum_slope",
+        #     "max_slope_time_s": "maximum_slope_time_s",
+        # }
 
-        for old_name, new_name in column_mapping.items():
-            if old_name in result.columns:
-                result = result.rename(columns={old_name: new_name})
+        # for old_name, new_name in column_mapping.items():
+        #     if old_name in result.columns:
+        #         result = result.rename(columns={old_name: new_name})
 
-        return result
+        return full_results
     
 
     def get_ascending_flank_tangent(
@@ -933,11 +933,11 @@ class Measurement:
             logger.warning("Cannot calculate average slopes - missing required data")
             return pd.DataFrame()
 
-        # Calculate average slopes
         analyzer = AverageSlopeAnalyzer(params)
-        return analyzer.get_average_slope(
+        result = analyzer.get_average_slope(
             self._data, max_slopes, onsets, target_col, age_col, regex
         )
+        return result
 
     def _plot_tangent_analysis_unified(
         self,

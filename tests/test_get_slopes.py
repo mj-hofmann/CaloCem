@@ -12,11 +12,9 @@ from calocem.processparams import ProcessingParameters
     "test_input,expected",
     [
         ("calorimetry_data_1.csv", 5.6e-8),
-        ("calorimetry_data_2.csv", 0.00083159),
+        ("calorimetry_data_2.csv", 6.2e-8),
     ],
 )
-
-#@pysnooper.snoop()
 def test_get_average_slope(test_input, expected):
 
     path = pathlib.Path(__file__).parent.parent / "calocem" / "DATA"

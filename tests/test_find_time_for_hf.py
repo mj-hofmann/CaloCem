@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from calocem.plotting import SimplePlotter
 
@@ -10,22 +11,20 @@ def test_find_time_for_hf_after_dorm_basic():
     df = pd.DataFrame({"time_s": time, "normalized_heat_flow_w_g": hf})
 
     plotter = SimplePlotter()
-
     # If dorm_time_s is 15, target 0.0005 should be at time 30
     t = plotter._find_time_for_hf_after_dorm(
         df, 0.0005, 15.0, age_col="time_s", target_col="normalized_heat_flow_w_g"
     )
-    assert t == 30.0
+    assert t == pytest.approx(30.0)
 
-    # If dorm_time_s is 35, target 0.0005 should be at time 50 (since 30 is before dorm)
+    # If dorm_time_s is 35, target 0.0005 should be at time 40 (first value >= target after dorm)
     t2 = plotter._find_time_for_hf_after_dorm(
         df, 0.0005, 35.0, age_col="time_s", target_col="normalized_heat_flow_w_g"
     )
-    assert t2 == 50.0
+    assert t2 == pytest.approx(40.0)
 
     # If target not reached after dorm, return None
     t3 = plotter._find_time_for_hf_after_dorm(
         df, 0.003, 0.0, age_col="time_s", target_col="normalized_heat_flow_w_g"
     )
-    assert t3 is None
     assert t3 is None

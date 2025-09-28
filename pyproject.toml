@@ -47,6 +47,7 @@ dev = [
     "mkdocs-table-reader-plugin>=2.2.2,<3",
     "mkdocs-jupyter>=0.24.0,<0.25",
     "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -72,6 +73,11 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 no_implicit_reexport = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
 
 [tool.tox]
 legacy_tox_ini = """
