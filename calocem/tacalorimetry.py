@@ -4,8 +4,8 @@ import os
 import pathlib
 import pickle
 import re
-from dataclasses import dataclass, field
 import warnings
+from dataclasses import dataclass, field
 
 import matplotlib
 import matplotlib.axes
@@ -19,6 +19,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.ndimage import median_filter
 
 from calocem import utils
+
 from .processparams import *
 
 logging.basicConfig(
@@ -369,7 +370,7 @@ class Measurement:
                 title_row = 0
 
             data = utils.load_data(file, delimiter, title_row)
-        
+
             start_time = utils.find_reaction_start_time(data)
 
             if delimiter == "\t":
@@ -382,10 +383,10 @@ class Measurement:
             data = utils.convert_df_to_float(data)
             data = utils.correct_start_time(data, start_time)
             data = utils.add_sample_info(data, file)
-        
+
         elif self._processed:
             data = pd.read_csv(file, sep=",", header=0)
-             
+
         return data
 
     #
@@ -1006,7 +1007,7 @@ class Measurement:
                 # get relevant indices
                 target_idx = target_idx.sum(axis=1) == len(categories)
                 # define title
-                title = f"Grouped by { build_helper_string(categories)} ({build_helper_string(selections)})"
+                title = f"Grouped by {build_helper_string(categories)} ({build_helper_string(selections)})"
             else:
                 # - if only one(!) category to group by is specified -
                 # identify corresponding samples
@@ -1066,7 +1067,7 @@ class Measurement:
         if plot_labels:
             for x, y in zip(data[_age_col][peaks], data[_target_col][peaks]):
                 y = y + 0.0002
-                ax.text(x, y, f"{round(x,2)}", color="red")
+                ax.text(x, y, f"{round(x, 2)}", color="red")
 
             # ax.text(
             #     x=data[_age_col][peaks],
@@ -1116,15 +1117,15 @@ class Measurement:
         ax2.set_yscale("linear")
         xmask = data[age_col] > time_discarded_s
         y_vals = data[target_col][xmask]
-        ymin = y_vals.min() + y_vals.min()*0.1
-        ymax = y_vals.max() + y_vals.max()*0.1
+        ymin = y_vals.min() + y_vals.min() * 0.1
+        ymax = y_vals.max() + y_vals.max() * 0.1
         # ax.set_ylim(ymin, ymax)
 
         y2_vals = data["gradient"][xmask]
         y2min = y2_vals.min() + y2_vals.min() * 0.1
         y2max = y2_vals.max() + y2_vals.max() * 0.1
         ax2.set_ylim(y2min, y2max)
-        
+
         ax2.set_ylabel(r"Gradient [Wg$^{-1}$s$^{-1}$]")
 
         # add vertical lines
@@ -1153,7 +1154,7 @@ class Measurement:
         ax.text(
             t_maxslope + x_increment,
             0.00025,
-            f"{round(t_maxslope,2)} {xunit} ",
+            f"{round(t_maxslope, 2)} {xunit} ",
             color="green",
         )
 
@@ -1220,7 +1221,6 @@ class Measurement:
                 color="green",
             )
         elif characteristics.intersection == "abscissa":
-
             ax.text(
                 x=characteristics.x_intersect,
                 y=0,
@@ -1228,7 +1228,7 @@ class Measurement:
                 + "\n",
                 color="green",
             )
-        
+
         ax.axvline(
             x=characteristics.x_intersect,
             color="green",
@@ -1257,15 +1257,15 @@ class Measurement:
         Parameters
         ----------
         processparams : ProcessingParameters, optional
-            Processing parameters. The default is None. If None, the default 
+            Processing parameters. The default is None. If None, the default
             parameters are used. The most important parameter is the cutoff time
-            in minutes which describes the initial time period of the measurement 
-            which is not considered for the cumulated heat flow. It is defined in 
+            in minutes which describes the initial time period of the measurement
+            which is not considered for the cumulated heat flow. It is defined in
             the ProcessingParameters class. The default value is 30 minutes.
 
         target_h : int | float
             end time in hourscv
-        
+
         Returns
         -------
         A Pandas dataframe
@@ -1283,7 +1283,6 @@ class Measurement:
                 processparams = ProcessingParameters()
             cutoff_min = processparams.cutoff.cutoff_min
 
-   
         def applicable(df, target_h=4, cutoff_min=None):
             # convert target time to seconds
             target_s = 3600 * target_h
@@ -1788,7 +1787,253 @@ class Measurement:
             # return
             return max_slope_characteristics
 
-    #
+    
+    def get_average_slope(
+    self,
+    processparams,
+    target_col="normalized_heat_flow_w_g",
+    age_col="time_s",
+    regex=None,
+    show_plot=False,
+    ax=None,
+    save_path=None,
+    xscale="linear",
+    xunit="s",
+    ):
+        """
+        Calculate average slope by determining 4 additional slope values between 
+        onset time and heat flow maximum, in addition to the maximum slope.
+        
+        Parameters
+        ----------
+        processparams : ProcessingParameters
+            Processing parameters for analysis
+        target_col : str, optional
+            Target measurement column, by default "normalized_heat_flow_w_g"
+        age_col : str, optional
+            Time column name, by default "time_s"
+        regex : str, optional
+            Regex pattern to filter samples, by default None
+        show_plot : bool, optional
+            Whether to show plots, by default False
+        ax : matplotlib.axes.Axes, optional
+            Existing axis to plot on, by default None
+        save_path : Path, optional
+            Path to save plots, by default None
+        xscale : str, optional
+            X-axis scale, by default "log"
+        xunit : str, optional
+            Time unit for display, by default "s"
+            
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing average slope characteristics for each sample
+        """
+        
+        # Get maximum slopes using existing method
+        max_slopes = self.get_maximum_slope(
+            processparams,
+            target_col=target_col,
+            age_col=age_col,
+            regex=regex,
+            show_plot=False,
+            ax=ax,
+            save_path=save_path,
+            xscale=xscale,
+            xunit=xunit,
+        )
+        
+        if max_slopes is None or max_slopes.empty:
+            print("No maximum slopes found. Cannot calculate average slopes.")
+            return pd.DataFrame()
+        
+        # Get onset times using the peak onset method
+        onsets = self.get_peak_onset_via_max_slope(
+            processparams,
+            show_plot=False,
+            regex=regex,
+            age_col=age_col,
+            target_col=target_col,
+            xunit=xunit,
+        )
+        
+        if onsets.empty:
+            print("No onset times found. Cannot calculate average slopes.")
+            return pd.DataFrame()
+        
+        list_of_characteristics = []
+        
+        # Loop through samples
+        for sample, data in self._iter_samples(regex=regex):
+            sample_short = pathlib.Path(sample).stem
+            
+            # Get max slope data for this sample
+            max_slope_row = max_slopes[max_slopes["sample_short"] == sample_short]
+            if max_slope_row.empty:
+                continue
+                
+            # Get onset data for this sample
+            onset_row = onsets[onsets["sample"] == sample_short]
+            if onset_row.empty:
+                continue
+            
+            # Get time points
+            onset_time = onset_row["onset_time_s"].iloc[0]
+            max_slope_time = max_slope_row[age_col].iloc[0]
+            
+            # Find heat flow maximum after onset
+            data_after_onset = data[data[age_col] >= onset_time]
+            if data_after_onset.empty:
+                continue
+                
+            max_hf_time = data_after_onset.loc[data_after_onset[target_col].idxmax(), age_col]
+            
+            # Create 4 intermediate time points between onset and heat flow maximum
+            if max_hf_time <= onset_time:
+                print(f"Warning: Heat flow maximum occurs before onset for {sample_short}")
+                continue
+                
+            # Create 6 time points total (onset, 4 intermediate, max_hf)
+            time_points = np.linspace(onset_time + 3600, max_hf_time - 3600, 6)
+            
+            # Calculate slopes at each interval
+            slopes = []
+            slope_times = []
+            
+            for i in range(len(time_points) - 1):
+                t1, t2 = time_points[i], time_points[i + 1]
+                
+                # Get data points in this interval
+                interval_data = data[(data[age_col] >= t1) & (data[age_col] <= t2)]
+                
+                if len(interval_data) < 2:
+                    continue
+                    
+                # Calculate slope using linear regression
+                x_vals = interval_data[age_col].values
+                y_vals = interval_data[target_col].values
+                
+                # Simple slope calculation: (y2 - y1) / (x2 - x1)
+                slope = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
+                slopes.append(slope)
+                slope_times.append((t1 + t2) / 2)  # Midpoint time
+            
+            # Include the maximum slope
+            max_slope_value = max_slope_row["gradient"].iloc[0]
+            slopes.append(max_slope_value)
+            slope_times.append(max_slope_time)
+            
+            # Calculate average slope
+            if slopes:
+                avg_slope = np.mean(slopes)
+                std_slope = np.std(slopes)
+                
+                # Create characteristics dictionary
+                characteristics = {
+                    "sample": sample,
+                    "sample_short": sample_short,
+                    "onset_time_s": onset_time,
+                    "max_hf_time_s": max_hf_time,
+                    "max_slope_time_s": max_slope_time,
+                    "max_slope_value": max_slope_value,
+                    "average_slope": avg_slope,
+                    "slope_std": std_slope,
+                    "n_slopes": len(slopes),
+                    "individual_slopes": slopes,
+                    "slope_times": slope_times,
+                }
+                
+                # Optional plotting
+                if show_plot:
+                    self._plot_average_slope_analysis(
+                        data, characteristics, ax, age_col, target_col, 
+                        sample_short, save_path, xscale, xunit
+                    )
+                
+                list_of_characteristics.append(characteristics)
+        
+        if not list_of_characteristics:
+            print("No average slope characteristics calculated.")
+            return pd.DataFrame()
+        
+        # Convert to DataFrame
+        avg_slope_df = pd.DataFrame(list_of_characteristics)
+        
+        return avg_slope_df
+
+
+    @staticmethod
+    def _plot_average_slope_analysis(
+        data, characteristics, ax, age_col, target_col, 
+        sample_short, save_path=None, xscale="linear", xunit="s"
+    ):
+        """Plot average slope analysis for visualization"""
+        
+        ax, new_ax = utils.create_base_plot(data, ax, age_col, target_col, sample_short, color="gray")
+        
+        # Plot the heat flow curve
+        #ax.plot(data[age_col], data[target_col], 'b-', alpha=0.7, label='Heat Flow')
+        
+        # Mark onset time
+        ax.axvline(characteristics["onset_time_s"], color='green', 
+                linestyle='--', alpha=0.7, label='Onset')
+        
+        # Mark max heat flow time
+        ax.axvline(characteristics["max_hf_time_s"], color='orange', 
+                linestyle='--', alpha=0.7, label='Max Heat Flow')
+        
+        # Mark max slope time
+        ax.axvline(characteristics["max_slope_time_s"], color='red', 
+                linestyle='--', alpha=0.7, label='Max Slope')
+        
+        # Plot individual slope lines
+        colors = plt.cm.viridis(np.linspace(0, 1, len(characteristics["individual_slopes"])))
+        
+        for i, (slope, time, color) in enumerate(zip(
+            characteristics["individual_slopes"], 
+            characteristics["slope_times"], 
+            colors
+        )):
+            # Find corresponding y-value
+            y_val = np.interp(time, data[age_col], data[target_col])
+            
+            # Plot slope line (extend ±10% of time range)
+            time_range = characteristics["max_hf_time_s"] - characteristics["onset_time_s"]
+            dt = 0.1 * time_range
+            
+            x_line = [time - dt, time + dt]
+            y_line = [y_val - slope * dt, y_val + slope * dt]
+            
+            ax.plot(x_line, y_line, color=color, alpha=0.6, linewidth=2,
+                    label=f'Slope {i+1}: {slope:.2e}')
+        
+        # Add text annotation for average slope
+        ax.text(0.05, 0.95, 
+                f'Avg Slope: {characteristics["average_slope"]:.2e}\n'
+                f'Std: {characteristics["slope_std"]:.2e}',
+                transform=ax.transAxes, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+        
+        ax.set_xscale(xscale)
+        ax.set_xlabel(f'Time [{xunit}]')
+        ax.set_ylabel(target_col.replace('_', ' ').title())
+        ax.set_title(f'Average Slope Analysis - {sample_short}')
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax.grid(True, alpha=0.3)
+        #ax.set_ylim(0,0.003)
+        
+        if new_ax:
+            if save_path:
+                plt.tight_layout()
+                plt.show()
+                #plt.savefig(save_path / f"average_slope_analysis_{sample_short}.pdf")
+                plt.close()
+            else:
+                plt.tight_layout()
+                plt.show() 
+   
+   
     # get reaction onset via maximum slope
     #
     def get_peak_onset_via_max_slope(
@@ -1826,7 +2071,6 @@ class Measurement:
             regex=regex,
             show_plot=False,
             ax=ax,
-            # show_plot=show_plot,
         )
         # % get dormant period HFs
         dorm_hfs = self.get_dormant_period_heatflow(
@@ -1844,9 +2088,8 @@ class Measurement:
             # calculate y-offset
             t = row["normalized_heat_flow_w_g"] - row["time_s"] * row["gradient"]
             # calculate point of intersection
-            if intersection == "dormant_hf":
-                # calculate x-intersect of tangent with dormant heat flow
-                x_intersect = (
+            # calculate x-intersect of tangent with dormant heat flow
+            x_intersect_dormant = (
                     float(
                         dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
                             "normalized_heat_flow_w_g"
@@ -1854,29 +2097,27 @@ class Measurement:
                     )
                     - t
                 ) / row["gradient"]
-            elif intersection == "abscissa":
+            # elif intersection == "abscissa":
                 # calculate x-intersect of tangent with abscissa (y=0)
-                x_intersect = row["time_s"] - (row["normalized_heat_flow_w_g"] / row["gradient"])
-            # get maximum time value
-            tmax = self._data.query("sample_short == @row['sample_short']")[
-                "time_s"
-            ].max()
-            # get maximum heat flow value
-            hmax = self._data.query(
-                "time_s > 3000 & sample_short == @row['sample_short']"
-            )["normalized_heat_flow_w_g"].max()
+            x_intersect = row["time_s"] - (row["normalized_heat_flow_w_g"] / row["gradient"])
+
+            data = self._data.query("sample_short == @row['sample_short']")
+            sample = row["sample_short"]
+
+            heat_at_intersect = np.interp(x_intersect, data["time_s"], data["normalized_heat_j_g"])
 
             # append to list
             list_characteristics.append(
                 {
                     "sample": row["sample_short"],
-                    "onset_time_s": x_intersect,
-                    "onset_time_min": x_intersect / 60,
+                    "onset_time_s_abscissa": x_intersect,
+                    "onset_time_min_abscissa": x_intersect / 60,
+                    "heat_at_onset_j_g": heat_at_intersect,
+                    "onset_time_s": x_intersect_dormant,
+                    "onset_time_min": x_intersect_dormant / 60,
                 }
             )
 
-            data = self._data.query("sample_short == @row['sample_short']")
-            sample = row["sample_short"]
 
             dorm_hfs_sample = dorm_hfs.query("sample_short == @sample")
             # add prefix dorm to all columns
@@ -1887,6 +2128,15 @@ class Measurement:
             characteristics.loc["x_intersect"] = x_intersect
             characteristics.loc["intersection"] = intersection
             # print(characteristics.x_intersect)
+
+            # get maximum time value
+            tmax = self._data.query("sample_short == @row['sample_short']")[
+                "time_s"
+            ].max()
+            # get maximum heat flow value
+            hmax = self._data.query(
+                "time_s > 3000 & sample_short == @row['sample_short']"
+            )["normalized_heat_flow_w_g"].max()
 
             if show_plot:
                 self._plot_intersection(
@@ -1904,83 +2154,7 @@ class Measurement:
                     hmax=hmax,
                     tmax=tmax,
                 )
-                # self._plot_intersection(
-                #     data,
-                #     ax,
-                #     age_col,
-                #     target_col,
-                #     sample,
-                #     # characteristics,
-                #     time_discarded_s,
-                #     save_path=None,
-                #     xscale="linear",
-                #     xunit="s",
-                # )
-                # if isinstance(ax, matplotlib.axes._axes.Axes):
-                #     # plot data
-                #     ax = self.plot(
-                #         t_unit="s", y_unit_milli=False, regex=row["sample_short"], ax=ax
-                #     )
-                #     ax.axline(
-                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
-                #         slope=row["gradient"],
-                #         color="k",
-                #     )
-                #     ax.axhline(
-                #         float(
-                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                #                 "normalized_heat_flow_w_g"
-                #             ]
-                #         ),
-                #         color="k",
-                #     )
-                #     # guide to the eye line
-                #     ax.axvline(x_intersect, color="red")
-                #     # info text
-                #     ax.text(x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red")
-                #     # ax limits
-                #     ax.set_xlim(0, tmax)
-                #     ax.set_ylim(0, hmax)
-                #     # title
-                #     ax.set_title(row["sample_short"])
-
-                # else:
-                #     # plot data
-                #     self.plot(
-                #         t_unit="s",
-                #         y_unit_milli=False,
-                #         regex=row["sample_short"],
-                #     )
-                #     # max slope line
-                #     plt.axline(
-                #         (row["time_s"], row["normalized_heat_flow_w_g"]),
-                #         slope=row["gradient"],
-                #         color="k",
-                #     )
-                #     # dormant heat plot
-                #     plt.axhline(
-                #         float(
-                #             dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
-                #                 "normalized_heat_flow_w_g"
-                #             ]
-                #         ),
-                #         color="k",
-                #     )
-                #     # guide to the eye line
-                #     plt.axhline(0, alpha=0.5, linewidth=0.5, linestyle=":")
-                #     # guide to the eye line
-                #     plt.axvline(x_intersect, color="red")
-                #     # info text
-                #     plt.text(
-                #         x_intersect, 0, f" {x_intersect/60:.1f} min\n", color="red"
-                #     )
-                #     # ax limits
-                #     plt.xlim(0, tmax)
-                #     plt.ylim(0, hmax)
-                #     # title
-                #     plt.title(row["sample_short"])
-                #     plt.show()
-
+        
         # build overall dataframe to be returned
         onsets = pd.DataFrame(list_characteristics)
 
@@ -2224,8 +2398,9 @@ class Measurement:
                     )
                     ax.text(
                         x=helper.tail(1)["time_s"],
-                        y=helper.tail(1)["normalized_heat_flow_w_g"]/2,
-                        s=r" $t_{ASTM}$ =" + f"{helper.tail(1)['time_s'].values[0]:.1f}",
+                        y=helper.tail(1)["normalized_heat_flow_w_g"] / 2,
+                        s=r" $t_{ASTM}$ ="
+                        + f"{helper.tail(1)['time_s'].values[0]:.1f}",
                         color="red",
                     )
                 else:
@@ -2768,6 +2943,333 @@ class Measurement:
 
         # set data to downsampled data
         self._data = df
+
+    def get_ascending_flank_tangent(
+        self,
+        processparams,
+        target_col="normalized_heat_flow_w_g",
+        age_col="time_s",
+        flank_fraction_start=0.2,  # Start at 20% of peak height
+        flank_fraction_end=0.8,  # End at 80% of peak height
+        window_size=0.1,  # Window size as fraction of flank range
+        cutoff_min=None,  # Initial cutoff time in minutes to ignore
+        show_plot=False,
+        regex=None,
+        plotpath=None,
+    ):
+        """
+        Determine tangent to ascending flank of peak by averaging over sections.
+
+        Parameters
+        ----------
+        target_col : str
+            Column containing heat flow data
+        age_col : str
+            Column containing time data
+        flank_fraction_start : float
+            Start of flank section as fraction of peak height (0-1)
+        flank_fraction_end : float
+            End of flank section as fraction of peak height (0-1)
+        window_size : float
+            Size of averaging window as fraction of flank time range
+        cutoff_min : float, optional
+            Initial cutoff time in minutes to ignore from analysis. If None,
+            uses processparams.cutoff.cutoff_min. The default is None.
+        show_plot : bool
+            Whether to plot the results
+        regex : str
+            Regex to filter samples
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with tangent characteristics for each sample
+        """
+
+        results = []
+
+        for sample, data in self._iter_samples(regex=regex):
+            # Apply cutoff if specified - use parameter cutoff_min first, then fallback to processparams
+            cutoff_time_min = (
+                cutoff_min
+                if cutoff_min is not None
+                else processparams.cutoff.cutoff_min
+            )
+            if cutoff_time_min:
+                data = data.query(f"{age_col} >= @cutoff_time_min * 60")
+
+            data = data.reset_index(drop=True)
+
+            # Find the main peak
+            peaks, _ = signal.find_peaks(
+                data[target_col],
+                prominence=processparams.peakdetection.prominence,
+                distance=processparams.peakdetection.distance,
+            )
+
+            if len(peaks) == 0:
+                print(f"No peak found in {sample}")
+                continue
+
+            # Use the highest peak
+            peak_idx = peaks[np.argmax(data.iloc[peaks][target_col])]
+            peak_time = data.iloc[peak_idx][age_col]
+            peak_value = data.iloc[peak_idx][target_col]
+
+            # Find baseline (minimum before peak)
+            baseline_data = data[data[age_col] < peak_time]
+            if len(baseline_data) == 0:
+                baseline_value = 0
+            else:
+                baseline_value = baseline_data[target_col].min()
+
+            # Define flank region
+            flank_height_range = peak_value - baseline_value
+            flank_start_value = (
+                baseline_value + flank_fraction_start * flank_height_range
+            )
+            flank_end_value = baseline_value + flank_fraction_end * flank_height_range
+
+            # Calculate gradient to ensure we only consider regions with positive slope
+            data['gradient'] = np.gradient(data[target_col], data[age_col])
+            
+            # Extract ascending flank data - only include points with positive gradient
+            flank_data = data[
+                (data[target_col] >= flank_start_value)
+                & (data[target_col] <= flank_end_value)
+                & (data[age_col] <= peak_time)
+                & (data['gradient'] > 0)  # Only positive gradients
+            ].copy()
+            
+            # If no positive gradient data in initial range, try to find the lowest point with positive gradient
+            if len(flank_data) < 3:
+                # Find data points with positive gradient before peak
+                positive_gradient_data = data[
+                    (data[age_col] <= peak_time) & (data['gradient'] > 0)
+                ]
+                
+                if len(positive_gradient_data) >= 3:
+                    # Adjust flank start to the minimum value with positive gradient
+                    min_positive_value = positive_gradient_data[target_col].min()
+                    adjusted_flank_start = max(flank_start_value, min_positive_value)
+                    
+                    flank_data = data[
+                        (data[target_col] >= adjusted_flank_start)
+                        & (data[target_col] <= flank_end_value)
+                        & (data[age_col] <= peak_time)
+                        & (data['gradient'] > 0)
+                    ].copy()
+                    
+                    # Update the flank_start_value for recording
+                    flank_start_value = adjusted_flank_start
+
+            if len(flank_data) < 3:
+                print(f"Insufficient flank data in {sample}")
+                continue
+
+            # Calculate moving tangents over windows
+            flank_time_range = flank_data[age_col].max() - flank_data[age_col].min()
+            window_time = window_size * flank_time_range
+
+            tangent_slopes = []
+            tangent_times = []
+            tangent_values = []
+
+            # Slide window across flank
+            start_time = flank_data[age_col].min()
+            end_time = flank_data[age_col].max() - window_time
+
+            step_size = window_time * 0.1  # 10% overlap
+            current_time = start_time
+
+            while current_time <= end_time:
+                window_end = current_time + window_time
+                window_data = flank_data[
+                    (flank_data[age_col] >= current_time)
+                    & (flank_data[age_col] <= window_end)
+                ]
+
+                if len(window_data) >= 3:
+                    # Linear regression for this window
+                    x = window_data[age_col].values
+                    y = window_data[target_col].values
+
+                    # Use numpy polyfit for linear regression
+                    slope, intercept = np.polyfit(x, y, 1)
+
+                    # Only consider positive gradients (ascending flank)
+                    if slope > 0:
+                        # Store tangent info at window center
+                        center_time = (current_time + window_end) / 2
+                        center_value = slope * center_time + intercept
+
+                        tangent_slopes.append(slope)
+                        tangent_times.append(center_time)
+                        tangent_values.append(center_value)
+
+                current_time += step_size
+
+            if not tangent_slopes:
+                print(
+                    f"No valid tangent windows with positive gradients found in {sample}"
+                )
+                continue
+
+            # Calculate representative tangent (median to avoid outliers)
+            representative_slope = np.median(tangent_slopes)
+            representative_time = np.median(tangent_times)
+            representative_value = np.median(tangent_values)
+
+            # Calculate tangent line parameters
+            # y = mx + b, so b = y - mx
+            tangent_intercept = (
+                representative_value - representative_slope * representative_time
+            )
+            # calculate x intection
+            # y=0, so x = -b/m
+            x_intersection = (
+                -tangent_intercept / representative_slope if representative_slope != 0 else np.nan
+            )
+            
+            # Calculate intersection with horizontal line at minimum before tangent_time_s
+            data_before_tangent = data[data[age_col] <= representative_time]
+            if len(data_before_tangent) > 0:
+                min_value_before_tangent = data_before_tangent[target_col].min()
+                # Intersection: y = min_value = slope * x + intercept
+                # x = (y - intercept) / slope
+                x_intersection_min = (
+                    (min_value_before_tangent - tangent_intercept) / representative_slope 
+                    if representative_slope != 0 else np.nan
+                )
+            else:
+                min_value_before_tangent = np.nan
+                x_intersection_min = np.nan
+
+            result = {
+                "sample": sample,
+                "sample_short": pathlib.Path(sample).stem,
+                "peak_time_s": peak_time,
+                "peak_value": peak_value,
+                "tangent_slope": representative_slope,
+                "tangent_time_s": representative_time,
+                "tangent_value": representative_value,
+                "tangent_intercept": tangent_intercept,
+                "flank_start_value": flank_start_value,
+                "flank_end_value": flank_end_value,
+                "n_windows": len(tangent_slopes),
+                "slope_std": np.std(tangent_slopes),
+                "x_intersection": x_intersection,
+                "min_value_before_tangent": min_value_before_tangent,
+                "x_intersection_min": x_intersection_min,
+            }
+
+            results.append(result)
+
+            # Optional plotting
+            if show_plot:
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+                # Plot 1: Full curve with peak and flank region
+                ax1.plot(data[age_col], data[target_col], "b-", alpha=0.7, label="Data")
+                ax1.axvline(
+                    peak_time, color="red", linestyle="--", alpha=0.7, label="Peak"
+                )
+                ax1.axhline(flank_start_value, color="green", linestyle=":", alpha=0.7)
+                ax1.axhline(flank_end_value, color="green", linestyle=":", alpha=0.7)
+                ax1.fill_between(
+                    flank_data[age_col],
+                    flank_start_value,
+                    flank_end_value,
+                    alpha=0.2,
+                    color="green",
+                    label="Flank region",
+                )
+
+                # Plot tangent line
+                x_tangent = np.linspace(x_intersection, peak_time, 10)
+                y_tangent = representative_slope * x_tangent + tangent_intercept
+                ax1.plot(
+                    x_tangent, y_tangent, "r-", linewidth=2, label="Average tangent"
+                )
+
+                # Add text label for tangent slope
+                mid_x = (x_intersection + peak_time) / 2
+                mid_y = representative_slope * mid_x + tangent_intercept
+                ax1.annotate(
+                    f"Slope: {representative_slope:.2e}",
+                    xy=(mid_x, mid_y),
+                    xytext=(10, 10),
+                    textcoords='offset points',
+                    fontsize=10,
+                    color='red',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8)
+                )
+
+                # Add vertical line and label for x_intersection
+                if not np.isnan(x_intersection) and x_intersection > data[age_col].min():
+                    ax1.axvline(x_intersection, color='orange', linestyle=':', alpha=0.8,) 
+                            #    label=f'X-intersection: {x_intersection:.0f}s')
+                    ax1.annotate(
+                        f"{x_intersection:.0f}s",
+                        xy=(x_intersection, baseline_value),
+                        xytext=(-50, 20),
+                        textcoords='offset points',
+                        fontsize=10,
+                        color='orange',
+                        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8),
+                        arrowprops=dict(arrowstyle='->', color='orange', alpha=0.6)
+                    )
+
+                # Add horizontal line at minimum and its intersection with tangent
+                if not np.isnan(min_value_before_tangent) and not np.isnan(x_intersection_min):
+                    # Draw horizontal line at minimum value
+                    ax1.axhline(min_value_before_tangent, color='purple', linestyle='--', 
+                               alpha=0.7, label=f'Min before tangent: {min_value_before_tangent:.4f}')
+                    
+                    # Add vertical line at intersection with minimum
+                    if x_intersection_min > data[age_col].min() and x_intersection_min < peak_time:
+                        ax1.axvline(x_intersection_min, color='purple', linestyle=':', alpha=0.8)
+                        ax1.annotate(
+                            f"Min-int: {x_intersection_min:.0f}s",
+                            xy=(x_intersection_min, min_value_before_tangent),
+                            xytext=(10, -30),
+                            textcoords='offset points',
+                            fontsize=10,
+                            color='purple',
+                            bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8),
+                            arrowprops=dict(arrowstyle='->', color='purple', alpha=0.6)
+                        )
+
+                ax1.set_xlabel(age_col)
+                ax1.set_ylabel(target_col)
+                ax1.set_title(f"Peak Analysis: {pathlib.Path(sample).stem}")
+                ax1.legend()
+                # ax1.grid(True, alpha=0.3)
+                ax1.set_ylim(0,)
+
+                # Plot 2: Slope variation across windows
+                ax2.plot(tangent_times, tangent_slopes, "bo-", alpha=0.7)
+                ax2.axhline(
+                    representative_slope,
+                    color="red",
+                    linestyle="--",
+                    label=f"Median slope: {representative_slope:.2e}",
+                )
+                ax2.set_xlabel("Window center time (s)")
+                ax2.set_ylabel("Local slope")
+                ax2.set_title("Slope variation across flank windows")
+                ax2.legend()
+                # ax2.grid(True, alpha=0.3)
+                # ax2.set_ylim(0,)
+
+                plt.tight_layout()
+                if plotpath is not None:
+                    filename = pathlib.Path(sample).stem
+                    plt.savefig(plotpath / f"{filename}.png")
+                else:
+                    plt.show()
+
+        return pd.DataFrame(results)
 
 
 class HeatFlowProcessor:

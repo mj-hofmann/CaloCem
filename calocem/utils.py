@@ -123,7 +123,7 @@ def read_excel(file, show_info=True):
         return None
 
 
-def create_base_plot(data, ax, _age_col, _target_col, sample):
+def create_base_plot(data, ax, _age_col, _target_col, sample, color=None):
     """
     create base plot
     """
@@ -133,7 +133,10 @@ def create_base_plot(data, ax, _age_col, _target_col, sample):
         new_ax = True
         _, ax = plt.subplots()
 
-    ax.plot(data[_age_col], data[_target_col], label=Path(sample).stem)
+    if color is None:
+        color = "#1f77b4"
+
+    ax.plot(data[_age_col], data[_target_col], label=Path(sample).stem, color=color, alpha=0.6)
 
     # check if std deviation is available
     std_present = [s for s in data.columns if "std" in s]
@@ -285,7 +288,7 @@ def add_sample_info(df, file):
     return df
 
 
-def tidy_colnames(df):
+def tidy_colnames(df: pd.DataFrame) -> pd.DataFrame:
     # get new column names
     new_columnames = []
     for i in df.iloc[0, :]:

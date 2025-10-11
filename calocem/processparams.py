@@ -1,10 +1,10 @@
-
 from dataclasses import dataclass, field
+
 
 @dataclass
 class CutOffParameters:
-    cutoff_min: int = 30
-    cutoff_max: int = 2880 # 2 days in minutes
+    cutoff_min: int = 60
+    cutoff_max: int = 2880  # 2 days in minutes
 
 
 @dataclass
@@ -39,11 +39,12 @@ class MedianFilterParameters:
     Parameters
     ----------
     apply: bool
-        default is false. If `True`, a median filter is applied. The Scipy function `median_filter` is  applied.   
+        default is false. If `True`, a median filter is applied. The Scipy function `median_filter` is  applied.
     size: int
         The size of the median filter (see the SciPy documentation)
-    
+
     """
+
     apply: bool = False
     size: int = 7
 
@@ -81,7 +82,7 @@ class SplineInterpolationParameters:
 @dataclass
 class PeakDetectionParameters:
     """
-    Parameters that control the identication of peaks during peak detection. 
+    Parameters that control the identication of peaks during peak detection.
 
     Parameters
     ----------
@@ -91,6 +92,7 @@ class PeakDetectionParameters:
     distance: int
         The minimum distance of the peak.
     """
+
     prominence: float = 1e-5
     distance: int = 100
 
@@ -98,7 +100,7 @@ class PeakDetectionParameters:
 @dataclass
 class GradientPeakDetectionParameters:
     """
-    Parameters that control the identifcation of Peaks in the first derivative (gradient) of the heat flow data. Under the hood the SciPy `find_peaks()` is used [Link to SciPy method](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html). 
+    Parameters that control the identifcation of Peaks in the first derivative (gradient) of the heat flow data. Under the hood the SciPy `find_peaks()` is used [Link to SciPy method](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html).
 
     Parameters
     ----------
@@ -117,6 +119,7 @@ class GradientPeakDetectionParameters:
     use_largest_width: bool
         If true the peak with the largest peak width will be used.
     """
+
     prominence: float = 1e-9
     distance: int = 100
     width: int = 20
@@ -129,12 +132,31 @@ class GradientPeakDetectionParameters:
 
 @dataclass
 class DownSamplingParameters:
+    """
+    Parameters for adaptive downsampling of the heat flow data.
+    
+    Parameters
+    ----------
+    apply: bool
+        If True, adaptive downsampling is applied to the heat flow data.
+    num_points: int
+        The target number of points after downsampling. Default is 1000.
+    smoothing_factor: float
+        Smoothing factor used in the downsampling algorithm. Default is 1e-10.
+    baseline_weight: float
+        Weight of the baseline in the downsampling algorithm. Default is 0.1.
+    section_split: bool
+        If True, the data is split into sections for downsampling. This can be useful if there is a narrow peak in the data early on. Default is False.
+    section_split_time_s: int
+        Time in seconds for splitting the data into two sections. Default is 1000 seconds.
+    """
     apply: bool = False
     num_points: int = 1000
     smoothing_factor: float = 1e-10
     baseline_weight: float = 0.1
     section_split: bool = False
     section_split_time_s: int = 1000
+
 
 @dataclass
 class PreProcessParameters:
@@ -148,6 +170,28 @@ class PreProcessParameters:
     """
 
     infer_heat: bool = False
+
+
+@dataclass
+class SlopeAnalysisParameters:
+    """
+    Parameters for slope analysis of heat flow data.
+
+    Attributes
+    ----------
+    flank_fraction_start: float
+        The start fraction of the window for averaging the slope of the main hydration peak. Example: 0.35 (the default value) means that the slope is calculated starting from 35% of the peak height measured relative to the minimum of the dormant period heat flow.
+    flank_fraction_end: float
+        The end fraction of the window for averaging the slope of the main hydration peak. Example: 0.55 (the default value) means that the slope is calculated up to 55% of the peak height measured relative to the minimum of the dormant period heat flow.
+    window_size: float
+        The size of the window for averaging the slope, given as a fraction of the total number of data points. Example: 0.1 (the default value) means that the slope is averaged over a window that is 10% of the total number of data points.
+    """
+
+    flank_fraction_start: float = 0.35
+    flank_fraction_end: float = 0.55
+    window_size: float = 0.1  # as fraction of total data points
+
+
 @dataclass
 class ProcessingParameters:
     """
@@ -181,6 +225,10 @@ class ProcessingParameters:
 
     spline_interpolation: SplineInterpolationParameters
         Parameters which control the interpolation of the first and second derivative of the data. If no smoothing is applied the derivatives often become very noisy.
+
+    slope_analysis: SlopeAnalysisParameters
+        Parameters for slope analysis of the heat flow data. This includes settings which control the identification of the mean slope of the main hydration peak.
+
 
     Examples
     --------
@@ -218,6 +266,8 @@ class ProcessingParameters:
     )
     # preprocessing params
     downsample: DownSamplingParameters = field(default_factory=DownSamplingParameters)
-    preprocess: PreProcessParameters = field(
-        default_factory=PreProcessParameters
+    preprocess: PreProcessParameters = field(default_factory=PreProcessParameters)
+    # slope analysis params
+    slope_analysis: SlopeAnalysisParameters = field(
+        default_factory=SlopeAnalysisParameters
     )

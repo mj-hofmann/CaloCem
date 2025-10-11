@@ -3,7 +3,7 @@ import pathlib
 import pysnooper
 import pytest
 
-from calocem import tacalorimetry
+from calocem.measurement import Measurement
 
 
 #
@@ -21,15 +21,15 @@ from calocem import tacalorimetry
         ("excel_example3.xls", 336000),
     ],
 )
-@pysnooper.snoop()
+#@pysnooper.snoop()
 def test_last_time_entry(test_input, expected):
 
     # path
     path = pathlib.Path().cwd() / "calocem" / "DATA"
 
     # get data
-    data = tacalorimetry.Measurement()._read_calo_data_xls(path / test_input)
-    
+    data = Measurement(path, regex=test_input)
+    data = data.get_data()
     # check for None return
     if data is None:
         # check
