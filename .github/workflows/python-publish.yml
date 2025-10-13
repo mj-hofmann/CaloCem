@@ -11,7 +11,7 @@ name: Publish Python Package
 on:
   push:
     branches:
-      - main  # Adjust this to your default branch
+      - main  
 
 jobs:
   build:
@@ -19,10 +19,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5  # Keep only this one (latest version)
+      uses: actions/checkout@v5  
 
     - name: Set up Python
-      uses: actions/setup-python@v6  # Also update this to v4
+      uses: actions/setup-python@v6  
       with:
         python-version: '3.13'
 
@@ -38,21 +38,12 @@ jobs:
       run: uv build
 
 
-    # - name: Publish package to PyPI
-    #   env:
-    #     TWINE_USERNAME: __token__
-    #     TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-    #   run: |
-    #     uv run pip install twine
-    #     uv run twine upload dist/*
+    - name: Publish package to PyPI
+      env:
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      run: uv publish
         
     - name: Clean up
       run: rm -rf dist build *.egg-info
-
-
-    # - name: Publish package to PyPI
-    #   env:
-    #     POETRY_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-    #   run: poetry publish --username __token__ --password $POETRY_PYPI_TOKEN
 
 
