@@ -182,7 +182,7 @@ class Measurement:
 
         # loop folder
         for f in os.listdir(folder):
-            if not f.endswith((".xls", ".csv")):
+            if not f.endswith((".xls", ".xlsx", ".csv")):
                 # go to next
                 continue
 
@@ -200,7 +200,7 @@ class Measurement:
             file = folder + os.sep + f
 
             # check xls
-            if f.endswith(".xls"):
+            if f.endswith(".xls") or f.endswith(".xlsx"):
                 if self._new_code:
                     self._data = pd.concat(
                         [

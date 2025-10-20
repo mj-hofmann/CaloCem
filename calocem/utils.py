@@ -266,7 +266,11 @@ def remove_unnecessary_data(df):
         data = data.drop(columns=["time_markers_nan"])
     except KeyError:
         pass
-
+    
+    try:
+        data = data.drop(columns=["_nan"])
+    except KeyError:
+        pass
     # remove columns with too many NaNs
     #data = data.dropna(axis=1, thresh=20)
 
@@ -380,8 +384,30 @@ def parse_rowwise_data(data):
     # get "column" count
     data["count"] = [len(i) for i in data[0].str.split(",")]
 
-    # get most frequent count --> assume this for selection of "data" rows
-    data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
+    # check if all count are the same
+    if len(data["count"].value_counts()) > 1:    
+        # get most frequent count --> assume this for selection of "data" rows
+        data = data.loc[data["count"] == data["count"].value_counts().index[0], [0]]
+    else:
+        # search for the row that contains "Heat flow" in one column, this needs to be searched with flexible regex
+        heatflow_row = data[0].str.contains(r".*,Heat flow,.*", regex=True)
+        
+        if heatflow_row.any():
+            # get index
+            idx = data[heatflow_row].index[0]
+            # select all rows from this index as data
+            data = data.loc[idx :, [0]]
+        
+        # check if there is any text at the bottom of data, check for "Data series"
+        try:
+            dataseries_row = data[0].str.contains(r".*Data series,.*", regex=True)
+        except KeyError:
+            pass
+        if dataseries_row.any():
+            # get index
+            idx = data[dataseries_row].index[0]
+            # select all rows until this index as data
+            data = data.loc[: idx - 2, [0]]
 
     # init and loop list of lists
     list_of_lists = []
