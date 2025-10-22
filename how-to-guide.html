@@ -1,0 +1,1062 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="tian.html">
+      
+      
+        <link rel="next" href="reference.html">
+      
+      
+      <link rel="icon" href="assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+    
+    
+      
+        <title>How-To Guides - </title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Poppins:300,300i,400,400i,700,700i%7CBitter:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Poppins";--md-code-font:"Bitter"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#interfacing-with-experimental-results-file-from-tam-air-calorimeters-made-easy" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="" class="md-header__button md-logo" aria-label="" data-md-component="logo">
+      
+  <img src="assets/icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              How-To Guides
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mj-hofmann/CaloCem" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mj-hofmann/CaloCem
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="" class="md-nav__button md-logo" aria-label="" data-md-component="logo">
+      
+  <img src="assets/icon.png" alt="logo">
+
+    </a>
+    
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mj-hofmann/CaloCem" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mj-hofmann/CaloCem
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plotting_example.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plotting Example
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quantification.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tian.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tian Correction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    How-To Guides
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="how-to-guide.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    How-To Guides
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#info-downloads" class="md-nav__link">
+    <span class="md-ellipsis">
+      Info / Downloads
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Table of Contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Usage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-plotting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic plotting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getting-cumulated-heat-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting cumulated heat values
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identifying-peaks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Identifying peaks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identifying-peak-onsets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Identifying peak onsets
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plotting-by-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plotting by Category
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      License
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-styling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code Styling
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#info-downloads" class="md-nav__link">
+    <span class="md-ellipsis">
+      Info / Downloads
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Table of Contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Usage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-plotting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic plotting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getting-cumulated-heat-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting cumulated heat values
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identifying-peaks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Identifying peaks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identifying-peak-onsets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Identifying peak onsets
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plotting-by-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      Plotting by Category
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      License
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-styling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code Styling
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<p><img alt="Logo" src="https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/icon/icon.png?raw=true" /></p>
+<h1 id="interfacing-with-experimental-results-file-from-tam-air-calorimeters-made-easy">Interfacing with experimental results file from TAM Air calorimeters made easy.</h1>
+<p>After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple <em>.xls</em>-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, <strong>TAInstCalorimetry</strong> is here to get this done smoothly.</p>
+<p><em>Note: </em><em>TAInstCalorimetry</em><em> has been developed without involvement of </em><em>TA Instruments</em><em> and is thus independent from the company and its software.</em></p>
+<h2 id="info-downloads">Info / Downloads</h2>
+<p><a href="https://pepy.tech/project/tainstcalorimetry"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/tainstcalorimetry.svg?color=blue&amp;label=Downloads&amp;logo=pypi&amp;logoColor=gold" /></a>
+<a href="https://pepy.tech/project/tainstcalorimetry"><img alt="PyPI - Downloads" src="https://static.pepy.tech/personalized-badge/tainstcalorimetry?period=total&amp;units=none&amp;left_color=black&amp;right_color=grey&amp;left_text=Downloads" /></a>
+<a href="https://pypi.org/project/tainstcalorimetry/"><img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&amp;label=Python&amp;logoColor=gold" /></a> </p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#example-usage">Example Usage</a><br></li>
+<li><a href="#basic-plotting">Basic plotting</a><br></li>
+<li><a href="#getting-cumulated-heat-values">Getting cumulated heat values</a><br></li>
+<li><a href="#identifying-peaks">Identifying peaks</a><br></li>
+<li><a href="#identifying-peak-onsets">Identifying peak onsets</a><br></li>
+<li><a href="#plotting-by-category">Plotting by Category</a><br></li>
+<li><a href="#installation">Installation</a><br></li>
+<li><a href="#contributing">Contributing</a></li>
+</ul>
+<h2 id="example-usage">Example Usage</h2>
+<p>Import the <code>tacalorimetry</code> module from <strong>TAInstCalorimetry</strong>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># import</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">calocem</span><span class="w"> </span><span class="kn">import</span> <span class="n">tacalorimetry</span>
+</code></pre></div>
+<p>Next, we define where the exported files are stored. With this information at hand, a <code>Measurement</code> is initialized. Experimental raw data and the metadata passed in the course of the measurement are retrieved by the methods <code>get_data()</code> and <code>get_information()</code>, respectively.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># define data path</span>
+<span class="c1"># &quot;mycalodata&quot; is the subfoldername where the calorimetry</span>
+<span class="c1"># data files (both .csv or .xlsx) are stored</span>
+
+<span class="n">pathname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+<span class="n">path_to_data</span> <span class="o">=</span> <span class="n">pathname</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;mycalodata&quot;</span>
+
+<span class="c1"># Example: if projectfile is at &quot;C:\Users\myname\myproject\myproject.py&quot;, then &quot;mydata&quot;</span>
+<span class="c1"># refers to &quot;C:\Users\myname\myproject\mycalodata&quot; where the data is stored</span>
+
+<span class="c1"># load experiments via class, i.e. instantiate tacalorimetry object with data</span>
+<span class="n">tam</span> <span class="o">=</span> <span class="n">tacalorimetry</span><span class="o">.</span><span class="n">Measurement</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">path_to_data</span><span class="p">)</span>
+
+<span class="c1"># get sample and information</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">tam</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>
+<span class="n">info</span> <span class="o">=</span> <span class="n">tam</span><span class="o">.</span><span class="n">get_information</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="basic-plotting">Basic plotting</h3>
+<p>Furthermore, the <code>Measurement</code> features a <code>plot()</code>-method for readily visualizing the collected results.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># make plot</span>
+<span class="n">tam</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="c1"># show plot</span>
+<span class="n">tacalorimetry</span><span class="o">.</span><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</code></pre></div>
+<p>Without further options specified, the <code>plot()</code>-method yields the following.</p>
+<p><img alt="enter image description here" src="https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-08%20112743.png?raw=true" /></p>
+<p>The <code>plot()</code>-method can also be tuned to show the temporal course of normalized heat. On the one hand, this "tuning" refers to the specification of further keyword arguments such as <code>t_unit</code> and <code>y</code>. On the other hand, the <code>plot()</code>-method returns an object of type <code>matplotlib.axes._subplots.AxesSubplot</code>, which can be used to further customize the plot. In the following, a guide-to-the-eye line is introduced next to adjuting the axes limts, which is not provided for via the <code>plot()</code>-method's signature.</p>
+<p><div class="highlight"><pre><span></span><code><span class="c1"># show cumulated heat plot</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">tam</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+    <span class="n">t_unit</span><span class="o">=</span><span class="s2">&quot;h&quot;</span><span class="p">,</span>
+    <span class="n">y</span><span class="o">=</span><span class="s1">&#39;normalized_heat&#39;</span><span class="p">,</span>
+    <span class="n">y_unit_milli</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+
+<span class="c1"># define target time</span>
+<span class="n">target_h</span> <span class="o">=</span> <span class="mf">1.5</span>
+
+<span class="c1"># guide to the eye line</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">target_h</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+
+<span class="c1"># set upper limits</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">top</span><span class="o">=</span><span class="mi">250</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">right</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+<span class="c1"># show plot</span>
+<span class="n">tacalorimetry</span><span class="o">.</span><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</code></pre></div>
+The following plot is obtained:</p>
+<p><img alt="enter image description here" src="https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-19%20085928.png?raw=true" /></p>
+<h3 id="getting-cumulated-heat-values">Getting cumulated heat values</h3>
+<p>The cumulated heat after a certain period of time <code>target_h</code> from starting the measurement is a relevant quantity for answering different types of questions. For this purpose, the method <code>get_cumulated_heat_at_hours</code> returns an overview of this parameter for all the samples in the specified folder.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># get table of cumulated heat at certain age</span>
+<span class="n">cumulated_heats</span> <span class="o">=</span> <span class="n">tam</span><span class="o">.</span><span class="n">get_cumulated_heat_at_hours</span><span class="p">(</span>
+          <span class="n">target_h</span><span class="o">=</span><span class="n">target_h</span><span class="p">,</span>
+          <span class="n">cutoff_min</span><span class="o">=</span><span class="mi">10</span>
+          <span class="p">)</span>
+
+<span class="c1"># show result</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cumulated_heats</span><span class="p">)</span>
+</code></pre></div>
+<p>The return value of the method, <code>cumulated_heats</code> is a <code>pd.DataFrame</code>.</p>
+<h3 id="identifying-peaks">Identifying peaks</h3>
+<p>Next to cumulated heat values detected after a certain time frame from starting the reaction, peaks characteristics can be obtained from the experimental data via the <code>get_peaks</code>-method.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># get peaks</span>
+<span class="n">peaks</span> <span class="o">=</span> <span class="n">tam</span><span class="o">.</span><span class="n">get_peaks</span><span class="p">(</span>
+    <span class="n">show_plot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">prominence</span><span class="o">=</span><span class="mf">0.00001</span><span class="p">,</span>  <span class="c1"># &quot;sensitivity of peak picking&quot;</span>
+    <span class="n">cutoff_min</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>  <span class="c1"># how much to discard at the beginning of the measurement</span>
+    <span class="n">plt_right_s</span><span class="o">=</span><span class="mf">4e5</span><span class="p">,</span>
+    <span class="n">plt_top</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+    <span class="n">regex</span><span class="o">=</span><span class="s2">&quot;.*_\d&quot;</span>  <span class="c1"># filter samples</span>
+    <span class="p">)</span>
+</code></pre></div>
+<p>Tweaking some of the available keyword arguments, the following plot is obtained:</p>
+<p><img alt="Identified peaks for one sample." src="https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-25%20193222.png?raw=true" /></p>
+<p>Please keep in mind, that in particular for samples of ordinary Portland cement (OPC) a clear and unambiguous identification/assigment of peaks remains a challenging task which cannot be achieved in each and every case by <strong>TAInstCalorimetry</strong>. It is left to the user draw meaningful scientific conclusions from the characteristics derived from this method.</p>
+<h3 id="identifying-peak-onsets">Identifying peak onsets</h3>
+<p>Similarly, the peak onset characteristics are accessible via the <code>get_peak_onsets</code>-method. The resulting plot is shown below.</p>
+<p><div class="highlight"><pre><span></span><code><span class="c1"># get onsets</span>
+<span class="n">onsets</span> <span class="o">=</span> <span class="n">tam</span><span class="o">.</span><span class="n">get_peak_onsets</span><span class="p">(</span>
+    <span class="n">gradient_threshold</span><span class="o">=</span><span class="mf">0.000001</span><span class="p">,</span>
+    <span class="n">rolling</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">exclude_discarded_time</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">show_plot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">regex</span><span class="o">=</span><span class="s2">&quot;OPC&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<img alt="Identified peak onsets for one sample." src="https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-26%20174524.png?raw=true" /></p>
+<h3 id="plotting-by-category">Plotting by Category</h3>
+<p>For introducing the idea of plotting calorimetry data "by category" another set of experimental data will be introduced. Next to the calorimetry data alone, information on investigated samples is supplied via an additional source file. In the present example via the file <code>mini_metadata.csv</code>.</p>
+<p>To begin with, a <code>TAInstCalorimetry.tacalorimetry.Measurement</code>-object is initialized for selected files from the specified <code>`path</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">CaloCem</span><span class="w"> </span><span class="kn">import</span> <span class="n">tacalorimetry</span>
+
+<span class="c1"># path to experimental calorimetry files</span>
+<span class="n">path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">()</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;CaloCem&quot;</span> <span class="o">/</span> <span class="s2">&quot;DATA&quot;</span>
+
+<span class="c1"># initialize CaloCem.tacalorimetry.Measurement object</span>
+<span class="n">tam_II</span> <span class="o">=</span> <span class="n">tacalorimetry</span><span class="o">.</span><span class="n">Measurement</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">,</span> <span class="n">regex</span><span class="o">=</span><span class="s2">&quot;myexp.*&quot;</span><span class="p">,</span> <span class="n">show_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cold_start</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">auto_clean</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Next, we need to connect the previously defined object to our metadata provided by the <code>mini_metadata.csv</code>-file. To establish this mapping between experimental results and metadata, the file location, i.e. path, and the column name containing the exact(!) names of the calorimetry files needs to be passed to the <code>add_metadata_source</code>-method. In our case, we declare the column <code>experiment_nr</code> for this purpose</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># add metadata</span>
+<span class="n">tam</span><span class="o">.</span><span class="n">add_metadata_source</span><span class="p">(</span><span class="s2">&quot;mini_metadata.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment_nr&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Finally, a plotting by category can be carried out by one or multiple categories as shown in the following.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># define action by one category</span>
+<span class="n">categorize_by</span> <span class="o">=</span> <span class="s2">&quot;cement_name&quot;</span>  <span class="c1"># &#39;date&#39;, &#39;cement_amount_g&#39;, &#39;water_amount_g&#39;</span>
+
+<span class="c1"># # define action by two or more categories</span>
+<span class="n">categorize_by</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="s2">&quot;cement_name&quot;</span><span class="p">]</span>
+
+<span class="c1"># loop through plots via generator</span>
+<span class="k">for</span> <span class="n">this_plot</span> <span class="ow">in</span> <span class="n">tam</span><span class="o">.</span><span class="n">plot_by_category</span><span class="p">(</span><span class="n">categorize_by</span><span class="p">):</span>
+    <span class="c1"># extract parts obtained from generator</span>
+    <span class="n">category_value</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">this_plot</span>
+    <span class="c1"># fine tuning of plot/cosmetics</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="c1"># show plot</span>
+    <span class="n">tacalorimetry</span><span class="o">.</span><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</code></pre></div>
+<p>This yields plots of the following kind.</p>
+<p><img alt="Identified peak onsets for one sample." src="https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170659.png?raw=true" /></p>
+<p><img alt="Identified peak onsets for one sample." src="https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170711.png?raw=true" /></p>
+<h2 id="installation">Installation</h2>
+<p>Use the package manager <a href="https://pip.pypa.io/en/stable/">pip</a> to install TAInstCalorimetry.</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>CaloCem
+</code></pre></div>
+<h2 id="contributing">Contributing</h2>
+<p>Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.</p>
+<p>Please make sure to update tests as appropriate.</p>
+<p>List of contributors
+- <a href="https://github.com/mj-hofmann">mj-hofmann</a>
+- <a href="https://github.com/tgaedt">tgaedt</a></p>
+<h2 id="license">License</h2>
+<p><a href="https://choosealicense.com/licenses/gpl-3.0/#">GNU GPLv3</a></p>
+<h2 id="test">Test</h2>
+<p><img alt="Tests" src="https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/run-tests.yml/badge.svg" /></p>
+<h2 id="code-styling">Code Styling</h2>
+<p><a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg" /></a></p>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 22, 2025 01:59:22 UTC">October 22, 2025</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 22, 2025 01:59:22 UTC">October 22, 2025</span>
+  </span>
+
+    
+    
+    
+      
+  <span class="md-source-file__fact">
+    
+      
+  <span class="md-icon" title="Contributors">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+  </span>
+  <span>GitHub</span>
+
+    
+    <nav>
+      
+        <a href="https://github.com/tgaedt" class="md-author" title="@tgaedt">
+          
+          <img src="https://avatars.githubusercontent.com/u/102058507?v=4&size=72" alt="tgaedt">
+        </a>
+      
+        <a href="https://github.com/mj-hofmann" class="md-author" title="@mj-hofmann">
+          
+          <img src="https://avatars.githubusercontent.com/u/97462230?v=4&size=72" alt="mj-hofmann">
+        </a>
+      
+      
+      
+    </nav>
+  </span>
+
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="tian.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Tian Correction">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Tian Correction
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="reference.html" class="md-footer__link md-footer__link--next" aria-label="Next: Reference">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Reference
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - present Matthias Hofmann
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mj-hofmann" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.linkedin.com/in/matthias-j-hofmann/" target="_blank" rel="noopener" title="www.linkedin.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3M135.4 416H69V202.2h66.5V416zM102.2 96a38.5 38.5 0 1 1 0 77 38.5 38.5 0 1 1 0-77m282.1 320h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": ".", "features": ["search.highlight", "search.suggest", "search.share", "header.autohide", "navigation.sections", "navigation.footer", "navigation.top"], "search": "assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="javascripts/katex.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/contrib/auto-render.min.js"></script>
+      
+    
+  </body>
+</html>
