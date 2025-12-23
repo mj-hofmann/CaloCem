@@ -193,6 +193,19 @@ class SlopeAnalysisParameters:
 
 
 @dataclass
+class PlottingParameters:
+    """
+    Parameters for plotting data.
+
+    Attributes
+    ----------
+    """
+    figsize: tuple = (10, 6)
+    time_unit: str = "seconds"
+    heat_unit: str = "W"
+    plot_title: bool = True
+
+@dataclass
 class ProcessingParameters:
     """
     A data class for storing all processing parameters for calorimetry data.
@@ -229,6 +242,8 @@ class ProcessingParameters:
     slope_analysis: SlopeAnalysisParameters
         Parameters for slope analysis of the heat flow data. This includes settings which control the identification of the mean slope of the main hydration peak.
 
+    plotting: PlottingParameters
+        Parameters for plotting data. This includes settings such as figure size.
 
     Examples
     --------
@@ -271,3 +286,4 @@ class ProcessingParameters:
     slope_analysis: SlopeAnalysisParameters = field(
         default_factory=SlopeAnalysisParameters
     )
+    plotting: PlottingParameters = field(default_factory=PlottingParameters)
