@@ -839,10 +839,12 @@ class SimplePlotter:
                                 value = sample_metadata.iloc[0][col]
                                 colname = col.replace("_", " ").title()
                                 if pd.notna(value):
-                                    metadata_parts.append(f"{colname}: {value}")
+                                    metadata_parts.append(f"{value}")
+                            else:
+                                metadata_parts.append(str(col))
                         
                         if metadata_parts:
-                            title = f"{', '.join(metadata_parts)}"
+                            title = f"{' '.join(metadata_parts)}"
 
             ax.set_title(title, fontsize=9)
 

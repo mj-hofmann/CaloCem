@@ -39,7 +39,7 @@ processparams.plotting.figsize = (2.6, 2.3)
 processparams.plotting.time_unit = "hours"
 processparams.plotting.heat_unit = "mW"
 processparams.plotting.show_plot_title = True
-processparams.plotting.plot_title = ['cement_name', 'cement_amount_g']
+processparams.plotting.plot_title = ['cem:', 'cement_name', 'cement_amount_g']
 processparams.plotting.legend_pos = "outside"
 
 # %%
