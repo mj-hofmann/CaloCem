@@ -6,8 +6,10 @@ import logging
 import pathlib
 from typing import Optional
 
+import matplotlib as mpl
 import matplotlib.axes
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 import numpy as np
 import pandas as pd
 
@@ -16,6 +18,7 @@ from .exceptions import DataProcessingException
 
 logger = logging.getLogger(__name__)
 
+mpl.rcParams["font.family"] = "serif"
 
 class SimplePlotter:
     """Simplified plotting functionality."""
@@ -640,15 +643,6 @@ class SimplePlotter:
             res["normalized_heat_flow_w_g_dormant"] * heat_correction_factor
         )
 
-        # Plot slope point
-        ax.scatter(
-            slope_time,
-            slope_value,
-            c="orange",
-            s=30,
-            label=f"{analysis_type.title()} Slope",
-            zorder=5,
-        )
 
         # Plot tangent line
         tangent_intercept = slope_value - gradient * slope_time
@@ -710,14 +704,46 @@ class SimplePlotter:
                     flank_end_val,
                     alpha=0.3,
                     color="orange",
-                    label="y-vals averaged",
+                    label="y-val range averaged",
                 )
+
 
         # Helper for formatted labels
         def fmt_lbl(name, val, unit):
             return rf"${name}$: {decimal_number_format.format(val)} {unit}".replace(
                 ",", "\u2009"
             )
+
+        # Plot Standard Markers (ASTM, Max Slope, Peak)
+        markers = [
+            ("peak_time_s", "normalized_heat_flow_w_g_at_peak", "mD", "t_{peak}"),
+            ("max_slope_time_s", "normalized_heat_flow_w_g_at_max_slope", "c^", "t_{max\; slope}"),
+            ("astm_time_s", "normalized_heat_flow_w_g_astm", "gs", "t_{ASTM\; C1679}"),
+        ]
+
+        for t_col, v_col, style, label_name in markers:
+            if res[t_col] is not None:
+                t_val = res[t_col] * time_correction_factor
+                v_val = res[v_col] * heat_correction_factor
+                ax.plot(
+                    t_val,
+                    v_val,
+                    style,
+                    alpha=0.7,
+                    label=fmt_lbl(label_name, t_val, time_unit),
+                )
+        
+        # Plot slope point
+        ax.scatter(
+            slope_time,
+            slope_value,
+            c="orange",
+            s=30,
+            label=fr"$t_{{{analysis_type}\ slope}}$ {decimal_number_format.format(slope_time)} {time_unit}, ",
+            zorder=5,
+        )
+
+
 
         # Plot Abscissa Intersection
         if not pd.isna(intersection_abscissa):
@@ -730,6 +756,7 @@ class SimplePlotter:
                 label=fmt_lbl("t_{onset,abscissa}", intersection_abscissa, time_unit),
                 clip_on=False,
             )
+
 
         # Plot Onset Point
         if onset_time is not None and not np.isnan(onset_time):
@@ -763,25 +790,7 @@ class SimplePlotter:
                     zorder=5,
                 )
 
-        # Plot Standard Markers (ASTM, Max Slope, Peak)
-        markers = [
-            ("astm_time_s", "normalized_heat_flow_w_g_astm", "gs", "t_{ASTM\; C1679}"),
-            ("max_slope_time_s", "normalized_heat_flow_w_g_at_max_slope", "c^", "t_{max\; slope}"),
-            ("peak_time_s", "normalized_heat_flow_w_g_at_peak", "mD", "t_{peak}"),
-        ]
 
-        for t_col, v_col, style, label_name in markers:
-            if res[t_col] is not None:
-                t_val = res[t_col] * time_correction_factor
-                v_val = res[v_col] * heat_correction_factor
-                ax.plot(
-                    t_val,
-                    v_val,
-                    style,
-                    alpha=0.7,
-                    label=fmt_lbl(label_name, t_val, time_unit),
-                )
-    
         if processparams.plotting.plot_title:
             ax.set_title(f"{sample}", fontsize=9)
 
