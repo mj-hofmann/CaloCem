@@ -211,7 +211,7 @@ class PlottingParameters:
     heat_unit: str = "W"
     show_plot_title: bool = True
     legend_pos: str = "best"
-    plot_title: str = "filename"
+    plot_title = "filename"
 
 @dataclass
 class ProcessingParameters:

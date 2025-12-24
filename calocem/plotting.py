@@ -296,6 +296,8 @@ class SimplePlotter:
         analysis_type: str = "mean",
         results: Optional[pd.DataFrame] = None,
         figsize: tuple = (8, 5),
+        metadata: Optional[pd.DataFrame] = None,
+        metadata_id: Optional[str] = None,
     ):
         """
         Unified plotting method for tangent-based analysis results.
@@ -323,6 +325,10 @@ class SimplePlotter:
             DataFrame containing analysis results
         figsize : tuple
             Figure size for the plot
+        metadata : pd.DataFrame, optional
+            Metadata DataFrame for enriching plot titles
+        metadata_id : str, optional
+            Column name in metadata that matches sample names
         """
         try:
             if ax is None:
@@ -389,6 +395,8 @@ class SimplePlotter:
                     decimal_number_format=decimal_number_format,
                     heat_correction_factor=heat_correction_factor,
                     heat_unit=heat_unit,
+                    metadata=metadata,
+                    metadata_id=metadata_id,
                 )
             else:
                 raise ValueError(f"Unknown analysis_type: {analysis_type}")
@@ -604,6 +612,8 @@ class SimplePlotter:
         decimal_number_format: str = "{:,.2f}",
         heat_correction_factor: float = 1.0,
         heat_unit: str = "W",
+        metadata: Optional[pd.DataFrame] = None,
+        metadata_id: Optional[str] = None,
     ):
         """Plot elements specific to onset intersection analysis."""
         if results is None:
@@ -806,7 +816,35 @@ class SimplePlotter:
 
 
         if processparams.plotting.show_plot_title:
-            ax.set_title(f"{sample}", fontsize=9)
+            title = f"{sample}"
+            
+            # Add metadata to title if available and configured
+            if (metadata is not None and not metadata.empty and 
+                metadata_id and hasattr(processparams.plotting, 'plot_title')):
+                
+                plot_title_cols = processparams.plotting.plot_title
+                
+                # Handle string input (comma-separated)
+                if isinstance(plot_title_cols, str):
+                    plot_title_cols = [col.strip() for col in plot_title_cols.split(',')]
+                
+                if isinstance(plot_title_cols, list) and len(plot_title_cols) > 0:
+                    # Find matching metadata row
+                    sample_metadata = metadata[metadata[metadata_id] == sample]
+                    
+                    if not sample_metadata.empty:
+                        metadata_parts = []
+                        for col in plot_title_cols:
+                            if col in sample_metadata.columns:
+                                value = sample_metadata.iloc[0][col]
+                                colname = col.replace("_", " ").title()
+                                if pd.notna(value):
+                                    metadata_parts.append(f"{colname}: {value}")
+                        
+                        if metadata_parts:
+                            title = f"{', '.join(metadata_parts)}"
+
+            ax.set_title(title, fontsize=9)
 
         return ax
 

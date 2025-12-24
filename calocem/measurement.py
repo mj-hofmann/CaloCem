@@ -731,6 +731,8 @@ class Measurement:
                     analysis_type=plot_type,  # Use correct analysis type
                     results=result_row.to_frame().T,
                     figsize=(7, 5),
+                    metadata=self._metadata,
+                    metadata_id=self._metadata_id,
                 )
             self._save_and_show_plot(
                 plotpath, f"{plot_type}_slope_{sample_short}.png", ax, show_plot=show_plot

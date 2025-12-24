@@ -12,7 +12,7 @@ metadatapath = Path(__file__).parent.parent / "calocem" / "METADATA" / "metadata
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r".*peak_detection_example[125].*",
+    regex=r".*peak_detection_example[1].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
@@ -38,7 +38,8 @@ processparams.slope_analysis.flank_fraction_end = 0.6
 processparams.plotting.figsize = (2.6, 2.3)
 processparams.plotting.time_unit = "hours"
 processparams.plotting.heat_unit = "mW"
-processparams.plotting.show_plot_title = False
+processparams.plotting.show_plot_title = True
+processparams.plotting.plot_title = ['cement_name', 'cement_amount_g']
 processparams.plotting.legend_pos = "outside"
 
 # %%
