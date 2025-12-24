@@ -204,6 +204,7 @@ class PlottingParameters:
     time_unit: str = "seconds"
     heat_unit: str = "W"
     plot_title: bool = True
+    legend_pos: str = "best"
 
 @dataclass
 class ProcessingParameters:

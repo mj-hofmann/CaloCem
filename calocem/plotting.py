@@ -396,7 +396,21 @@ class SimplePlotter:
             ax.set_xlabel(f"Time / {time_unit}")
             ax.set_ylabel(f"Normalized Heat Flow / {heat_unit}g$^{-1}$")
 
-            ax.legend(loc="best", labelspacing=0.1, fontsize=8)
+            legend_loc = processparams.plotting.legend_pos if hasattr(processparams.plotting, "legend_pos") else "best"
+            if legend_loc == "best":
+                ax.legend(loc=legend_loc, labelspacing=0.1, fontsize=8)
+            elif legend_loc == "outside":
+                ax.legend(
+                    bbox_to_anchor=(1.01, 1),
+                    loc="upper left",
+                    borderaxespad=0.0,
+                    labelspacing=0.1,
+                    fontsize=8,
+                )
+            else:
+                print(f"Unknown legend position: {legend_loc}, defaulting to 'best'")
+                ax.legend(loc="best", labelspacing=0.1, fontsize=8)
+
             max_time = results.peak_time_s.values[0] * 4
             if max_time < data[age_col].max():
                 ax.set_xlim(right=max_time * time_correction_factor)
@@ -658,7 +672,7 @@ class SimplePlotter:
             linestyle="--",
             linewidth=2,
             alpha=0.8,
-            label=f"{analysis_type.title()} Grad. {gradient:.2e} W/(g·{time_unit})",
+            label=f"{analysis_type.title()} Gradient:\n{gradient:.2e} W/(g·{time_unit})",
         )
 
         # Handle mean slope specific fill area
@@ -739,7 +753,7 @@ class SimplePlotter:
             slope_value,
             c="orange",
             s=30,
-            label=fr"$t_{{{analysis_type}\ slope}}$ {decimal_number_format.format(slope_time)} {time_unit}, ",
+            label=fr"$t_{{{analysis_type}\ slope}}$: {decimal_number_format.format(slope_time)} {time_unit}, ",
             zorder=5,
         )
 

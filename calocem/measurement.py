@@ -344,6 +344,7 @@ class Measurement:
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
         show_plot: bool = False,
+        save_plot: bool = False,
         plot_type: str = "mean",
         regex: Optional[str] = None,
         plotpath: Optional[pathlib.Path] = None,
@@ -427,7 +428,7 @@ class Measurement:
         )
 
         # Plot if requested
-        if show_plot and not (mean_slope_results.empty or max_slope_results.empty):
+        if (show_plot or save_plot) and not (mean_slope_results.empty or max_slope_results.empty):
             self._plot_combined_slope_analysis(
                 combined_results,
                 params,
@@ -435,11 +436,20 @@ class Measurement:
                 age_col,
                 plot_type,
                 regex,
-                plotpath,
+                plotpath if save_plot else None,
                 ax,
+                show_plot=show_plot,
             )
-            if not ax:
-                plt.show()
+            # if not ax:
+            #     plt.show()
+                # if (save_plot and show_plot) and plotpath:
+                #     plt.savefig(plotpath)
+                #     plt.show()
+                # elif show_plot:
+                #     plt.show()
+                # elif save_plot:
+                #     plt.savefig(plotpath)
+
         elif mean_slope_results.empty:
             # logger.warning("No slope analysis results to plot.")
             print("No mean slope analysis obtained - check the processing parameters.")
@@ -646,6 +656,7 @@ class Measurement:
         regex: Optional[str],
         plotpath: Optional[pathlib.Path],
         ax,
+        show_plot: bool = True,
     ):
         """
         Plot combined slope analysis results based on plot_type parameter.
@@ -671,6 +682,8 @@ class Measurement:
             Cutoff time in minutes
         ax : matplotlib.axes.Axes, optional
             Matplotlib axes to plot on
+        show_plot : bool, optional
+            Whether to show the plot, by default True
         """
         # Validate plot_type parameter
         valid_plot_types = ["max", "mean", "both"]
@@ -710,7 +723,7 @@ class Measurement:
                     figsize=(7, 5),
                 )
             self._save_and_show_plot(
-                plotpath, f"{plot_type}_slope_{sample_short}.png", ax
+                plotpath, f"{plot_type}_slope_{sample_short}.png", ax, show_plot=show_plot
             )
 
 
@@ -1139,18 +1152,19 @@ class Measurement:
 
         return sample_data
 
-    def _save_and_show_plot(self, plotpath: Optional[pathlib.Path], filename: str, ax):
+    def _save_and_show_plot(self, plotpath: Optional[pathlib.Path], filename: str, ax, show_plot: bool = True):
         """Handle plot saving and showing - common logic for both analysis types."""
-        if plotpath:
-            plot_file = plotpath / filename
-            import matplotlib.pyplot as plt
-
-            plt.savefig(plot_file, dpi=300, bbox_inches="tight")
-
         import matplotlib.pyplot as plt
 
+        if plotpath:
+            plot_file = plotpath / filename
+            plt.savefig(plot_file, dpi=300, bbox_inches="tight")
+
         if not ax:
-            plt.show()
+            if show_plot:
+                plt.show()
+            else:
+                plt.close()
 
     def _plot_flank_tangent_results(
         self,
