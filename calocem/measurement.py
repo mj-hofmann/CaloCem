@@ -48,6 +48,8 @@ class Measurement:
         processparams: Optional[ProcessingParameters] = None,
         new_code: bool = False,
         processed: bool = False,
+        metadata_path: Optional[Union[str, pathlib.Path]] = None,
+        metadata_id_column: Optional[str] = None,
     ):
         """
         Initialize measurements from folder or existing data.
@@ -70,6 +72,10 @@ class Measurement:
             Flag for new code features, by default False
         processed : bool, optional
             Whether data is already processed, i.e., if a .csv file is used which was processed  by Calocem. By default False
+        metadata_path : str or pathlib.Path, optional
+            Path to metadata file (CSV, Excel, etc.), by default None
+        metadata_id_column : str, optional
+            Column name in metadata file that matches sample names, by default None
         """
         # Initialize attributes
         self._data = pd.DataFrame()
@@ -113,6 +119,10 @@ class Measurement:
                 if not cold_start:
                     raise ColdStartException()
                 raise
+
+        # Load metadata if provided
+        if metadata_path and metadata_id_column:
+            self.add_metadata_source(metadata_path, metadata_id_column, show_info)
 
         # Apply downsampling if requested
         if self.processparams.downsample.apply:
@@ -1234,10 +1244,84 @@ class Measurement:
             self._data, sample_short, mass_g, show_info
         )
 
-    def add_metadata_source(self, file: str, sample_id_column: str):
-        """Add metadata from external source."""
-        # TODO: Implement metadata loading
-        logger.warning("add_metadata_source not yet implemented in refactored version")
+    def add_metadata_source(
+        self,
+        file: Union[str, pathlib.Path],
+        sample_id_column: str,
+        show_info: bool = True,
+    ):
+        """
+        Add metadata from external source (CSV or Excel file).
+
+        Parameters
+        ----------
+        file : str or pathlib.Path
+            Path to metadata file (CSV, Excel, etc.)
+        sample_id_column : str
+            Column name in metadata file that matches sample names
+        show_info : bool, optional
+            Whether to print informative messages, by default True
+
+        Raises
+        ------
+        FileNotFoundError
+            If the metadata file does not exist
+        ValueError
+            If the sample_id_column is not found in the metadata file
+        """
+        file_path = pathlib.Path(file)
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"Metadata file not found: {file_path}")
+
+        # Load metadata based on file extension
+        try:
+            if file_path.suffix.lower() in [".xlsx", ".xls"]:
+                self._metadata = pd.read_excel(file_path)
+            elif file_path.suffix.lower() == ".csv":
+                self._metadata = pd.read_csv(file_path)
+            else:
+                raise ValueError(
+                    f"Unsupported file format: {file_path.suffix}. Use CSV or Excel files."
+                )
+
+            if show_info:
+                print(f"Loaded metadata from: {file_path}")
+                print(f"Metadata shape: {self._metadata.shape}")
+
+        except Exception as e:
+            logger.error(f"Error loading metadata file: {e}")
+            raise ValueError(f"Failed to load metadata from {file_path}: {e}")
+
+        # Validate sample_id_column
+        if sample_id_column not in self._metadata.columns:
+            raise ValueError(
+                f"Column '{sample_id_column}' not found in metadata. "
+                f"Available columns: {list(self._metadata.columns)}"
+            )
+
+        self._metadata_id = sample_id_column
+
+        # Try to match metadata with existing samples
+        if not self._data.empty and "sample_short" in self._data.columns:
+            sample_names = self.get_sample_names()
+            metadata_ids = self._metadata[sample_id_column].unique()
+
+            matched = set(sample_names) & set(metadata_ids)
+            unmatched_samples = set(sample_names) - matched
+            unmatched_metadata = set(metadata_ids) - matched
+
+            if show_info:
+                print(f"\nMetadata matching results:")
+                print(f"  Matched samples: {len(matched)}")
+                if unmatched_samples:
+                    print(f"  Unmatched samples: {len(unmatched_samples)}")
+                    print(f"    {list(unmatched_samples)[:5]}{'...' if len(unmatched_samples) > 5 else ''}")
+                if unmatched_metadata:
+                    print(f"  Unmatched metadata entries: {len(unmatched_metadata)}")
+
+        if show_info:
+            print(f"Metadata successfully added with ID column: '{sample_id_column}'")
 
     def remove_pickle_files(self):
         """Remove pickle cache files."""

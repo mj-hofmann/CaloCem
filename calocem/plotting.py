@@ -805,7 +805,7 @@ class SimplePlotter:
                 )
 
 
-        if processparams.plotting.plot_title:
+        if processparams.plotting.show_plot_title:
             ax.set_title(f"{sample}", fontsize=9)
 
         return ax

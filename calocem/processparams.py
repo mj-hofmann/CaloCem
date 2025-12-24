@@ -198,13 +198,20 @@ class PlottingParameters:
     Parameters for plotting data.
 
     Attributes
+    show_plot_title: bool
+        Default is true. If True, the plot will have a title.
+    legend_pos: str
+        String that determines the position of the legend. legend_pos can be 'best' (default) or 'outside' which positions the legend to the right of the plot.
+    plot_title: str
+        String that determines the title of the plot. plot_title can be 'filename' (default) or a list containing the column names of the metadata e.g. '["cement_name", "dosage"]'. 
     ----------
     """
     figsize: tuple = (10, 6)
     time_unit: str = "seconds"
     heat_unit: str = "W"
-    plot_title: bool = True
+    show_plot_title: bool = True
     legend_pos: str = "best"
+    plot_title: str = "filename"
 
 @dataclass
 class ProcessingParameters:

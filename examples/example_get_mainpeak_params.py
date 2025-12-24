@@ -7,18 +7,21 @@ from calocem.measurement import Measurement
 from calocem.processparams import ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
+metadatapath = Path(__file__).parent.parent / "calocem" / "METADATA" / "metadata_dummy.csv"
 
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r".*peak_detection_example[1-5].*",
+    regex=r".*peak_detection_example[125].*",
     show_info=True,
     auto_clean=False,
     cold_start=True,
+    metadata_path=metadatapath,
+    metadata_id_column="file_name"
 )
 
 
-# %% plot
+    # %% plot
 
 processparams = ProcessingParameters()
 
@@ -35,7 +38,7 @@ processparams.slope_analysis.flank_fraction_end = 0.6
 processparams.plotting.figsize = (2.6, 2.3)
 processparams.plotting.time_unit = "hours"
 processparams.plotting.heat_unit = "mW"
-processparams.plotting.plot_title = False
+processparams.plotting.show_plot_title = False
 processparams.plotting.legend_pos = "outside"
 
 # %%
