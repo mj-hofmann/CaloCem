@@ -89,6 +89,388 @@ class PeakAnalyzer:
             raise DataProcessingException("get_peaks", e)
 
 
+class DeconvolutionAnalyzer:
+    """Fits peak deconvolution models to calorimetry heat-flow curves."""
+
+    def __init__(self, processparams: ProcessingParameters):
+        self.processparams = processparams
+
+    @staticmethod
+    def _lognormal_peak(x: np.ndarray, amplitude: float, center: float, sigma: float) -> np.ndarray:
+        eps = 1e-12
+        x_safe = np.clip(x, eps, None)
+        center_safe = max(center, eps)
+        sigma_safe = max(sigma, eps)
+        return amplitude * np.exp(
+            -0.5 * ((np.log(x_safe) - np.log(center_safe)) / sigma_safe) ** 2
+        )
+
+    @staticmethod
+    def _gaussian_peak(x: np.ndarray, amplitude: float, center: float, sigma: float) -> np.ndarray:
+        sigma_safe = max(sigma, 1e-12)
+        return amplitude * np.exp(-0.5 * ((x - center) / sigma_safe) ** 2)
+
+    def _evaluate_component_curve(
+        self,
+        x: np.ndarray,
+        component_row: pd.Series,
+    ) -> np.ndarray:
+        shape = str(component_row.get("peak_shape", "lognormal")).lower()
+        amplitude = float(component_row["amplitude"])
+        center = float(component_row["center_time_s"])
+        width = float(component_row["width"])
+
+        if shape == "gaussian":
+            return self._gaussian_peak(x, amplitude, center, width)
+
+        x_logn = np.clip(x, 1e-12, None)
+        return self._lognormal_peak(x_logn, amplitude, center, width)
+
+    def get_deconvolution(
+        self,
+        data: pd.DataFrame,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        regex: Optional[str] = None,
+        n_peaks: Optional[int] = None,
+        peak_shape: Optional[str] = None,
+        baseline_mode: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """Fit peak deconvolution and return one result row per fitted component."""
+        try:
+            from scipy.optimize import curve_fit
+            from scipy.signal import find_peaks
+
+            params = self.processparams.deconvolution
+            n_components = int(n_peaks if n_peaks is not None else params.n_peaks)
+            if n_components < 1:
+                raise ValueError("n_peaks must be >= 1")
+
+            selected_shape = (peak_shape or params.peak_shape or "lognormal").lower()
+            if selected_shape not in {"lognormal", "gaussian"}:
+                raise ValueError("peak_shape must be either 'lognormal' or 'gaussian'")
+
+            requested_baseline = (baseline_mode or params.baseline_mode or "constant").lower()
+            if requested_baseline not in {"constant", "linear", "none", "chebyshev"}:
+                raise ValueError(
+                    "baseline_mode must be one of {'constant', 'linear', 'none', 'chebyshev'}"
+                )
+
+            all_rows = []
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                working = sample_data[[age_col, target_col, "sample", "sample_short"]].copy()
+                working = working.replace([np.inf, -np.inf], np.nan).dropna()
+                working = working.sort_values(age_col)
+
+                if self.processparams.cutoff.cutoff_min:
+                    cutoff_s = self.processparams.cutoff.cutoff_min * 60
+                    working = working[working[age_col] >= cutoff_s]
+
+                if len(working) < params.min_points:
+                    logger.warning(
+                        f"Skipping deconvolution for {sample_short}: not enough points"
+                    )
+                    continue
+
+                x = working[age_col].to_numpy(dtype=float)
+                y = working[target_col].to_numpy(dtype=float)
+
+                if np.nanmax(y) <= 0:
+                    logger.warning(
+                        f"Skipping deconvolution for {sample_short}: non-positive signal"
+                    )
+                    continue
+
+                x_shift = 0.0
+                x_fit = x.copy()
+                if selected_shape == "lognormal" and np.nanmin(x_fit) <= 0:
+                    x_shift = abs(np.nanmin(x_fit)) + 1e-9
+                    x_fit = x_fit + x_shift
+
+                x_min = float(np.nanmin(x_fit))
+                x_max = float(np.nanmax(x_fit))
+                x_range = max(x_max - x_min, 1e-12)
+
+                x_fit_opt = x_fit
+                y_fit_opt = y
+                if params.max_fit_points and len(x_fit) > params.max_fit_points:
+                    fit_idx = np.linspace(0, len(x_fit) - 1, params.max_fit_points).astype(int)
+                    x_fit_opt = x_fit[fit_idx]
+                    y_fit_opt = y[fit_idx]
+
+                peak_distance = max(
+                    1,
+                    int(len(y) * max(params.min_peak_distance_fraction, 0.0)),
+                )
+                candidate_peaks, _ = find_peaks(y, distance=peak_distance)
+
+                if len(candidate_peaks) > 0:
+                    sorted_peak_idx = candidate_peaks[np.argsort(y[candidate_peaks])[::-1]]
+                    selected_idx = np.sort(sorted_peak_idx[:n_components])
+                    init_centers = x_fit[selected_idx].tolist()
+                else:
+                    init_centers = []
+
+                while len(init_centers) < n_components:
+                    quantile = (len(init_centers) + 1) / (n_components + 1)
+                    init_centers.append(float(np.quantile(x_fit, quantile)))
+
+                baseline_level = float(np.nanmin(y)) if len(y) else 0.0
+                amp_guess = max(float(np.nanmax(y) - baseline_level), 1e-12) / n_components
+
+                p0 = []
+                lower = []
+                upper = []
+
+                for center_guess in init_centers:
+                    p0.extend([amp_guess, center_guess, 0.35 if selected_shape == "lognormal" else 0.08 * x_range])
+                    lower.extend([0.0, x_min, 0.05 if selected_shape == "lognormal" else params.min_sigma_fraction * x_range])
+                    upper.extend([
+                        max(float(np.nanmax(y)) * 10.0, 1e-9),
+                        x_max,
+                        2.0 if selected_shape == "lognormal" else params.max_sigma_fraction * x_range,
+                    ])
+
+                peak_fn = self._lognormal_peak if selected_shape == "lognormal" else self._gaussian_peak
+
+                baseline_attempts = [requested_baseline]
+                for fallback_mode in ["linear", "constant", "none"]:
+                    if fallback_mode not in baseline_attempts:
+                        baseline_attempts.append(fallback_mode)
+
+                fitted_params = None
+                selected_baseline = requested_baseline
+                model = None
+                last_fit_error = None
+
+                for baseline_try in baseline_attempts:
+                    p0_try = list(p0)
+                    lower_try = list(lower)
+                    upper_try = list(upper)
+
+                    if baseline_try == "constant":
+                        p0_try.append(baseline_level)
+                        lower_try.append(float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5)
+                        upper_try.append(float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5)
+                    elif baseline_try == "linear":
+                        p0_try.extend([baseline_level, 0.0])
+                        lower_try.extend([
+                            float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5,
+                            -abs(float(np.nanmax(y))) / max(x_range, 1.0),
+                        ])
+                        upper_try.extend([
+                            float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5,
+                            abs(float(np.nanmax(y))) / max(x_range, 1.0),
+                        ])
+                    elif baseline_try == "chebyshev":
+                        degree = max(0, int(params.chebyshev_degree))
+                        p0_try.extend([baseline_level] + [0.0] * degree)
+                        coeff_bound = max(
+                            abs(float(np.nanmax(y))),
+                            abs(float(np.nanmin(y))),
+                            1e-9,
+                        ) * 10.0
+                        lower_try.extend([-coeff_bound] * (degree + 1))
+                        upper_try.extend([coeff_bound] * (degree + 1))
+
+                    def model_try(xvals: np.ndarray, *fit_params: float) -> np.ndarray:
+                        y_model = np.zeros_like(xvals, dtype=float)
+                        for comp_idx in range(n_components):
+                            start = comp_idx * 3
+                            amplitude, center, sigma = fit_params[start : start + 3]
+                            y_model += peak_fn(xvals, amplitude, center, sigma)
+
+                        if baseline_try == "constant":
+                            y_model += fit_params[-1]
+                        elif baseline_try == "linear":
+                            b0, b1 = fit_params[-2], fit_params[-1]
+                            y_model += b0 + b1 * xvals
+                        elif baseline_try == "chebyshev":
+                            degree = max(0, int(params.chebyshev_degree))
+                            cheb_coeffs = fit_params[-(degree + 1) :]
+                            xvals_scaled = 2.0 * (xvals - x_min) / x_range - 1.0
+                            y_model += np.polynomial.chebyshev.chebval(
+                                xvals_scaled, cheb_coeffs
+                            )
+
+                        return y_model
+
+                    try:
+                        fitted_params, _ = curve_fit(
+                            model_try,
+                            x_fit_opt,
+                            y_fit_opt,
+                            p0=p0_try,
+                            bounds=(lower_try, upper_try),
+                            maxfev=params.max_nfev,
+                        )
+                        model = model_try
+                        selected_baseline = baseline_try
+                        break
+                    except Exception as fit_error:
+                        last_fit_error = fit_error
+                        fitted_params = None
+
+                if fitted_params is None or model is None:
+                    logger.warning(
+                        f"Deconvolution failed for {sample_short}: {last_fit_error}"
+                    )
+                    continue
+
+                y_fit = model(x_fit, *fitted_params)
+                residual = y - y_fit
+                ss_res = float(np.sum(residual**2))
+                ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+                fit_r2 = np.nan if ss_tot == 0 else 1 - ss_res / ss_tot
+                fit_rmse = float(np.sqrt(np.mean(residual**2)))
+
+                baseline_constant = np.nan
+                baseline_slope = np.nan
+                baseline_cheb_coeffs = None
+                if selected_baseline == "constant":
+                    baseline_constant = float(fitted_params[-1])
+                elif selected_baseline == "linear":
+                    baseline_constant = float(fitted_params[-2])
+                    baseline_slope = float(fitted_params[-1])
+                elif selected_baseline == "chebyshev":
+                    degree = max(0, int(params.chebyshev_degree))
+                    cheb_coeffs = fitted_params[-(degree + 1) :]
+                    baseline_cheb_coeffs = tuple(float(v) for v in cheb_coeffs)
+
+                component_areas = []
+                component_curves = []
+                for comp_idx in range(n_components):
+                    start = comp_idx * 3
+                    amplitude, center, sigma = fitted_params[start : start + 3]
+                    comp_curve = peak_fn(x_fit, amplitude, center, sigma)
+                    component_curves.append((amplitude, center, sigma, comp_curve))
+                    component_areas.append(float(np.trapezoid(comp_curve, x)))
+
+                total_area = float(np.sum(component_areas))
+
+                for comp_idx, (amplitude, center, sigma, comp_curve) in enumerate(component_curves, start=1):
+                    center_out = float(center - x_shift) if selected_shape == "lognormal" else float(center)
+                    peak_time = float(x[np.argmax(comp_curve)])
+                    component_area = component_areas[comp_idx - 1]
+                    area_fraction = np.nan if total_area == 0 else component_area / total_area
+
+                    all_rows.append(
+                        {
+                            "sample": sample,
+                            "sample_short": sample_short,
+                            "component": comp_idx,
+                            "n_peaks_fitted": n_components,
+                            "peak_shape": selected_shape,
+                            "baseline_mode": selected_baseline,
+                            "amplitude": float(amplitude),
+                            "center_time_s": center_out,
+                            "peak_time_s": peak_time,
+                            "width": float(sigma),
+                            "component_area": component_area,
+                            "component_area_fraction": area_fraction,
+                            "fit_r2": fit_r2,
+                            "fit_rmse": fit_rmse,
+                            "baseline_constant": baseline_constant,
+                            "baseline_slope": baseline_slope,
+                            "baseline_cheb_coeffs": baseline_cheb_coeffs,
+                        }
+                    )
+
+            return pd.DataFrame(all_rows)
+
+        except Exception as e:
+            raise DataProcessingException("get_deconvolution", e)
+
+    def get_left_peak_inflection_tangent_intersection(
+        self,
+        data: pd.DataFrame,
+        deconvolution_results: pd.DataFrame,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        regex: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """Get abscissa intersection of tangent at left-flank inflection of the left fitted peak."""
+        try:
+            if deconvolution_results.empty:
+                return pd.DataFrame()
+
+            result_rows = []
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                sample_fit = deconvolution_results[
+                    deconvolution_results["sample_short"] == sample_short
+                ]
+                if sample_fit.empty:
+                    continue
+
+                left_peak = sample_fit.sort_values("center_time_s", ascending=True).iloc[0]
+
+                working = sample_data[[age_col, target_col]].copy()
+                working = working.replace([np.inf, -np.inf], np.nan).dropna()
+                if self.processparams.cutoff.cutoff_min:
+                    cutoff_s = self.processparams.cutoff.cutoff_min * 60
+                    working = working[working[age_col] >= cutoff_s]
+                working = working.sort_values(age_col)
+                if len(working) < 5:
+                    continue
+
+                x = working[age_col].to_numpy(dtype=float)
+                component_curve = self._evaluate_component_curve(x, left_peak)
+                peak_idx = int(np.argmax(component_curve))
+                if peak_idx <= 1:
+                    continue
+
+                first_derivative = np.gradient(component_curve, x)
+                second_derivative = np.gradient(first_derivative, x)
+
+                left_second = second_derivative[:peak_idx]
+                if len(left_second) < 2:
+                    continue
+
+                sign_changes = np.where(np.diff(np.sign(left_second)) != 0)[0]
+                if len(sign_changes) > 0:
+                    inflection_idx = int(sign_changes[-1] + 1)
+                else:
+                    inflection_idx = int(np.argmin(np.abs(left_second)))
+
+                inflection_time = float(x[inflection_idx])
+                inflection_value = float(component_curve[inflection_idx])
+                tangent_slope = float(first_derivative[inflection_idx])
+
+                if np.isclose(tangent_slope, 0.0):
+                    x_intersection = np.nan
+                else:
+                    x_intersection = float(
+                        inflection_time - inflection_value / tangent_slope
+                    )
+
+                result_rows.append(
+                    {
+                        "sample": sample,
+                        "sample_short": sample_short,
+                        "left_peak_component": int(left_peak["component"]),
+                        "left_peak_center_time_s": float(left_peak["center_time_s"]),
+                        "inflection_time_s": inflection_time,
+                        "inflection_heat_flow_w_g": inflection_value,
+                        "inflection_tangent_slope": tangent_slope,
+                        "x_intersection_abscissa_s": x_intersection,
+                        "x_intersection_abscissa_min": (
+                            x_intersection / 60 if not np.isnan(x_intersection) else np.nan
+                        ),
+                    }
+                )
+
+            return pd.DataFrame(result_rows)
+
+        except Exception as e:
+            raise DataProcessingException(
+                "get_left_peak_inflection_tangent_intersection", e
+            )
+
+
 class SlopeAnalyzer:
     """Analyzes maximum slopes in calorimetry data."""
 

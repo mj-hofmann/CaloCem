@@ -193,6 +193,22 @@ class SlopeAnalysisParameters:
 
 
 @dataclass
+class DeconvolutionParameters:
+    """Parameters controlling peak deconvolution fitting."""
+
+    n_peaks: int = 2
+    peak_shape: str = "lognormal"
+    baseline_mode: str = "constant"
+    chebyshev_degree: int = 2
+    max_nfev: int = 5000
+    max_fit_points: int = 2500
+    min_points: int = 30
+    min_peak_distance_fraction: float = 0.05
+    min_sigma_fraction: float = 0.005
+    max_sigma_fraction: float = 0.30
+
+
+@dataclass
 class PlottingParameters:
     """
     Parameters for plotting data.
@@ -295,5 +311,8 @@ class ProcessingParameters:
     # slope analysis params
     slope_analysis: SlopeAnalysisParameters = field(
         default_factory=SlopeAnalysisParameters
+    )
+    deconvolution: DeconvolutionParameters = field(
+        default_factory=DeconvolutionParameters
     )
     plotting: PlottingParameters = field(default_factory=PlottingParameters)

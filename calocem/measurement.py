@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from .analysis import (
     ASTMC1679Analyzer,
     AverageSlopeAnalyzer,
+    DeconvolutionAnalyzer,
     DormantPeriodAnalyzer,
     FlankTangentAnalyzer,
     HeatCalculator,
@@ -292,6 +293,161 @@ class Measurement:
             gradient_threshold,
             exclude_discarded_time,
             regex,
+        )
+
+    def get_deconvolution(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        regex: Optional[str] = None,
+        n_peaks: Optional[int] = None,
+        peak_shape: str = "lognormal",
+        baseline_mode: Optional[str] = None,
+        show_plot: bool = False,
+        ax=None,
+    ) -> pd.DataFrame:
+        """Fit a multi-peak deconvolution model to each sample."""
+        params = processparams or self.processparams
+        analyzer = DeconvolutionAnalyzer(params)
+        result = analyzer.get_deconvolution(
+            self._data,
+            target_col=target_col,
+            age_col=age_col,
+            regex=regex,
+            n_peaks=n_peaks,
+            peak_shape=peak_shape,
+            baseline_mode=baseline_mode,
+        )
+
+        if show_plot and not result.empty:
+            for sample, sample_data in SampleIterator.iter_samples(self._data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                sample_result = result[result["sample_short"] == sample_short]
+                if sample_result.empty:
+                    continue
+
+                plot_data = sample_data[[age_col, target_col]].copy()
+                if params.cutoff.cutoff_min:
+                    plot_data = plot_data[
+                        plot_data[age_col] >= params.cutoff.cutoff_min * 60
+                    ]
+                plot_data = plot_data.replace([np.inf, -np.inf], np.nan).dropna()
+                if plot_data.empty:
+                    continue
+
+                x = plot_data[age_col].to_numpy(dtype=float)
+                y = plot_data[target_col].to_numpy(dtype=float)
+                x_logn = np.clip(x, 1e-12, None)
+                x_range = max(float(np.max(x) - np.min(x)), 1e-12)
+                x_scaled = 2.0 * (x - float(np.min(x))) / x_range - 1.0
+
+                created_ax = ax is None
+                if created_ax:
+                    _, local_ax = plt.subplots(figsize=(7, 5))
+                else:
+                    local_ax = ax
+
+                local_ax.plot(x, y, color="black", linewidth=1.2, label="data")
+
+                total_components = np.zeros_like(y)
+                shape = str(sample_result.iloc[0]["peak_shape"]).lower()
+                baseline = str(sample_result.iloc[0]["baseline_mode"]).lower()
+
+                for _, comp in sample_result.iterrows():
+                    amplitude = float(comp["amplitude"])
+                    center = float(comp["center_time_s"])
+                    width = float(comp["width"])
+
+                    if shape == "gaussian":
+                        curve = analyzer._gaussian_peak(x, amplitude, center, width)
+                    else:
+                        curve = analyzer._lognormal_peak(x_logn, amplitude, center, width)
+
+                    total_components += curve
+                    local_ax.plot(
+                        x,
+                        curve,
+                        linestyle="--",
+                        linewidth=1,
+                        label=f"component {int(comp['component'])}",
+                    )
+
+                baseline_constant = float(sample_result.iloc[0]["baseline_constant"])
+                baseline_slope = float(sample_result.iloc[0]["baseline_slope"])
+                if baseline == "constant" and not np.isnan(baseline_constant):
+                    total_fit = total_components + baseline_constant
+                elif baseline == "linear" and not np.isnan(baseline_constant):
+                    slope = 0.0 if np.isnan(baseline_slope) else baseline_slope
+                    total_fit = total_components + baseline_constant + slope * x
+                elif baseline == "chebyshev":
+                    cheb_coeffs = sample_result.iloc[0].get("baseline_cheb_coeffs", None)
+                    if isinstance(cheb_coeffs, str):
+                        import ast
+
+                        cheb_coeffs = ast.literal_eval(cheb_coeffs)
+                    if cheb_coeffs is not None:
+                        baseline_curve = np.polynomial.chebyshev.chebval(
+                            x_scaled, np.array(cheb_coeffs, dtype=float)
+                        )
+                        total_fit = total_components + baseline_curve
+                    else:
+                        total_fit = total_components
+                else:
+                    total_fit = total_components
+
+                fit_r2 = sample_result["fit_r2"].iloc[0]
+                local_ax.plot(
+                    x,
+                    total_fit,
+                    color="tab:red",
+                    linewidth=1.5,
+                    label=f"fit (R²={fit_r2:.3f})" if not pd.isna(fit_r2) else "fit",
+                )
+                local_ax.set_title(f"Deconvolution: {sample_short}")
+                local_ax.set_xlabel(age_col)
+                local_ax.set_ylabel(target_col)
+                local_ax.legend()
+
+                if created_ax:
+                    plt.show()
+
+        return result
+
+    def get_left_peak_inflection_tangent_intersection(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        regex: Optional[str] = None,
+        n_peaks: Optional[int] = None,
+        peak_shape: str = "lognormal",
+        baseline_mode: Optional[str] = None,
+        deconvolution_results: Optional[pd.DataFrame] = None,
+    ) -> pd.DataFrame:
+        """Determine abscissa intersection from tangent at left-peak flank inflection."""
+        params = processparams or self.processparams
+        analyzer = DeconvolutionAnalyzer(params)
+
+        fit_results = deconvolution_results
+        if fit_results is None:
+            fit_results = self.get_deconvolution(
+                processparams=params,
+                target_col=target_col,
+                age_col=age_col,
+                regex=regex,
+                n_peaks=n_peaks,
+                peak_shape=peak_shape,
+                baseline_mode=baseline_mode,
+                show_plot=False,
+            )
+
+        return analyzer.get_left_peak_inflection_tangent_intersection(
+            self._data,
+            fit_results,
+            target_col=target_col,
+            age_col=age_col,
+            regex=regex,
         )
 
     def get_maximum_slope(
@@ -1314,7 +1470,7 @@ class Measurement:
             unmatched_metadata = set(metadata_ids) - matched
 
             if show_info:
-                print(f"\nMetadata matching results:")
+                print("\nMetadata matching results:")
                 print(f"  Matched samples: {len(matched)}")
                 if unmatched_samples:
                     print(f"  Unmatched samples: {len(unmatched_samples)}")
