@@ -41,7 +41,8 @@ processparams.plotting.heat_unit = "mW"
 processparams.plotting.show_plot_title = True
 processparams.plotting.plot_title = ['cem:', 'cement_name', 'cement_amount_g']
 processparams.plotting.legend_pos = "outside"
-
+processparams.plotting.xlims = (0, 75)
+processparams.plotting.ylims = (0, 5)  # Set x-axis limits
 # %%
 mainpeak = tam.get_mainpeak_params(
     processparams=processparams,

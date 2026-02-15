@@ -419,10 +419,15 @@ class SimplePlotter:
                 print(f"Unknown legend position: {legend_loc}, defaulting to 'best'")
                 ax.legend(loc="best", labelspacing=0.1, fontsize=8)
 
-            max_time = results.peak_time_s.values[0] * 4
-            if max_time < data[age_col].max():
-                ax.set_xlim(right=max_time * time_correction_factor)
-            ax.set_ylim(bottom=-5e-5)
+            if not processparams.plotting.xlims:
+                max_time = results.peak_time_s.values[0] * 4
+                if max_time < data[age_col].max():
+                    ax.set_xlim(right=max_time * time_correction_factor)
+                ax.set_ylim(bottom=-5e-5)
+
+            else:
+                ax.set_xlim(processparams.plotting.xlims)
+                ax.set_ylim(processparams.plotting.ylims)
 
             return ax
 

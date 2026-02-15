@@ -212,6 +212,8 @@ class PlottingParameters:
     show_plot_title: bool = True
     legend_pos: str = "best"
     plot_title = "filename"
+    xlims: tuple = None
+    ylims: tuple = None
 
 @dataclass
 class ProcessingParameters:
