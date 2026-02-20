@@ -304,6 +304,8 @@ class Measurement:
         n_peaks: Optional[int] = None,
         peak_shape: str = "lognormal",
         baseline_mode: Optional[str] = None,
+        relative_intensity_upper_bounds: Optional[list[float]] = None,
+        peak_width_upper_bounds: Optional[list[float]] = None,
         show_plot: bool = False,
         ax=None,
     ) -> pd.DataFrame:
@@ -318,6 +320,8 @@ class Measurement:
             n_peaks=n_peaks,
             peak_shape=peak_shape,
             baseline_mode=baseline_mode,
+            relative_intensity_upper_bounds=relative_intensity_upper_bounds,
+            peak_width_upper_bounds=peak_width_upper_bounds,
         )
 
         if show_plot and not result.empty:

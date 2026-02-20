@@ -135,10 +135,12 @@ class DeconvolutionAnalyzer:
         n_peaks: Optional[int] = None,
         peak_shape: Optional[str] = None,
         baseline_mode: Optional[str] = None,
+        relative_intensity_upper_bounds: Optional[list[float]] = None,
+        peak_width_upper_bounds: Optional[list[float]] = None,
     ) -> pd.DataFrame:
         """Fit peak deconvolution and return one result row per fitted component."""
         try:
-            from scipy.optimize import curve_fit
+            from scipy.optimize import minimize
             from scipy.signal import find_peaks
 
             params = self.processparams.deconvolution
@@ -155,6 +157,40 @@ class DeconvolutionAnalyzer:
                 raise ValueError(
                     "baseline_mode must be one of {'constant', 'linear', 'none', 'chebyshev'}"
                 )
+
+            configured_intensity_upper_bounds = relative_intensity_upper_bounds
+            if configured_intensity_upper_bounds is None:
+                configured_intensity_upper_bounds = params.relative_intensity_upper_bounds
+
+            if configured_intensity_upper_bounds is not None:
+                if len(configured_intensity_upper_bounds) != n_components:
+                    raise ValueError(
+                        "relative_intensity_upper_bounds must have length n_peaks"
+                    )
+                configured_intensity_upper_bounds = [
+                    float(v) for v in configured_intensity_upper_bounds
+                ]
+                if not all(0.0 < v <= 1.0 for v in configured_intensity_upper_bounds):
+                    raise ValueError(
+                        "relative_intensity_upper_bounds entries must be in (0, 1]"
+                    )
+                if float(sum(configured_intensity_upper_bounds)) < 1.0:
+                    raise ValueError(
+                        "relative_intensity_upper_bounds must sum to >= 1.0"
+                    )
+
+            configured_width_upper_bounds = peak_width_upper_bounds
+            if configured_width_upper_bounds is None:
+                configured_width_upper_bounds = params.peak_width_upper_bounds
+
+            if configured_width_upper_bounds is not None:
+                if len(configured_width_upper_bounds) != n_components:
+                    raise ValueError("peak_width_upper_bounds must have length n_peaks")
+                configured_width_upper_bounds = [
+                    float(v) for v in configured_width_upper_bounds
+                ]
+                if not all(v > 0.0 for v in configured_width_upper_bounds):
+                    raise ValueError("peak_width_upper_bounds entries must be > 0")
 
             all_rows = []
 
@@ -224,13 +260,39 @@ class DeconvolutionAnalyzer:
                 lower = []
                 upper = []
 
-                for center_guess in init_centers:
-                    p0.extend([amp_guess, center_guess, 0.35 if selected_shape == "lognormal" else 0.08 * x_range])
-                    lower.extend([0.0, x_min, 0.05 if selected_shape == "lognormal" else params.min_sigma_fraction * x_range])
+                for comp_idx, center_guess in enumerate(init_centers):
+                    default_width_guess = (
+                        0.35 if selected_shape == "lognormal" else 0.08 * x_range
+                    )
+                    default_width_lower = (
+                        0.05
+                        if selected_shape == "lognormal"
+                        else params.min_sigma_fraction * x_range
+                    )
+                    default_width_upper = (
+                        2.0
+                        if selected_shape == "lognormal"
+                        else params.max_sigma_fraction * x_range
+                    )
+
+                    width_upper = default_width_upper
+                    if configured_width_upper_bounds is not None:
+                        width_upper = configured_width_upper_bounds[comp_idx]
+
+                    if width_upper <= default_width_lower:
+                        raise ValueError(
+                            "Each peak_width_upper_bounds entry must be greater than the"
+                            " corresponding minimum width bound"
+                        )
+
+                    width_guess = min(default_width_guess, width_upper)
+
+                    p0.extend([amp_guess, center_guess, width_guess])
+                    lower.extend([0.0, x_min, default_width_lower])
                     upper.extend([
                         max(float(np.nanmax(y)) * 10.0, 1e-9),
                         x_max,
-                        2.0 if selected_shape == "lognormal" else params.max_sigma_fraction * x_range,
+                        width_upper,
                     ])
 
                 peak_fn = self._lognormal_peak if selected_shape == "lognormal" else self._gaussian_peak
@@ -297,15 +359,88 @@ class DeconvolutionAnalyzer:
 
                         return y_model
 
-                    try:
-                        fitted_params, _ = curve_fit(
-                            model_try,
-                            x_fit_opt,
-                            y_fit_opt,
-                            p0=p0_try,
-                            bounds=(lower_try, upper_try),
-                            maxfev=params.max_nfev,
+                    def objective_fn(fit_params: np.ndarray) -> float:
+                        residual_local = y_fit_opt - model_try(x_fit_opt, *fit_params)
+                        return float(np.sum(residual_local * residual_local))
+
+                    def _peak_time_from_params(fit_params: np.ndarray, comp_idx: int) -> float:
+                        start = comp_idx * 3
+                        center = float(fit_params[start + 1])
+                        sigma = float(fit_params[start + 2])
+                        if selected_shape == "gaussian":
+                            return center
+                        return center * float(np.exp(-(sigma**2)))
+
+                    min_peak_time_separation_s = max(
+                        params.min_peak_time_separation_fraction * x_range,
+                        1e-12,
+                    )
+
+                    constraints = []
+                    for comp_idx in range(n_components - 1):
+                        constraints.append(
+                            {
+                                "type": "ineq",
+                                "fun": lambda fit_params, i=comp_idx: _peak_time_from_params(
+                                    fit_params, i + 1
+                                )
+                                - _peak_time_from_params(fit_params, i)
+                                - min_peak_time_separation_s,
+                            }
                         )
+
+                    if configured_intensity_upper_bounds is not None:
+                        constraints.append(
+                            {
+                                "type": "ineq",
+                                "fun": lambda fit_params: float(
+                                    np.sum(
+                                        [
+                                            fit_params[idx * 3]
+                                            for idx in range(n_components)
+                                        ]
+                                    )
+                                )
+                                - 1e-12,
+                            }
+                        )
+                        for comp_idx, ub in enumerate(configured_intensity_upper_bounds):
+                            constraints.append(
+                                {
+                                    "type": "ineq",
+                                    "fun": lambda fit_params, i=comp_idx, upper_bound=ub: upper_bound
+                                    * float(
+                                        np.sum(
+                                            [
+                                                fit_params[idx * 3]
+                                                for idx in range(n_components)
+                                            ]
+                                        )
+                                    )
+                                    - float(fit_params[i * 3]),
+                                }
+                            )
+
+                    bounded_x0 = np.array(
+                        [
+                            min(max(v, lo), hi)
+                            for v, lo, hi in zip(p0_try, lower_try, upper_try)
+                        ],
+                        dtype=float,
+                    )
+
+                    try:
+                        result = minimize(
+                            objective_fn,
+                            x0=bounded_x0,
+                            method="SLSQP",
+                            bounds=list(zip(lower_try, upper_try)),
+                            constraints=constraints,
+                            options={"maxiter": int(params.max_nfev), "ftol": 1e-12},
+                        )
+                        if not result.success:
+                            raise RuntimeError(result.message)
+                        fitted_params = np.asarray(result.x, dtype=float)
                         model = model_try
                         selected_baseline = baseline_try
                         break

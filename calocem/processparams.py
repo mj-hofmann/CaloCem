@@ -206,6 +206,9 @@ class DeconvolutionParameters:
     min_peak_distance_fraction: float = 0.05
     min_sigma_fraction: float = 0.005
     max_sigma_fraction: float = 0.30
+    min_peak_time_separation_fraction: float = 1e-4
+    relative_intensity_upper_bounds: list[float] | None = None
+    peak_width_upper_bounds: list[float] | None = None
 
 
 @dataclass
