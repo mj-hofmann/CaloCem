@@ -380,7 +380,7 @@ class SimplePlotter:
                         label=f"Cutoff: {cutoff_time_min:,.0f} min",
                     )
 
-            if analysis_type == "max" or analysis_type == "mean":
+            if analysis_type in ("max", "mean", "ascending"):
                 self._plot_onset_intersection_elements(
                     ax,
                     data,
@@ -420,9 +420,10 @@ class SimplePlotter:
                 ax.legend(loc="best", labelspacing=0.1, fontsize=8)
 
             if not processparams.plotting.xlims:
-                max_time = results.peak_time_s.values[0] * 4
-                if max_time < data[age_col].max():
-                    ax.set_xlim(right=max_time * time_correction_factor)
+                if "peak_time_s" in results.columns and pd.notna(results["peak_time_s"].iloc[0]):
+                    max_time = results.peak_time_s.values[0] * 4
+                    if max_time < data[age_col].max():
+                        ax.set_xlim(right=max_time * time_correction_factor)
                 ax.set_ylim(bottom=-5e-5)
 
             else:
@@ -649,6 +650,13 @@ class SimplePlotter:
                 "onset": "onset_time_s_from_mean_slope",
                 "abscissa": "onset_time_s_from_mean_slope_abscissa",
             },
+            "ascending": {
+                "time": "first_ascending_mean_slope_time_s",
+                "val": "normalized_heat_flow_w_g_at_first_ascending_mean_slope",
+                "grad": "gradient_of_first_ascending_slope_to_fraction_of_max",
+                "onset": "onset_time_s_from_first_ascending_slope",
+                "abscissa": "onset_time_s_from_first_ascending_slope_abscissa",
+            },
         }
 
         if analysis_type not in col_map:
@@ -658,19 +666,34 @@ class SimplePlotter:
         res = sample_results.iloc[0]
 
         # Extract and scale values
-        slope_time = res[cols["time"]] * time_correction_factor
-        slope_value = res[cols["val"]] * heat_correction_factor
-        gradient = (
-            res[cols["grad"]] / time_correction_factor * heat_correction_factor
-        )
-        onset_time = res[cols["onset"]] * time_correction_factor
-        intersection_abscissa = res[cols["abscissa"]] * time_correction_factor
+        slope_time_raw = res.get(cols["time"], np.nan)
+        slope_value_raw = res.get(cols["val"], np.nan)
+        gradient_raw = res.get(cols["grad"], np.nan)
+        onset_time_raw = res.get(cols["onset"], np.nan)
+        intersection_abscissa_raw = res.get(cols["abscissa"], np.nan)
 
-        peak_time = res["peak_time_s"] * time_correction_factor
-        peak_heatflow = res["normalized_heat_flow_w_g_at_peak"] * heat_correction_factor
-        onset_heat_flow = (
-            res["normalized_heat_flow_w_g_dormant"] * heat_correction_factor
+        if pd.isna(slope_time_raw) or pd.isna(slope_value_raw) or pd.isna(gradient_raw):
+            ax.set_title(f"Incomplete data for sample: {sample}")
+            return
+
+        slope_time = slope_time_raw * time_correction_factor
+        slope_value = slope_value_raw * heat_correction_factor
+        gradient = gradient_raw / time_correction_factor * heat_correction_factor
+        onset_time = (
+            onset_time_raw * time_correction_factor if pd.notna(onset_time_raw) else np.nan
         )
+        intersection_abscissa = (
+            intersection_abscissa_raw * time_correction_factor
+            if pd.notna(intersection_abscissa_raw)
+            else np.nan
+        )
+
+        peak_time_raw = res.get("peak_time_s", np.nan)
+        peak_heatflow_raw = res.get("normalized_heat_flow_w_g_at_peak", np.nan)
+        peak_time = peak_time_raw * time_correction_factor if pd.notna(peak_time_raw) else data[age_col].max() * time_correction_factor
+        peak_heatflow = peak_heatflow_raw * heat_correction_factor if pd.notna(peak_heatflow_raw) else data[target_col].max() * heat_correction_factor
+        onset_heat_flow_raw = res.get("normalized_heat_flow_w_g_dormant", np.nan)
+        onset_heat_flow = onset_heat_flow_raw * heat_correction_factor if pd.notna(onset_heat_flow_raw) else np.nan
 
 
         # Plot tangent line
@@ -816,6 +839,7 @@ class SimplePlotter:
         def fmt_lbl(name, val, unit):
             return rf"${name}$: {decimal_number_format.format(val)} {unit}".replace(
                 ",", "\u2009"
+                # ",", ";"
             )
 
         # Plot Standard Markers (ASTM, Max Slope, Peak)
@@ -826,9 +850,11 @@ class SimplePlotter:
         ]
 
         for t_col, v_col, style, label_name in markers:
-            if res[t_col] is not None:
-                t_val = res[t_col] * time_correction_factor
-                v_val = res[v_col] * heat_correction_factor
+            t_raw = res.get(t_col, np.nan)
+            v_raw = res.get(v_col, np.nan)
+            if pd.notna(t_raw) and pd.notna(v_raw):
+                t_val = t_raw * time_correction_factor
+                v_val = v_raw * heat_correction_factor
                 ax.plot(
                     t_val,
                     v_val,
@@ -847,6 +873,34 @@ class SimplePlotter:
             zorder=5,
         )
 
+        if analysis_type == "ascending":
+            frac_start_time = res.get("first_ascending_window_start_time_s", np.nan)
+            frac_end_time = res.get("first_ascending_window_end_time_s", np.nan)
+            frac_start_value = res.get("first_ascending_window_start_value", np.nan)
+            frac_end_value = res.get("first_ascending_window_end_value", np.nan)
+
+            if pd.notna(frac_start_time) and pd.notna(frac_start_value):
+                ax.scatter(
+                    frac_start_time * time_correction_factor,
+                    frac_start_value * heat_correction_factor,
+                    c="purple",
+                    marker="o",
+                    s=36,
+                    zorder=6,
+                    label="First ascending fraction start",
+                )
+
+            if pd.notna(frac_end_time) and pd.notna(frac_end_value):
+                ax.scatter(
+                    frac_end_time * time_correction_factor,
+                    frac_end_value * heat_correction_factor,
+                    c="purple",
+                    marker="s",
+                    s=36,
+                    zorder=6,
+                    label="First ascending fraction end",
+                )
+
 
 
         # Plot Abscissa Intersection
@@ -863,7 +917,7 @@ class SimplePlotter:
 
 
         # Plot Onset Point
-        if onset_time is not None and not np.isnan(onset_time):
+        if onset_time is not None and not np.isnan(onset_time) and pd.notna(onset_heat_flow):
             ax.plot(
                 onset_time,
                 onset_heat_flow,

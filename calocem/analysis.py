@@ -1603,16 +1603,24 @@ class FirstAscendingSlopeAnalyzer:
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
         fraction_of_max: float = 0.2,
+        range_method: Optional[str] = None,
+        delta_y: Optional[float] = None,
+        flexible: Optional[float] = None,
         min_points: int = 4,
         regex: Optional[str] = None,
     ) -> pd.DataFrame:
         """
-        Find the first ascending segment that reaches ``fraction_of_max`` of the global maximum.
+        Find the first ascending segment from a configurable threshold strategy.
 
+        Range strategy ``range_method='fraction'``:
         The segment ends at the first crossing point ``y >= fraction_of_max * max(y)`` and
         starts at the nearest previous local minimum-like point detected by tracing left while
         values are non-decreasing. Small isolated decreases (noise) are tolerated so
         one outlier point does not abruptly truncate the segment.
+
+        Range strategy ``range_method='delta'``:
+        The segment starts at the minimum heat flow on the search interval and ends at the
+        first crossing of ``y >= min_heat_flow + delta_y``.
 
         The threshold is computed from the full available curve. The segment detection itself
         is restricted to times after ``cutoff_min`` (if configured).
@@ -1622,16 +1630,44 @@ class FirstAscendingSlopeAnalyzer:
                 raise ValueError("fraction_of_max must be in (0, 1].")
 
             results = []
-            cutoff_min = (
-                self.processparams.cutoff.cutoff_min
-                if self.processparams.cutoff.cutoff_min
-                else 0
-            )
-            fraction_start = self.processparams.slope_analysis.flank_fraction_start
-            fraction_end = self.processparams.slope_analysis.flank_fraction_end
-            window_size = self.processparams.slope_analysis.window_size
 
             for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                sample_params = self.processparams.resolve_for_sample(sample_short)
+
+                resolved_method = (
+                    range_method
+                    or sample_params.slope_analysis.first_ascending_range_method
+                    or "fraction"
+                ).lower()
+                if resolved_method not in ("fraction", "delta"):
+                    raise ValueError("range_method must be 'fraction' or 'delta'.")
+
+                sample_delta_y = (
+                    float(delta_y)
+                    if delta_y is not None
+                    else sample_params.slope_analysis.first_ascending_delta_y_w_g
+                )
+                if resolved_method == "delta" and sample_delta_y <= 0:
+                    raise ValueError("delta_y must be > 0 for range_method='delta'.")
+
+                sample_flexible = (
+                    float(flexible)
+                    if flexible is not None
+                    else sample_params.slope_analysis.flexible
+                )
+                if sample_flexible < 0:
+                    raise ValueError("flexible must be >= 0.")
+
+                cutoff_min = (
+                    sample_params.cutoff.cutoff_min
+                    if sample_params.cutoff.cutoff_min
+                    else 0
+                )
+                fraction_start = sample_params.slope_analysis.flank_fraction_start
+                fraction_end = sample_params.slope_analysis.flank_fraction_end
+                window_size = sample_params.slope_analysis.window_size
+
                 working_full = sample_data[
                     [age_col, target_col, "sample", "sample_short"]
                 ].copy()
@@ -1641,18 +1677,8 @@ class FirstAscendingSlopeAnalyzer:
                 if len(working_full) < max(min_points, 3):
                     continue
 
-                x_full = working_full[age_col].to_numpy(dtype=float)
-                y_full = working_full[target_col].to_numpy(dtype=float)
-
-                if not np.isfinite(y_full).any():
-                    continue
-
-                y_max = float(np.nanmax(y_full))
-                if not np.isfinite(y_max):
-                    continue
-
-                threshold_value = fraction_of_max * y_max
-                threshold_basis = "global"
+                threshold_value = np.nan
+                threshold_basis = ""
 
                 working_search = working_full
                 if cutoff_min > 0:
@@ -1665,14 +1691,37 @@ class FirstAscendingSlopeAnalyzer:
                 x = working_search[age_col].to_numpy(dtype=float)
                 y = working_search[target_col].to_numpy(dtype=float)
 
-                crossing_indices = np.where(y >= threshold_value)[0]
+                if not np.isfinite(y).any():
+                    continue
 
-                if len(crossing_indices) == 0:
-                    y_max_post_cutoff = float(np.nanmax(y))
-                    if np.isfinite(y_max_post_cutoff):
-                        threshold_value = fraction_of_max * y_max_post_cutoff
-                        threshold_basis = "post_cutoff"
-                        crossing_indices = np.where(y >= threshold_value)[0]
+                y_main_peak = float(np.nanmax(y))
+                if not np.isfinite(y_main_peak):
+                    continue
+
+                if resolved_method == "fraction":
+                    threshold_value = fraction_of_max * y_main_peak
+                    threshold_basis = "post_cutoff"
+                    crossing_indices = np.where(y >= threshold_value)[0]
+                else:
+                    base_delta_y = float(sample_delta_y)
+                    peak_delta_difference = max(y_main_peak - base_delta_y, 0.0)
+                    normalized_difference = peak_delta_difference / base_delta_y if base_delta_y > 0 else 0.0
+                    delta_multiplier = 1.0 + float(sample_flexible) * normalized_difference**(0.5)
+                    effective_delta_y = base_delta_y * delta_multiplier
+
+                    running_min = np.minimum.accumulate(y)
+                    rise_over_running_min = y - running_min
+                    crossing_indices = np.where(rise_over_running_min >= effective_delta_y)[0]
+                    if len(crossing_indices) == 0:
+                        continue
+                    end_idx_candidate = int(crossing_indices[0])
+                    min_idx = int(np.argmin(y[: end_idx_candidate + 1]))
+                    min_value = float(y[min_idx])
+                    threshold_value = min_value + effective_delta_y
+                    threshold_basis = "min_plus_delta"
+                    crossing_indices = np.where(
+                        (np.arange(len(y)) >= min_idx) & (y >= threshold_value)
+                    )[0]
 
                 if len(crossing_indices) == 0:
                     continue
@@ -1689,7 +1738,9 @@ class FirstAscendingSlopeAnalyzer:
 
                 max_consecutive_drop_points = 1
 
-                if end_idx < 1:
+                if resolved_method == "delta":
+                    start_idx = int(np.nanargmin(y[: end_idx + 1]))
+                elif end_idx < 1:
                     ascending_steps = np.where(np.diff(y) > 0)[0]
                     if len(ascending_steps) == 0:
                         continue
@@ -1746,7 +1797,16 @@ class FirstAscendingSlopeAnalyzer:
 
                 result = {
                     "sample": working_search["sample"].iloc[0],
-                    "sample_short": pathlib.Path(str(sample)).stem,
+                    "sample_short": sample_short,
+                    "first_ascending_range_method": resolved_method,
+                    "first_ascending_delta_y_w_g": float(sample_delta_y),
+                    "first_ascending_flexible": float(sample_flexible),
+                    "first_ascending_delta_y_multiplier": (
+                        float(delta_multiplier) if resolved_method == "delta" else np.nan
+                    ),
+                    "first_ascending_delta_y_effective_w_g": (
+                        float(effective_delta_y) if resolved_method == "delta" else np.nan
+                    ),
                     "fraction_of_max": fraction_of_max,
                     "fraction_threshold_value": threshold_value,
                     "fraction_threshold_basis": threshold_basis,

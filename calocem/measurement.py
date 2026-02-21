@@ -520,15 +520,17 @@ class Measurement:
         regex: Optional[str] = None,
         plotpath: Optional[pathlib.Path] = None,
         ax=None,
+        method: str = "mean",
     ) -> pd.DataFrame:
         """
-        Unified method that calculates BOTH maximum and mean slope onset analyses.
+                Unified method for main-peak slope analysis.
 
-        This method performs both slope-based analysis approaches simultaneously:
-        - Maximum slope: Uses single point with maximum gradient for onset determination
-        - Mean slope: Uses averaged slope over flank windows for onset determination
+                Depending on ``method`` this either:
+                - ``"mean"`` (default): calculates maximum and mean slope onset analyses
+                - ``"ascending"``: calculates first ascending slope analysis via
+                    ``get_first_ascending_slope_to_fraction``
 
-        Both results are returned in a single DataFrame with all slope values and onsets.
+                Results are returned in a single DataFrame with all available slope values.
 
         Parameters
         ----------
@@ -550,17 +552,13 @@ class Measurement:
             Path to save plots
         ax : matplotlib.axes.Axes, optional
             Matplotlib axes to plot on
+        method : str
+            Slope analysis method to run: 'mean' or 'ascending'.
 
         Returns
         -------
         pd.DataFrame
-            Comprehensive DataFrame with both max and mean slope results including:
-            - Gradients and curvatures at max slope
-            - Gradients of mean slope
-            - Onset times from both methods
-            - Normalized heat flow and heat values at key points
-            - Dormant period heat flow values
-            - ASTM C1679 characteristic values
+            Comprehensive DataFrame with available slope and characteristic results.
         
         Examples
         --------
@@ -569,23 +567,37 @@ class Measurement:
         ...     processparams=ProcessingParameters(),
         ...     show_plot=False,
         ...     plot_type="mean",
+        ...     method="mean",
         ... )
         """
         params = processparams or self.processparams
 
-        max_slope_results = self._calculate_max_slope_analysis(
-            params,
-            target_col,
-            age_col,
-            regex,
-        )
+        valid_methods = ["mean", "ascending"]
+        if method not in valid_methods:
+            raise ValueError(f"method must be one of {valid_methods}, got '{method}'")
 
-        mean_slope_results = self._calculate_mean_slope_analysis(
-            params,
-            target_col,
-            age_col,
-            regex,
-        )
+        if method == "mean":
+            max_slope_results = self._calculate_max_slope_analysis(
+                params,
+                target_col,
+                age_col,
+                regex,
+            )
+
+            mean_slope_results = self._calculate_mean_slope_analysis(
+                params,
+                target_col,
+                age_col,
+                regex,
+            )
+        elif method == "ascending":
+            max_slope_results = pd.DataFrame()
+            mean_slope_results = self._calculate_first_ascending_slope_analysis(
+                params,
+                target_col,
+                age_col,
+                regex,
+            )
 
         dormant_minimum_heatflow = self.get_dormant_period_heatflow(
             params, regex, show_plot=False
@@ -599,7 +611,11 @@ class Measurement:
         )
 
         # Plot if requested
-        if (show_plot or save_plot) and not (mean_slope_results.empty or max_slope_results.empty):
+        if (
+            method == "mean"
+            and (show_plot or save_plot)
+            and not (mean_slope_results.empty or max_slope_results.empty)
+        ):
             self._plot_combined_slope_analysis(
                 combined_results,
                 params,
@@ -621,16 +637,226 @@ class Measurement:
                 # elif save_plot:
                 #     plt.savefig(plotpath)
 
-        elif mean_slope_results.empty:
+        elif (
+            method == "ascending"
+            and (show_plot or save_plot)
+            and not mean_slope_results.empty
+        ):
+            self._plot_ascending_slope_analysis(
+                combined_results,
+                params,
+                target_col,
+                age_col,
+                regex,
+                plotpath if save_plot else None,
+                ax,
+                show_plot=show_plot,
+            )
+
+        elif method == "mean" and mean_slope_results.empty:
             # logger.warning("No slope analysis results to plot.")
             print("No mean slope analysis obtained - check the processing parameters.")
 
-        elif max_slope_results.empty:
+        elif method == "mean" and max_slope_results.empty:
             print(
                 "No maximum slope analysis obtained - check the processing parameters."
             )
 
         return combined_results
+
+    def _calculate_first_ascending_slope_analysis(
+        self,
+        params: ProcessingParameters,
+        target_col: str,
+        age_col: str,
+        regex: Optional[str],
+    ) -> pd.DataFrame:
+        """Calculate first ascending slope analysis and return structured results."""
+        analyzer = FirstAscendingSlopeAnalyzer(params)
+        first_ascending_results = analyzer.get_first_ascending_slope_to_fraction(
+            self._data,
+            target_col=target_col,
+            age_col=age_col,
+            fraction_of_max=params.slope_analysis.first_ascending_fraction_of_max,
+            regex=regex,
+        )
+
+        if first_ascending_results.empty:
+            logger.warning("No first ascending slope results found.")
+            return pd.DataFrame()
+
+        results = []
+        for _, row in first_ascending_results.iterrows():
+            sample = row.get("sample", row.get("sample_short", ""))
+            sample_short = row.get("sample_short", row.get("sample", ""))
+
+            representative_slope = row.get("first_ascending_slope")
+            tangent_intercept = row.get("first_ascending_intercept")
+            tangent_time_s = row.get("first_ascending_tangent_time_s")
+
+            x_intersection = np.nan
+            x_intersection_dormant = np.nan
+            x_intersection_j_g = np.nan
+            x_intersection_dormant_j_g = np.nan
+            min_value_before_tangent = np.nan
+
+            sample_data = self._get_filtered_sample_data(
+                sample_short,
+                age_col,
+                cutoff_time_min=params.cutoff.cutoff_min,
+            )
+
+            peak_time_s = np.nan
+            peak_value = np.nan
+            peak_j_g = np.nan
+            if not sample_data.empty and target_col in sample_data.columns:
+                peak_idx = sample_data[target_col].idxmax()
+                if pd.notna(peak_idx):
+                    peak_row = sample_data.loc[peak_idx]
+                    peak_time_s = float(peak_row[age_col])
+                    peak_value = float(peak_row[target_col])
+                    if "normalized_heat_j_g" in sample_data.columns:
+                        peak_j_g = float(peak_row["normalized_heat_j_g"])
+
+            if (
+                not sample_data.empty
+                and pd.notna(representative_slope)
+                and pd.notna(tangent_intercept)
+                and representative_slope != 0
+            ):
+                x_intersection = float(-tangent_intercept / representative_slope)
+
+                if pd.notna(tangent_time_s):
+                    data_before_tangent = sample_data[
+                        sample_data[age_col] <= tangent_time_s
+                    ]
+                    if len(data_before_tangent) > 0:
+                        min_value_before_tangent = float(
+                            data_before_tangent[target_col].min()
+                        )
+                        x_intersection_dormant = float(
+                            (min_value_before_tangent - tangent_intercept)
+                            / representative_slope
+                        )
+
+                x_values = sample_data[age_col].to_numpy(dtype=float)
+                j_values = sample_data["normalized_heat_j_g"].to_numpy(dtype=float)
+                if np.isfinite(x_intersection):
+                    x_intersection_j_g = float(np.interp(x_intersection, x_values, j_values))
+                if np.isfinite(x_intersection_dormant):
+                    x_intersection_dormant_j_g = float(
+                        np.interp(x_intersection_dormant, x_values, j_values)
+                    )
+
+            onset_time = (
+                x_intersection_dormant
+                if np.isfinite(x_intersection_dormant)
+                else (
+                    x_intersection if np.isfinite(x_intersection) else tangent_time_s
+                )
+            )
+
+            result_data = {
+                "sample": sample,
+                "sample_short": sample_short,
+                "fraction_of_max_for_first_ascending_slope": row.get("fraction_of_max"),
+                "range_method_for_first_ascending_slope": row.get(
+                    "first_ascending_range_method"
+                ),
+                "delta_y_w_g_for_first_ascending_slope": row.get(
+                    "first_ascending_delta_y_w_g"
+                ),
+                "flexible_for_first_ascending_slope": row.get(
+                    "first_ascending_flexible"
+                ),
+                "delta_y_multiplier_for_first_ascending_slope": row.get(
+                    "first_ascending_delta_y_multiplier"
+                ),
+                "delta_y_effective_w_g_for_first_ascending_slope": row.get(
+                    "first_ascending_delta_y_effective_w_g"
+                ),
+                "normalized_heat_flow_w_g_threshold_for_first_ascending_slope": row.get(
+                    "fraction_threshold_value"
+                ),
+                "threshold_basis_for_first_ascending_slope": row.get(
+                    "fraction_threshold_basis"
+                ),
+                "gradient_of_first_ascending_slope_to_fraction_of_max": row.get(
+                    "first_ascending_slope"
+                ),
+                "first_ascending_mean_slope_time_s": row.get(
+                    "first_ascending_tangent_time_s"
+                ),
+                "normalized_heat_flow_w_g_at_first_ascending_mean_slope": row.get(
+                    "first_ascending_tangent_value"
+                ),
+                "first_ascending_slope_start_time_s": row.get(
+                    "first_ascending_start_time_s"
+                ),
+                "first_ascending_slope_end_time_s": row.get("first_ascending_end_time_s"),
+                "normalized_heat_flow_w_g_at_first_ascending_slope_start": row.get(
+                    "first_ascending_start_value"
+                ),
+                "normalized_heat_flow_w_g_at_first_ascending_slope_end": row.get(
+                    "first_ascending_end_value"
+                ),
+                "number_of_points_for_first_ascending_slope": row.get(
+                    "first_ascending_n_points"
+                ),
+                "number_of_windows_for_first_ascending_mean_slope": row.get(
+                    "first_ascending_n_windows"
+                ),
+                "standard_deviation_for_first_ascending_mean_slope": row.get(
+                    "first_ascending_slope_std"
+                ),
+                "fraction_start_for_first_ascending_mean_slope": row.get(
+                    "first_ascending_fraction_start"
+                ),
+                "fraction_end_for_first_ascending_mean_slope": row.get(
+                    "first_ascending_fraction_end"
+                ),
+                "window_size_for_first_ascending_mean_slope": row.get(
+                    "first_ascending_window_size"
+                ),
+                "first_ascending_window_start_time_s": row.get(
+                    "first_ascending_window_start_time_s"
+                ),
+                "first_ascending_window_end_time_s": row.get(
+                    "first_ascending_window_end_time_s"
+                ),
+                "first_ascending_window_start_value": row.get(
+                    "first_ascending_window_start_value"
+                ),
+                "first_ascending_window_end_value": row.get(
+                    "first_ascending_window_end_value"
+                ),
+                "onset_time_s_from_first_ascending_slope": onset_time,
+                "onset_time_min_from_first_ascending_slope": (
+                    onset_time / 60 if pd.notna(onset_time) else None
+                ),
+                "onset_time_s_from_first_ascending_slope_abscissa": (
+                    x_intersection if np.isfinite(x_intersection) else None
+                ),
+                "normalized_heat_at_onset_time_first_ascending_slope_abscissa_j_g": (
+                    x_intersection_j_g if np.isfinite(x_intersection_j_g) else None
+                ),
+                "normalized_heat_at_onset_time_first_ascending_slope_dormant_j_g": (
+                    x_intersection_dormant_j_g
+                    if np.isfinite(x_intersection_dormant_j_g)
+                    else None
+                ),
+                "min_value_before_first_ascending_tangent": (
+                    min_value_before_tangent if np.isfinite(min_value_before_tangent) else None
+                ),
+                "peak_time_s": peak_time_s if np.isfinite(peak_time_s) else None,
+                "normalized_heat_flow_w_g_at_peak": (
+                    peak_value if np.isfinite(peak_value) else None
+                ),
+                "normalized_heat_j_g_at_peak": peak_j_g if np.isfinite(peak_j_g) else None,
+            }
+            results.append(result_data)
+
+        return pd.DataFrame(results)
 
     def _calculate_max_slope_analysis(
         self,
@@ -723,7 +949,6 @@ class Measurement:
     ) -> pd.DataFrame:
         """Calculate mean slope (flank tangent) analysis and return structured results."""
         analyzer = FlankTangentAnalyzer(params)
-        first_ascending_analyzer = FirstAscendingSlopeAnalyzer(params)
 
         # Get flank tangent results
         tangent_results = analyzer.get_ascending_flank_tangent(
@@ -737,21 +962,6 @@ class Measurement:
             logger.warning("No flank tangent results found.")
             return pd.DataFrame()
 
-        first_ascending_results = (
-            first_ascending_analyzer.get_first_ascending_slope_to_fraction(
-                self._data,
-                target_col=target_col,
-                age_col=age_col,
-                fraction_of_max=params.slope_analysis.first_ascending_fraction_of_max,
-                regex=regex,
-            )
-        )
-
-        first_ascending_by_sample = {
-            row["sample_short"]: row
-            for _, row in first_ascending_results.iterrows()
-        }
-
         results = []
         for _, row in tangent_results.iterrows():
             sample = row.get("sample", row.get("sample_short", ""))
@@ -759,7 +969,6 @@ class Measurement:
 
             # onset by intersection with tangent to dormant period
             onset_time = row.get("x_intersection_dormant", row.get("tangent_time_s", 0))
-            first_ascending_row = first_ascending_by_sample.get(sample_short)
 
             result_data = {
                 "sample": sample,
@@ -778,86 +987,6 @@ class Measurement:
                 "peak_time_s": row.get("peak_time_s", 0),
                 "normalized_heat_flow_w_g_at_peak": row.get("peak_value", 0),
                 "normalized_heat_j_g_at_peak": row.get("peak_j_g", 0),
-                "fraction_of_max_for_first_ascending_slope": (
-                    first_ascending_row.get("fraction_of_max")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "normalized_heat_flow_w_g_threshold_for_first_ascending_slope": (
-                    first_ascending_row.get("fraction_threshold_value")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "threshold_basis_for_first_ascending_slope": (
-                    first_ascending_row.get("fraction_threshold_basis")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "gradient_of_first_ascending_slope_to_fraction_of_max": (
-                    first_ascending_row.get("first_ascending_slope")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "first_ascending_mean_slope_time_s": (
-                    first_ascending_row.get("first_ascending_tangent_time_s")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "normalized_heat_flow_w_g_at_first_ascending_mean_slope": (
-                    first_ascending_row.get("first_ascending_tangent_value")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "first_ascending_slope_start_time_s": (
-                    first_ascending_row.get("first_ascending_start_time_s")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "first_ascending_slope_end_time_s": (
-                    first_ascending_row.get("first_ascending_end_time_s")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "normalized_heat_flow_w_g_at_first_ascending_slope_start": (
-                    first_ascending_row.get("first_ascending_start_value")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "normalized_heat_flow_w_g_at_first_ascending_slope_end": (
-                    first_ascending_row.get("first_ascending_end_value")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "number_of_points_for_first_ascending_slope": (
-                    first_ascending_row.get("first_ascending_n_points")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "number_of_windows_for_first_ascending_mean_slope": (
-                    first_ascending_row.get("first_ascending_n_windows")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "standard_deviation_for_first_ascending_mean_slope": (
-                    first_ascending_row.get("first_ascending_slope_std")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "fraction_start_for_first_ascending_mean_slope": (
-                    first_ascending_row.get("first_ascending_fraction_start")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "fraction_end_for_first_ascending_mean_slope": (
-                    first_ascending_row.get("first_ascending_fraction_end")
-                    if first_ascending_row is not None
-                    else None
-                ),
-                "window_size_for_first_ascending_mean_slope": (
-                    first_ascending_row.get("first_ascending_window_size")
-                    if first_ascending_row is not None
-                    else None
-                ),
             }
             results.append(result_data)
 
@@ -871,43 +1000,29 @@ class Measurement:
         astm_results: pd.DataFrame,
     ) -> pd.DataFrame:
         """Merge max slope and mean slope results into comprehensive DataFrame."""
-        if (
-            max_slope_results.empty
-            and mean_slope_results.empty
-            and dormant_hf_results.empty
-            and astm_results.empty
-        ):
+        frames = [
+            frame
+            for frame in [
+                max_slope_results,
+                mean_slope_results,
+                dormant_hf_results,
+                astm_results,
+            ]
+            if not frame.empty
+        ]
+
+        if not frames:
             return pd.DataFrame()
 
-        # Use outer join to combine results by sample
-        if max_slope_results.empty:
-            return mean_slope_results
-        if mean_slope_results.empty:
-            return max_slope_results
-
-        combined = pd.merge(
-            max_slope_results,
-            mean_slope_results,
-            on=["sample", "sample_short"],
-            how="outer",
-            suffixes=("", "_duplicate"),
-        )
-
-        combined = pd.merge(
-            combined,
-            dormant_hf_results,
-            on=["sample", "sample_short"],
-            how="outer",
-            suffixes=("", "_duplicate"),
-        )
-
-        combined = pd.merge(
-            combined,
-            astm_results,
-            on=["sample", "sample_short"],
-            how="outer",
-            suffixes=("", "_duplicate"),
-        )
+        combined = frames[0]
+        for frame in frames[1:]:
+            combined = pd.merge(
+                combined,
+                frame,
+                on=["sample", "sample_short"],
+                how="outer",
+                suffixes=("", "_duplicate"),
+            )
 
         duplicate_cols = [col for col in combined.columns if col.endswith("_duplicate")]
         combined = combined.drop(columns=duplicate_cols)
@@ -994,6 +1109,52 @@ class Measurement:
                 )
             self._save_and_show_plot(
                 plotpath, f"{plot_type}_slope_{sample_short}.png", ax, show_plot=show_plot
+            )
+
+    def _plot_ascending_slope_analysis(
+        self,
+        results: pd.DataFrame,
+        params: ProcessingParameters,
+        target_col: str,
+        age_col: str,
+        regex: Optional[str],
+        plotpath: Optional[pathlib.Path],
+        ax,
+        show_plot: bool = True,
+    ):
+        """Plot first ascending slope analysis results."""
+        cutoff_min = params.cutoff.cutoff_min
+
+        for _, result_row in results.iterrows():
+            sample = result_row["sample"]
+            sample_short = result_row["sample_short"]
+
+            sample_data = self._get_filtered_sample_data(
+                sample, age_col, cutoff_time_min=cutoff_min
+            )
+            if sample_data.empty:
+                continue
+
+            self._plotter.plot_tangent_analysis(
+                sample_data,
+                sample_short,
+                params,
+                ax=ax,
+                age_col=age_col,
+                target_col=target_col,
+                cutoff_time_min=cutoff_min,
+                analysis_type="ascending",
+                results=result_row.to_frame().T,
+                figsize=(7, 5),
+                metadata=self._metadata,
+                metadata_id=self._metadata_id,
+            )
+
+            self._save_and_show_plot(
+                plotpath,
+                f"ascending_slope_{sample_short}.png",
+                ax,
+                show_plot=show_plot,
             )
 
 

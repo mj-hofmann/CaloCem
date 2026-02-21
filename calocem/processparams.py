@@ -1,4 +1,16 @@
+import re
+from copy import deepcopy
 from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class SampleParamRule:
+    """Regex-based override rule for sample-specific processing parameters."""
+
+    pattern: str
+    overrides: dict[str, Any]
+    priority: int = 100
 
 
 @dataclass
@@ -189,12 +201,30 @@ class SlopeAnalysisParameters:
         Fraction of the global maximum heat flow used to detect the first ascending slope.
         Example: 0.2 means the first ascending slope is determined up to 20% of the
         global maximum of the heat-flow curve.
+        first_ascending_range_method: str
+                Method used to define the first-ascending segment range.
+                - 'fraction' (default): end at first crossing of
+                    ``first_ascending_fraction_of_max * max(heat_flow)``
+                - 'delta': end at first crossing of
+                    ``min(heat_flow) + first_ascending_delta_y_w_g`` where the minimum is
+                    evaluated on the search interval (after cutoff).
+        first_ascending_delta_y_w_g: float
+                Delta heat-flow value in W/g used when
+                ``first_ascending_range_method == 'delta'``.
+        flexible: float
+            Adaptive multiplier factor for ``first_ascending_delta_y_w_g`` in delta mode.
+            The effective delta is computed from a multiplier that increases with the
+            difference between main peak height and base delta value. Set to 0 to
+            disable adaptive scaling.
     """
 
     flank_fraction_start: float = 0.35
     flank_fraction_end: float = 0.55
     window_size: float = 0.1  # as fraction of total data points
     first_ascending_fraction_of_max: float = 0.2
+    first_ascending_range_method: str = "fraction"
+    first_ascending_delta_y_w_g: float = 0.001
+    flexible: float = 0.0
 
 
 @dataclass
@@ -324,3 +354,46 @@ class ProcessingParameters:
         default_factory=DeconvolutionParameters
     )
     plotting: PlottingParameters = field(default_factory=PlottingParameters)
+    sample_param_rules: list[SampleParamRule] = field(default_factory=list)
+
+    def add_sample_param_rule(
+        self,
+        pattern: str,
+        overrides: dict[str, Any],
+        priority: int = 100,
+    ) -> None:
+        """Add a regex rule to override parameters for matching sample names."""
+        self.sample_param_rules.append(
+            SampleParamRule(pattern=pattern, overrides=overrides, priority=priority)
+        )
+
+    def resolve_for_sample(self, sample_name: str) -> "ProcessingParameters":
+        """Resolve effective parameters for a sample based on regex override rules."""
+        if not self.sample_param_rules:
+            return self
+
+        matched_rules = sorted(
+            (rule for rule in self.sample_param_rules if re.search(rule.pattern, sample_name)),
+            key=lambda item: item.priority,
+        )
+
+        if not matched_rules:
+            return self
+
+        resolved = deepcopy(self)
+        for rule in matched_rules:
+            self._apply_nested_overrides(resolved, rule.overrides)
+
+        return resolved
+
+    def _apply_nested_overrides(self, target: Any, overrides: dict[str, Any]) -> None:
+        """Apply nested dictionary overrides to a dataclass-like object."""
+        for key, value in overrides.items():
+            if not hasattr(target, key):
+                raise AttributeError(f"Unknown processing parameter field: {key}")
+
+            current_value = getattr(target, key)
+            if isinstance(value, dict):
+                self._apply_nested_overrides(current_value, value)
+            else:
+                setattr(target, key, value)
