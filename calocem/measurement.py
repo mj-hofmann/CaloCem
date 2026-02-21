@@ -16,6 +16,7 @@ from .analysis import (
     AverageSlopeAnalyzer,
     DeconvolutionAnalyzer,
     DormantPeriodAnalyzer,
+    FirstAscendingSlopeAnalyzer,
     FlankTangentAnalyzer,
     HeatCalculator,
     OnsetAnalyzer,
@@ -722,6 +723,7 @@ class Measurement:
     ) -> pd.DataFrame:
         """Calculate mean slope (flank tangent) analysis and return structured results."""
         analyzer = FlankTangentAnalyzer(params)
+        first_ascending_analyzer = FirstAscendingSlopeAnalyzer(params)
 
         # Get flank tangent results
         tangent_results = analyzer.get_ascending_flank_tangent(
@@ -735,6 +737,21 @@ class Measurement:
             logger.warning("No flank tangent results found.")
             return pd.DataFrame()
 
+        first_ascending_results = (
+            first_ascending_analyzer.get_first_ascending_slope_to_fraction(
+                self._data,
+                target_col=target_col,
+                age_col=age_col,
+                fraction_of_max=params.slope_analysis.first_ascending_fraction_of_max,
+                regex=regex,
+            )
+        )
+
+        first_ascending_by_sample = {
+            row["sample_short"]: row
+            for _, row in first_ascending_results.iterrows()
+        }
+
         results = []
         for _, row in tangent_results.iterrows():
             sample = row.get("sample", row.get("sample_short", ""))
@@ -742,6 +759,7 @@ class Measurement:
 
             # onset by intersection with tangent to dormant period
             onset_time = row.get("x_intersection_dormant", row.get("tangent_time_s", 0))
+            first_ascending_row = first_ascending_by_sample.get(sample_short)
 
             result_data = {
                 "sample": sample,
@@ -760,6 +778,86 @@ class Measurement:
                 "peak_time_s": row.get("peak_time_s", 0),
                 "normalized_heat_flow_w_g_at_peak": row.get("peak_value", 0),
                 "normalized_heat_j_g_at_peak": row.get("peak_j_g", 0),
+                "fraction_of_max_for_first_ascending_slope": (
+                    first_ascending_row.get("fraction_of_max")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "normalized_heat_flow_w_g_threshold_for_first_ascending_slope": (
+                    first_ascending_row.get("fraction_threshold_value")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "threshold_basis_for_first_ascending_slope": (
+                    first_ascending_row.get("fraction_threshold_basis")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "gradient_of_first_ascending_slope_to_fraction_of_max": (
+                    first_ascending_row.get("first_ascending_slope")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "first_ascending_mean_slope_time_s": (
+                    first_ascending_row.get("first_ascending_tangent_time_s")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "normalized_heat_flow_w_g_at_first_ascending_mean_slope": (
+                    first_ascending_row.get("first_ascending_tangent_value")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "first_ascending_slope_start_time_s": (
+                    first_ascending_row.get("first_ascending_start_time_s")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "first_ascending_slope_end_time_s": (
+                    first_ascending_row.get("first_ascending_end_time_s")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "normalized_heat_flow_w_g_at_first_ascending_slope_start": (
+                    first_ascending_row.get("first_ascending_start_value")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "normalized_heat_flow_w_g_at_first_ascending_slope_end": (
+                    first_ascending_row.get("first_ascending_end_value")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "number_of_points_for_first_ascending_slope": (
+                    first_ascending_row.get("first_ascending_n_points")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "number_of_windows_for_first_ascending_mean_slope": (
+                    first_ascending_row.get("first_ascending_n_windows")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "standard_deviation_for_first_ascending_mean_slope": (
+                    first_ascending_row.get("first_ascending_slope_std")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "fraction_start_for_first_ascending_mean_slope": (
+                    first_ascending_row.get("first_ascending_fraction_start")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "fraction_end_for_first_ascending_mean_slope": (
+                    first_ascending_row.get("first_ascending_fraction_end")
+                    if first_ascending_row is not None
+                    else None
+                ),
+                "window_size_for_first_ascending_mean_slope": (
+                    first_ascending_row.get("first_ascending_window_size")
+                    if first_ascending_row is not None
+                    else None
+                ),
             }
             results.append(result_data)
 

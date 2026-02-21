@@ -1464,3 +1464,314 @@ class FlankTangentAnalyzer:
 
         except Exception as e:
             raise DataProcessingException("get_ascending_flank_tangent", e)
+
+
+class FirstAscendingSlopeAnalyzer:
+    """Analyzes the first ascending slope segment reaching a fraction of global peak height."""
+
+    def __init__(self, processparams: ProcessingParameters):
+        self.processparams = processparams
+
+    @staticmethod
+    def _calculate_segment_mean_tangent(
+        x_segment: np.ndarray,
+        y_segment: np.ndarray,
+        fraction_start: float,
+        fraction_end: float,
+        window_size: float,
+    ) -> Optional[dict]:
+        """Calculate representative mean tangent on a segment using fraction-based windows."""
+        if len(x_segment) < 3:
+            return None
+
+        if not np.isfinite(y_segment).any():
+            return None
+
+        fraction_start = float(np.clip(fraction_start, 0.0, 1.0))
+        fraction_end = float(np.clip(fraction_end, 0.0, 1.0))
+        if fraction_end <= fraction_start:
+            fraction_start, fraction_end = 0.35, 0.55
+
+        baseline_value = float(np.nanmin(y_segment))
+        top_value = float(np.nanmax(y_segment))
+        height_range = top_value - baseline_value
+
+        if np.isclose(height_range, 0.0):
+            return None
+
+        y_start = baseline_value + fraction_start * height_range
+        y_end = baseline_value + fraction_end * height_range
+
+        selected_mask = (y_segment >= y_start) & (y_segment <= y_end)
+        x_selected = x_segment[selected_mask]
+        y_selected = y_segment[selected_mask]
+
+        if len(x_selected) < 3:
+            x_selected = x_segment
+            y_selected = y_segment
+
+        selected_time_range = float(np.nanmax(x_selected) - np.nanmin(x_selected))
+
+        if selected_time_range <= 0:
+            slope, intercept = np.polyfit(x_selected, y_selected, 1)
+            return {
+                "tangent_slope": float(slope),
+                "tangent_time_s": float(np.nanmean(x_selected)),
+                "tangent_value": float(np.nanmean(y_selected)),
+                "tangent_intercept": float(intercept),
+                "n_windows": 1,
+                "slope_std": 0.0,
+                "fraction_start": fraction_start,
+                "fraction_end": fraction_end,
+                "window_size": window_size,
+                "window_start_time_s": float(np.nanmin(x_selected)),
+                "window_end_time_s": float(np.nanmax(x_selected)),
+                "window_start_value": float(np.nanmin(y_selected)),
+                "window_end_value": float(np.nanmax(y_selected)),
+            }
+
+        window_time = max(float(window_size) * selected_time_range, 1e-12)
+        step_size = window_time * 1.1
+
+        tangent_slopes = []
+        tangent_times = []
+        tangent_values = []
+
+        start_time = float(np.nanmin(x_selected))
+        end_time = float(np.nanmax(x_selected)) - window_time
+
+        current_time = start_time
+        while current_time <= end_time:
+            window_end = current_time + window_time
+            window_mask = (x_selected >= current_time) & (x_selected <= window_end)
+            x_window = x_selected[window_mask]
+            y_window = y_selected[window_mask]
+
+            if len(x_window) >= 3:
+                slope, _ = np.polyfit(x_window, y_window, 1)
+                if slope > 0:
+                    tangent_slopes.append(float(slope))
+                    tangent_times.append(float(np.mean(x_window)))
+                    tangent_values.append(float(np.mean(y_window)))
+
+            current_time += step_size
+
+        if not tangent_slopes:
+            slope, intercept = np.polyfit(x_selected, y_selected, 1)
+            tangent_time = float(np.nanmean(x_selected))
+            tangent_value = float(np.nanmean(y_selected))
+            return {
+                "tangent_slope": float(slope),
+                "tangent_time_s": tangent_time,
+                "tangent_value": tangent_value,
+                "tangent_intercept": float(intercept),
+                "n_windows": 1,
+                "slope_std": 0.0,
+                "fraction_start": fraction_start,
+                "fraction_end": fraction_end,
+                "window_size": window_size,
+                "window_start_time_s": float(np.nanmin(x_selected)),
+                "window_end_time_s": float(np.nanmax(x_selected)),
+                "window_start_value": float(np.nanmin(y_selected)),
+                "window_end_value": float(np.nanmax(y_selected)),
+            }
+
+        representative_slope = float(np.median(tangent_slopes))
+        representative_time = float(np.median(tangent_times))
+        representative_value = float(np.median(tangent_values))
+        representative_intercept = representative_value - representative_slope * representative_time
+
+        return {
+            "tangent_slope": representative_slope,
+            "tangent_time_s": representative_time,
+            "tangent_value": representative_value,
+            "tangent_intercept": float(representative_intercept),
+            "n_windows": int(len(tangent_slopes)),
+            "slope_std": float(np.std(tangent_slopes)),
+            "fraction_start": fraction_start,
+            "fraction_end": fraction_end,
+            "window_size": float(window_size),
+            "window_start_time_s": float(np.nanmin(x_selected)),
+            "window_end_time_s": float(np.nanmax(x_selected)),
+            "window_start_value": float(np.nanmin(y_selected)),
+            "window_end_value": float(np.nanmax(y_selected)),
+        }
+
+    def get_first_ascending_slope_to_fraction(
+        self,
+        data: pd.DataFrame,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        fraction_of_max: float = 0.2,
+        min_points: int = 4,
+        regex: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Find the first ascending segment that reaches ``fraction_of_max`` of the global maximum.
+
+        The segment ends at the first crossing point ``y >= fraction_of_max * max(y)`` and
+        starts at the nearest previous local minimum-like point detected by tracing left while
+        values are non-decreasing. Small isolated decreases (noise) are tolerated so
+        one outlier point does not abruptly truncate the segment.
+
+        The threshold is computed from the full available curve. The segment detection itself
+        is restricted to times after ``cutoff_min`` (if configured).
+        """
+        try:
+            if not (0 < fraction_of_max <= 1):
+                raise ValueError("fraction_of_max must be in (0, 1].")
+
+            results = []
+            cutoff_min = (
+                self.processparams.cutoff.cutoff_min
+                if self.processparams.cutoff.cutoff_min
+                else 0
+            )
+            fraction_start = self.processparams.slope_analysis.flank_fraction_start
+            fraction_end = self.processparams.slope_analysis.flank_fraction_end
+            window_size = self.processparams.slope_analysis.window_size
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                working_full = sample_data[
+                    [age_col, target_col, "sample", "sample_short"]
+                ].copy()
+                working_full = working_full.replace([np.inf, -np.inf], np.nan).dropna()
+                working_full = working_full.sort_values(age_col).reset_index(drop=True)
+
+                if len(working_full) < max(min_points, 3):
+                    continue
+
+                x_full = working_full[age_col].to_numpy(dtype=float)
+                y_full = working_full[target_col].to_numpy(dtype=float)
+
+                if not np.isfinite(y_full).any():
+                    continue
+
+                y_max = float(np.nanmax(y_full))
+                if not np.isfinite(y_max):
+                    continue
+
+                threshold_value = fraction_of_max * y_max
+                threshold_basis = "global"
+
+                working_search = working_full
+                if cutoff_min > 0:
+                    cutoff_s = cutoff_min * 60
+                    working_search = working_full[working_full[age_col] >= cutoff_s]
+
+                if len(working_search) < max(min_points, 3):
+                    continue
+
+                x = working_search[age_col].to_numpy(dtype=float)
+                y = working_search[target_col].to_numpy(dtype=float)
+
+                crossing_indices = np.where(y >= threshold_value)[0]
+
+                if len(crossing_indices) == 0:
+                    y_max_post_cutoff = float(np.nanmax(y))
+                    if np.isfinite(y_max_post_cutoff):
+                        threshold_value = fraction_of_max * y_max_post_cutoff
+                        threshold_basis = "post_cutoff"
+                        crossing_indices = np.where(y >= threshold_value)[0]
+
+                if len(crossing_indices) == 0:
+                    continue
+
+                end_idx = int(crossing_indices[0])
+
+                y_diff = np.diff(y)
+                if len(y_diff) > 0 and np.isfinite(y_diff).any():
+                    diff_median = float(np.nanmedian(y_diff))
+                    diff_mad = float(np.nanmedian(np.abs(y_diff - diff_median)))
+                    drop_tolerance = max(3.0 * diff_mad, np.finfo(float).eps)
+                else:
+                    drop_tolerance = np.finfo(float).eps
+
+                max_consecutive_drop_points = 1
+
+                if end_idx < 1:
+                    ascending_steps = np.where(np.diff(y) > 0)[0]
+                    if len(ascending_steps) == 0:
+                        continue
+                    start_idx = int(ascending_steps[0])
+                    end_idx = start_idx + 1
+                    drop_streak = 0
+                    while end_idx + 1 < len(y):
+                        delta = y[end_idx + 1] - y[end_idx]
+                        if delta >= -drop_tolerance:
+                            drop_streak = 0
+                            end_idx += 1
+                            continue
+                        drop_streak += 1
+                        if drop_streak <= max_consecutive_drop_points:
+                            end_idx += 1
+                            continue
+                        break
+                else:
+                    start_idx = end_idx
+                    drop_streak = 0
+                    while start_idx > 0:
+                        delta = y[start_idx] - y[start_idx - 1]
+                        if delta >= -drop_tolerance:
+                            drop_streak = 0
+                            start_idx -= 1
+                            continue
+                        drop_streak += 1
+                        if drop_streak <= max_consecutive_drop_points:
+                            start_idx -= 1
+                            continue
+                        break
+
+                if (end_idx - start_idx + 1) < min_points:
+                    if start_idx == 0:
+                        end_idx = min(len(y) - 1, start_idx + min_points - 1)
+                    else:
+                        start_idx = max(0, end_idx - min_points + 1)
+
+                if (end_idx - start_idx + 1) < 2:
+                    continue
+
+                seg_x = x[start_idx : end_idx + 1]
+                seg_y = y[start_idx : end_idx + 1]
+
+                tangent = self._calculate_segment_mean_tangent(
+                    seg_x,
+                    seg_y,
+                    fraction_start=fraction_start,
+                    fraction_end=fraction_end,
+                    window_size=window_size,
+                )
+                if tangent is None:
+                    continue
+
+                result = {
+                    "sample": working_search["sample"].iloc[0],
+                    "sample_short": pathlib.Path(str(sample)).stem,
+                    "fraction_of_max": fraction_of_max,
+                    "fraction_threshold_value": threshold_value,
+                    "fraction_threshold_basis": threshold_basis,
+                    "first_ascending_start_time_s": float(x[start_idx]),
+                    "first_ascending_end_time_s": float(x[end_idx]),
+                    "first_ascending_start_value": float(y[start_idx]),
+                    "first_ascending_end_value": float(y[end_idx]),
+                    "first_ascending_slope": float(tangent["tangent_slope"]),
+                    "first_ascending_intercept": float(tangent["tangent_intercept"]),
+                    "first_ascending_tangent_time_s": float(tangent["tangent_time_s"]),
+                    "first_ascending_tangent_value": float(tangent["tangent_value"]),
+                    "first_ascending_n_windows": int(tangent["n_windows"]),
+                    "first_ascending_slope_std": float(tangent["slope_std"]),
+                    "first_ascending_fraction_start": float(tangent["fraction_start"]),
+                    "first_ascending_fraction_end": float(tangent["fraction_end"]),
+                    "first_ascending_window_size": float(tangent["window_size"]),
+                    "first_ascending_window_start_time_s": float(tangent["window_start_time_s"]),
+                    "first_ascending_window_end_time_s": float(tangent["window_end_time_s"]),
+                    "first_ascending_window_start_value": float(tangent["window_start_value"]),
+                    "first_ascending_window_end_value": float(tangent["window_end_value"]),
+                    "first_ascending_n_points": int(len(seg_x)),
+                }
+                results.append(result)
+
+            return pd.DataFrame(results)
+
+        except Exception as e:
+            raise DataProcessingException("get_first_ascending_slope_to_fraction", e)

@@ -185,11 +185,16 @@ class SlopeAnalysisParameters:
         The end fraction of the window for averaging the slope of the main hydration peak. Example: 0.55 (the default value) means that the slope is calculated up to 55% of the peak height measured relative to the minimum of the dormant period heat flow.
     window_size: float
         The size of the window for averaging the slope, given as a fraction of the total number of data points. Example: 0.1 (the default value) means that the slope is averaged over a window that is 10% of the total number of data points.
+    first_ascending_fraction_of_max: float
+        Fraction of the global maximum heat flow used to detect the first ascending slope.
+        Example: 0.2 means the first ascending slope is determined up to 20% of the
+        global maximum of the heat-flow curve.
     """
 
     flank_fraction_start: float = 0.35
     flank_fraction_end: float = 0.55
     window_size: float = 0.1  # as fraction of total data points
+    first_ascending_fraction_of_max: float = 0.2
 
 
 @dataclass

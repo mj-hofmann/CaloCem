@@ -736,6 +736,81 @@ class SimplePlotter:
                     label="y-val range averaged",
                 )
 
+            first_ascending_slope = res.get(
+                "gradient_of_first_ascending_slope_to_fraction_of_max", np.nan
+            )
+            first_ascending_start_time = res.get(
+                "first_ascending_slope_start_time_s", np.nan
+            )
+            first_ascending_end_time = res.get(
+                "first_ascending_slope_end_time_s", np.nan
+            )
+            first_ascending_start_value = res.get(
+                "normalized_heat_flow_w_g_at_first_ascending_slope_start", np.nan
+            )
+            first_ascending_mean_time = res.get(
+                "first_ascending_mean_slope_time_s", np.nan
+            )
+            first_ascending_mean_value = res.get(
+                "normalized_heat_flow_w_g_at_first_ascending_mean_slope", np.nan
+            )
+            first_ascending_fraction = res.get(
+                "fraction_of_max_for_first_ascending_slope", np.nan
+            )
+
+            if (
+                pd.notna(first_ascending_slope)
+                and pd.notna(first_ascending_start_time)
+                and pd.notna(first_ascending_end_time)
+                and pd.notna(first_ascending_start_value)
+                and first_ascending_end_time > first_ascending_start_time
+            ):
+                first_slope = (
+                    first_ascending_slope / time_correction_factor * heat_correction_factor
+                )
+                first_start_t = first_ascending_start_time * time_correction_factor
+                first_end_t = first_ascending_end_time * time_correction_factor
+                if pd.notna(first_ascending_mean_time) and pd.notna(first_ascending_mean_value):
+                    first_anchor_t = first_ascending_mean_time * time_correction_factor
+                    first_anchor_v = first_ascending_mean_value * heat_correction_factor
+                else:
+                    first_anchor_t = first_start_t
+                    first_anchor_v = first_ascending_start_value * heat_correction_factor
+
+                first_intercept = first_anchor_v - first_slope * first_anchor_t
+
+                x_first_tangent = np.linspace(first_start_t, first_end_t, 100)
+                y_first_tangent = first_slope * x_first_tangent + first_intercept
+
+                fraction_label = ""
+                if pd.notna(first_ascending_fraction):
+                    fraction_label = f" ({100 * float(first_ascending_fraction):.0f}% max)"
+
+                ax.plot(
+                    x_first_tangent,
+                    y_first_tangent,
+                    color="purple",
+                    linestyle="--",
+                    linewidth=2,
+                    alpha=0.9,
+                    label=(
+                        "First Ascending Tangent"
+                        f"{fraction_label}:\n{first_slope:.2e} W/(g·{time_unit})"
+                    ),
+                )
+
+                ax.scatter(
+                    [first_start_t, first_end_t],
+                    [
+                        first_slope * first_start_t + first_intercept,
+                        first_slope * first_end_t + first_intercept,
+                    ],
+                    c="purple",
+                    s=20,
+                    zorder=5,
+                    label="First ascending segment",
+                )
+
 
         # Helper for formatted labels
         def fmt_lbl(name, val, unit):
