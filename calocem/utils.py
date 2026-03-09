@@ -222,13 +222,27 @@ def convert_df_to_float(df: pd.DataFrame) -> pd.DataFrame:
 
     """
 
-    # type conversion
+    # Type conversion per column while preserving clearly non-numeric columns.
+    # Empty strings (including whitespace-only cells) are treated as missing values.
     for c in df.columns:
-        # safe type conversion of the columns to float if possible
-        try:
-            df[c] = df[c].astype(float)
-        except (ValueError, TypeError):
-            pass
+        col = df[c]
+
+        # Keep direct numeric conversion path for already numeric dtypes.
+        if pd.api.types.is_numeric_dtype(col):
+            df[c] = col.astype(float)
+            continue
+
+        # Normalize empty strings to NaN before conversion attempts.
+        normalized = col.replace(r"^\s*$", np.nan, regex=True)
+        numeric = pd.to_numeric(normalized, errors="coerce")
+
+        # Convert column if it contains numeric content, or if it is entirely empty.
+        non_empty_values = normalized.notna().sum()
+        has_numeric_values = numeric.notna().sum() > 0
+        is_only_empty = non_empty_values == 0
+
+        if has_numeric_values or is_only_empty:
+            df[c] = numeric.astype(float)
 
     return df
 
