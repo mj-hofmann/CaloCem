@@ -466,7 +466,7 @@ class Measurement:
         # check for "in-situ" sample --> reset
         try:
             # offset
-            data["time_s"] -= t_offset_in_situ_s
+            data["time_s"] = data["time_s"] - t_offset_in_situ_s
             # write to log
             logger.info(
                 f"\u26a0 Consider {file} as in-situ-file --> time-scale adjusted."
