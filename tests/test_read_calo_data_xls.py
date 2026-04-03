@@ -1,6 +1,5 @@
 import pathlib
 
-import pysnooper
 import pytest
 
 from calocem.measurement import Measurement
