@@ -4,6 +4,7 @@ Data processing operations for calorimetry data.
 
 import logging
 import re
+import warnings
 from typing import Optional
 
 import numpy as np
@@ -523,7 +524,8 @@ class MetadataAggregator:
                 # Average point-by-point, ignoring NaN outside each sample's range
                 for col in heat_cols:
                     arr = np.vstack(interpolated[col])   # (n_samples, n_timepoints)
-                    with np.errstate(all="ignore"):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)
                         mean = np.nanmean(arr, axis=0)
                         std  = np.nanstd(arr, axis=0)
 
