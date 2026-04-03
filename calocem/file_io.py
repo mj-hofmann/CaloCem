@@ -239,37 +239,50 @@ class CSVReader(FileReader):
             data = data.loc[3:, :].reset_index(drop=True)
 
             # Convert data types
-            data["time_s"] = data["time_s"].astype(float)
-            data["heat_flow_mw"] = data["heat_flow_mw"].apply(
-                lambda x: float(str(x).replace(",", "."))
+            #data["time_s"] = data["time_s"].astype(float)
+            data = data.assign(time_s=pd.to_numeric(data["time_s"], errors="coerce"))
+            
+            # data["heat_flow_mw"] = data["heat_flow_mw"].apply(
+            #     lambda x: float(str(x).replace(",", "."))
+            # )
+            data = data.assign(
+                heat_flow_mw=data["heat_flow_mw"].astype(str).str.replace(",", ".").astype(float)
             )
 
             # Convert units
-            data["heat_flow_w"] = data["heat_flow_mw"] / 1000
+            #data["heat_flow_w"] = data["heat_flow_mw"] / 1000
+            data = data.assign(heat_flow_w=data["heat_flow_mw"] / 1000)
 
             # Calculate cumulative heat
-            data["heat_j"] = integrate.cumulative_trapezoid(
+            data = data.assign(heat_j=integrate.cumulative_trapezoid(
                 data["heat_flow_w"], x=data["time_s"], initial=0
-            )
+            ))
 
             # Remove intermediate column
             del data["heat_flow_mw"]
 
             # Apply time offset
             if t0:
-                data["time_s"] = data["time_s"] - t0
+                data = data.assign(time_s=data["time_s"] - t0)
+                # data["time_s"] = data["time_s"] - t0
 
             # Calculate normalized values if mass is available
             if mass:
-                data["normalized_heat_flow_w_g"] = data["heat_flow_w"] / mass
-                data["normalized_heat_j_g"] = data["heat_j"] / mass
+                data = data.assign(
+                    normalized_heat_flow_w_g=data["heat_flow_w"] / mass
+                )
+                data = data.assign(
+                    normalized_heat_j_g=data["heat_j"] / mass
+                )
 
             # Restrict to non-negative time
             data = data.query("time_s >= 0").reset_index(drop=True)
 
             # Add sample information
-            data["sample"] = str(file_path)
-            data["sample_short"] = file_path.stem
+            data = data.assign(
+                sample=str(file_path),
+                sample_short=file_path.stem
+            )
 
             data = utils.convert_df_to_float(data)
 

@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from calocem import Measurement
+from calocem import ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 plotpath = Path(__file__).parent.parent / "docs" / "assets"
@@ -22,7 +23,9 @@ tam = Measurement(
 data = tam.get_data()
 info = tam.get_information()
 
+processparams = ProcessingParameters()
+processparams.cutoff.cutoff_min = 75 
 
 #%%
-heat = tam.get_cumulated_heat_at_hours(target_h = 72, cutoff_min = 4500/60)
+heat = tam.get_cumulated_heat_at_hours( processparams, target_h=4)
 # %%
