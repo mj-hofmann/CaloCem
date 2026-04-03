@@ -222,14 +222,15 @@ def convert_df_to_float(df: pd.DataFrame) -> pd.DataFrame:
 
     """
 
-    # Type conversion per column while preserving clearly non-numeric columns.
+    # Build a new DataFrame column-by-column to avoid pandas CoW warnings.
     # Empty strings (including whitespace-only cells) are treated as missing values.
+    result = {}
     for c in df.columns:
         col = df[c]
 
         # Keep direct numeric conversion path for already numeric dtypes.
         if pd.api.types.is_numeric_dtype(col):
-            df[c] = col.astype(float)
+            result[c] = col.astype(float)
             continue
 
         # Normalize empty strings to NaN before conversion attempts.
@@ -242,9 +243,11 @@ def convert_df_to_float(df: pd.DataFrame) -> pd.DataFrame:
         is_only_empty = non_empty_values == 0
 
         if has_numeric_values or is_only_empty:
-            df[c] = numeric.astype(float)
+            result[c] = numeric.astype(float)
+        else:
+            result[c] = col
 
-    return df
+    return pd.DataFrame(result)
 
 
 def fit_univariate_spline(df, target_col, s=1e-6):
@@ -396,7 +399,7 @@ def prepare_tab_columns(df,file):
 
 def parse_rowwise_data(data):
     # get "column" count
-    data["count"] = [len(i) for i in data[0].str.split(",")]
+    data.loc[:, "count"] = [len(i) for i in data[0].str.split(",")]
 
     # check if all count are the same
     if len(data["count"].value_counts()) > 1:    
@@ -437,11 +440,12 @@ def parse_rowwise_data(data):
 
 def make_equidistant(df: pd.DataFrame) -> pd.DataFrame:
     df = df.reset_index(drop=True).copy()
-    df["td"] = pd.to_timedelta(df["time_s"], unit="s")
+    df.loc[:, "td"] = pd.to_timedelta(df["time_s"], unit="s")
     resample = df.resample("10s", on="td")
     string_cols = df.select_dtypes(include="object").columns
     num_cols = df.select_dtypes(include="number").columns
-    resampled_stringcols = resample[string_cols].first().ffill()
+    with pd.option_context("future.no_silent_downcasting", True):
+        resampled_stringcols = resample[string_cols].first().ffill()
     resampled_numcols = resample[num_cols].mean().interpolate()
     df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
     return df

@@ -466,7 +466,7 @@ class Measurement:
         # check for "in-situ" sample --> reset
         try:
             # offset
-            data["time_s"] = data["time_s"] - t_offset_in_situ_s
+            data.loc[:, "time_s"] = data["time_s"] - t_offset_in_situ_s
             # write to log
             logger.info(
                 f"\u26a0 Consider {file} as in-situ-file --> time-scale adjusted."
@@ -2085,7 +2085,7 @@ class Measurement:
                     float(
                         dorm_hfs[dorm_hfs["sample_short"] == row["sample_short"]][
                             "normalized_heat_flow_w_g"
-                        ]
+                        ].iloc[0]
                     )
                     - t
                 ) / row["gradient"]
