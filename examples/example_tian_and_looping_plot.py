@@ -10,46 +10,81 @@ datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 
 
 # %%
-tam2 = Measurement(
+tam = Measurement(
     folder=datapath,
     regex=".*bm.*",
     cold_start=True,
     auto_clean=False,
 )
-# %%
 
-# define processing parameters
+# %%
+# Single time constant: correct for thermal lag using only tau1
+# Set tau2 = None to explicitly use first-order Tian correction:
+#   hf_corrected = dHF/dt * tau1 + HF
 processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 300
+processparams.time_constants.tau2 = None
 
-tam2.apply_tian_correction(processparams)
+tam.apply_tian_correction(processparams)
 
 # %%
-# loop samples
-for sample, data in tam2._iter_samples():
-    p = plt.plot(
-        data["time_s"],
-        data["normalized_heat_flow_w_g"],
+# Loop over samples and overlay raw vs Tian-corrected heat flow
+fig, ax = plt.subplots()
+
+for sample, data in tam.get_data().groupby("sample_short"):
+    (line,) = ax.plot(
+        data["time_s"] / 3600,
+        data["normalized_heat_flow_w_g"] * 1e3,
         alpha=0.5,
         linestyle=":",
-        label="raw",
+        label=f"{sample} (raw)",
     )
-    # plt.plot(
-    #     data["time_s"], data["gradient_normalized_heat_flow_w_g"] * 1e2, label="grad"
-    # )
-    plt.plot(
-        data["time_s"],
-        data["normalized_heat_flow_w_g_tian"],
-        color=p[0].get_color(),
-        label="tian",
+    ax.plot(
+        data["time_s"] / 3600,
+        data["normalized_heat_flow_w_g_tian"] * 1e3,
+        color=line.get_color(),
+        label=f"{sample} (Tian, tau1={processparams.time_constants.tau1}s)",
     )
 
-plt.xlim(0, 500)
-plt.ylabel("normalized_heat_flow")
-plt.legend()
+ax.set_xlabel("Time / h")
+ax.set_ylabel("Normalized heat flow / mW g$^{-1}$")
+ax.set_xlim(0, 1)
+ax.legend()
+ax.set_title("Tian correction — single time constant")
+plt.tight_layout()
 plt.show()
 
+# %%
+# Dual time constants: second-order Tian correction:
+#   hf_corrected = dHF/dt * (tau1 + tau2) + d²HF/dt² * tau1*tau2 + HF
+processparams2 = ProcessingParameters()
+processparams2.time_constants.tau1 = 300
+processparams2.time_constants.tau2 = 100
+
+tam.apply_tian_correction(processparams2)
 
 # %%
+fig, ax = plt.subplots()
 
-# %%
+for sample, data in tam.get_data().groupby("sample_short"):
+    (line,) = ax.plot(
+        data["time_s"] / 3600,
+        data["normalized_heat_flow_w_g"] * 1e3,
+        alpha=0.5,
+        linestyle=":",
+        label=f"{sample} (raw)",
+    )
+    ax.plot(
+        data["time_s"] / 3600,
+        data["normalized_heat_flow_w_g_tian"] * 1e3,
+        color=line.get_color(),
+        label=f"{sample} (Tian, tau1={processparams2.time_constants.tau1}s, tau2={processparams2.time_constants.tau2}s)",
+    )
+
+ax.set_xlabel("Time / h")
+ax.set_ylabel("Normalized heat flow / mW g$^{-1}$")
+ax.set_xlim(0, 1)
+ax.legend()
+ax.set_title("Tian correction — dual time constants")
+plt.tight_layout()
+plt.show()
