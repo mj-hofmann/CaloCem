@@ -263,7 +263,7 @@ def fit_univariate_spline(df, target_col, s=1e-6):
         DESCRIPTION. The default is 1e-6.
 
     """
-    df[target_col].fillna(0, inplace=True)
+    df[target_col] = df[target_col].fillna(0)
     spl = UnivariateSpline(df["time_s"], df[target_col], s=s)
     df["interpolated"] = spl(df["time_s"])
     # cut off last 100 points to avoid large gradient detection due to potential interpolation artifacts at the end of the data
