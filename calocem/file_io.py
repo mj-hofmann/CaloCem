@@ -146,10 +146,125 @@ class CSVReader(FileReader):
             info["sample_short"] = file_path.stem
             return info
 
+    def _scan_csv_structure(
+        self, file_path: pathlib.Path
+    ) -> Optional[tuple]:
+        """
+        Scan the file line-by-line to determine its structure.
+
+        Returns (header_row, footer_row, reaction_start_time) where:
+          - header_row: line index of the column-name row
+          - footer_row: line index of the "Data series" footer (or None)
+          - reaction_start_time: float offset to subtract from time_s (or None)
+
+        Returns None if the file appears to be tab-separated.
+        """
+        header_row = None
+        footer_row = None
+        reaction_start_time = None
+
+        with open(file_path, "r", encoding="utf-8", errors="replace") as fh:
+            for i, line in enumerate(fh):
+                if i == 0 and "\t" in line:
+                    return None  # tab-separated — hand off to _read_tab_separated
+
+                line_lower = line.lower()
+
+                # Extract non-zero reaction-start offset before data starts
+                if reaction_start_time is None and "reaction start" in line_lower:
+                    try:
+                        t = float(line.split(",")[0].strip().strip('"'))
+                        if t != 0.0:
+                            reaction_start_time = t
+                    except (ValueError, IndexError):
+                        pass
+
+                # Header row: first line containing both "time" and "heat"
+                if header_row is None and "time" in line_lower and "heat" in line_lower:
+                    header_row = i
+
+                # Footer row: "Data series" statistics block — stop reading here
+                if header_row is not None and "data series" in line_lower:
+                    footer_row = i
+                    break
+
+        if header_row is None:
+            return None
+
+        return header_row, footer_row, reaction_start_time
+
+    def _read_comma_separated_fast(
+        self, file_path: pathlib.Path, show_info: bool
+    ) -> Optional[pd.DataFrame]:
+        """
+        Fast CSV reading via direct pd.read_csv after a cheap line-scan.
+
+        Skips pre-header metadata rows, excludes the trailing "Data series"
+        statistics block, and reuses the existing tidy_colnames /
+        remove_unnecessary_data / convert_df_to_float pipeline.
+        """
+        structure = self._scan_csv_structure(file_path)
+        if structure is None:
+            return None  # tab-separated
+
+        header_row, footer_row, reaction_start_time = structure
+
+        data = pd.read_csv(
+            file_path,
+            sep=",",
+            header=None,          # keep first post-skip row as data so tidy_colnames works
+            skiprows=range(header_row),
+            engine="c",
+            on_bad_lines="skip",  # gracefully handle footer rows with wrong column count
+        )
+
+        # Drop the "Data series" statistics footer if present
+        if footer_row is not None:
+            data = data[~data[0].astype(str).str.contains("Data series", case=False, na=False)]
+            data = data.reset_index(drop=True)
+
+        data = utils.tidy_colnames(data)
+        if data is None:
+            return None
+
+        data = utils.remove_unnecessary_data(data)
+        data = utils.convert_df_to_float(data).copy()
+
+        # Apply reaction-start offset found during scan
+        if reaction_start_time is not None:
+            data = data.assign(time_s=data["time_s"] - reaction_start_time)
+
+        # Handle reaction_start_time_s column (some file variants)
+        try:
+            if (
+                "reaction_start_time_s" in data.columns
+                and not data["reaction_start_time_s"].isna().all()
+            ):
+                rs = data["reaction_start_time_s"].dropna().iloc[0]
+                data = data.assign(time_s=data["time_s"] - rs)
+        except Exception:
+            pass
+
+        data = data.query("time_s > 0").reset_index(drop=True)
+        data = utils.add_sample_info(data, file_path)
+
+        return data
+
     def _read_comma_separated(
         self, file_path: pathlib.Path, show_info: bool
     ) -> Optional[pd.DataFrame]:
-        """Read comma-separated CSV data."""
+        """Read comma-separated CSV data — fast path with legacy fallback."""
+        data = self._read_comma_separated_fast(file_path, show_info)
+        if data is not None:
+            return data
+
+        # Legacy fallback: row-by-row Python parsing via parse_rowwise_data
+        return self._read_comma_separated_legacy(file_path, show_info)
+
+    def _read_comma_separated_legacy(
+        self, file_path: pathlib.Path, show_info: bool
+    ) -> Optional[pd.DataFrame]:
+        """Legacy row-by-row CSV reader kept as fallback."""
         try:
             data = pd.read_csv(
                 file_path, header=None, sep="No meaningful separator", engine="python"
@@ -160,8 +275,8 @@ class CSVReader(FileReader):
                 return None  # Try tab-separated instead
 
             # Look for potential index indicating in-situ-file
+            reaction_start_row = None
             if data[0].str.contains("Reaction start").any():
-                # get name of column that contains "Reaction start"
                 reaction_start_row = data[0].str.contains("Reaction start").idxmax()
 
             data = utils.parse_rowwise_data(data)
@@ -170,8 +285,11 @@ class CSVReader(FileReader):
             data = utils.convert_df_to_float(data).copy()
 
             if reaction_start_row:
-                reaction_start = float(data.at[reaction_start_row, "time_s"])
-                data = data.assign(time_s=data["time_s"] - reaction_start)
+                try:
+                    reaction_start = float(data.at[reaction_start_row, "time_s"])
+                    data = data.assign(time_s=data["time_s"] - reaction_start)
+                except Exception:
+                    pass
 
             # Check for "in-situ" sample and reset if needed
             try:
