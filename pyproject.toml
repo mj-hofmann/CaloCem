@@ -1,6 +1,6 @@
 [project]
 name = "CaloCem"
-version = "0.2.4"
+version = "0.2.5"
 description = "Handling TAM Air calorimetry files made easy."
 authors = [
     { name = "mj-hofmann", email = "aCodingChemist@gmail.com" },
