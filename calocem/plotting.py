@@ -1011,6 +1011,65 @@ class SimplePlotter:
             figsize=(7, 5),
         )
 
+    def plot_astm_c1679(
+        self,
+        data: pd.DataFrame,
+        results: pd.DataFrame,
+        ax: Optional[matplotlib.axes.Axes] = None,
+        xunit: str = "h",
+    ) -> matplotlib.axes.Axes:
+        """Plot heat flow curves with ASTM C1679 characteristic points marked.
+
+        Each sample's heat flow curve is drawn, with a square marker at the
+        half-maximum point determined by the ASTM C1679 procedure.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Full measurement data containing time_s and normalized_heat_flow_w_g.
+        results : pd.DataFrame
+            Output of get_astm_c1679_characteristics(), containing astm_time_s
+            and normalized_heat_flow_w_g_astm per sample.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. A new figure is created when not provided.
+        xunit : str
+            Time unit for the x-axis: 's', 'min', 'h', or 'd'.
+        """
+        unit_conversions = {
+            "s": (1.0, "Time [s]"),
+            "min": (1 / 60, "Time [min]"),
+            "h": (1 / 3600, "Time [h]"),
+            "d": (1 / (24 * 3600), "Time [d]"),
+        }
+        x_factor, x_label = unit_conversions.get(xunit, (1.0, "Time [s]"))
+
+        if ax is None:
+            _, ax = plt.subplots(figsize=(10, 6))
+
+        for _, row in results.iterrows():
+            sample_data = data[data["sample_short"] == row["sample_short"]]
+            (line,) = ax.plot(
+                sample_data["time_s"] * x_factor,
+                sample_data["normalized_heat_flow_w_g"],
+                label=row["sample_short"],
+            )
+            ax.plot(
+                row["astm_time_s"] * x_factor,
+                row["normalized_heat_flow_w_g_astm"],
+                marker="s",
+                color=line.get_color(),
+                markersize=8,
+                linestyle="none",
+                zorder=5,
+                label=f"{row['sample_short']} (ASTM C1679)",
+            )
+
+        ax.set_xlabel(x_label)
+        ax.set_ylabel("Normalized Heat Flow / [W/g]")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        return ax
+
     def plot_onset_intersections(
         self,
         data: pd.DataFrame,

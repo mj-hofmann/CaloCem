@@ -1297,14 +1297,16 @@ class Measurement:
         """Get characteristics according to ASTM C1679."""
         params = processparams or self.processparams
 
-        # Get peaks first
         peaks = self.get_peaks(params, regex=regex, show_plot=False)
 
-        # Analyze ASTM characteristics
         analyzer = ASTMC1679Analyzer(params)
         df = analyzer.get_astm_c1679_characteristics(
             self._data, peaks, individual, regex
         )
+
+        if show_plot and not df.empty:
+            self._plotter.plot_astm_c1679(self._data, df, ax, xunit)
+
         return df
 
     def get_cumulated_heat_at_hours(
