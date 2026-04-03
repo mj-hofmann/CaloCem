@@ -436,7 +436,7 @@ def parse_rowwise_data(data):
 
 
 def make_equidistant(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.reset_index(drop=True)
+    df = df.reset_index(drop=True).copy()
     df["td"] = pd.to_timedelta(df["time_s"], unit="s")
     resample = df.resample("10s", on="td")
     string_cols = df.select_dtypes(include="object").columns
