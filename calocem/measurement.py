@@ -261,12 +261,20 @@ class Measurement:
                     peaks_df["sample_short"] == pathlib.Path(str(sample)).stem
                 ]
                 if not sample_peaks.empty:
-                    # Get peak indices relative to sample data
-                    import numpy as np
-
-                    peak_indices = np.array(sample_peaks.index.tolist())
+                    # Locate peak positions within sample_data by matching time_s values
+                    peak_indices = np.array([
+                        sample_data.index.get_loc(
+                            sample_data["time_s"].sub(t).abs().idxmin()
+                        )
+                        for t in sample_peaks["time_s"]
+                    ])
                     self._plotter.plot_peaks(
-                        sample_data, peak_indices, str(sample), ax, "time_s", target_col
+                        sample_data.reset_index(drop=True),
+                        peak_indices,
+                        str(sample),
+                        ax,
+                        "time_s",
+                        target_col,
                     )
 
         return peaks_df
