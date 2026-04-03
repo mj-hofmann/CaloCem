@@ -328,7 +328,8 @@ class XLSReader(FileReader):
                 # Convert columns to float
                 for col in df_data.columns:
                     try:
-                        df_data[col] = pd.to_numeric(df_data[col], errors="coerce")
+                        # df_data[col] = pd.to_numeric(df_data[col], errors="coerce")
+                        df_data = df_data.assign(**{col: pd.to_numeric(df_data[col], errors="coerce")})
                     except Exception:
                         pass
 

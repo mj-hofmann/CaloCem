@@ -95,7 +95,7 @@ class SimplePlotter:
 
                 # Apply unit conversions
                 plot_data = sample_data.copy()
-                plot_data["time_s"] = plot_data["time_s"] * x_factor
+                plot_data = plot_data.assign(time_s=plot_data["time_s"] * x_factor)
 
                 # Convert heat columns
                 heat_cols = [col for col in plot_data.columns if "heat" in col]
@@ -133,7 +133,7 @@ class SimplePlotter:
                 fig, ax = plt.subplots(figsize=(10, 6))
 
             # Plot main data
-            ax.plot(data[age_col], data[target_col], label=sample)
+            ax.plot(data[age_col], data[target_col], label=data["sample_short"].iloc[0])
 
             # Mark peaks
             if len(peaks) > 0:
