@@ -96,7 +96,9 @@ class DeconvolutionAnalyzer:
         self.processparams = processparams
 
     @staticmethod
-    def _lognormal_peak(x: np.ndarray, amplitude: float, center: float, sigma: float) -> np.ndarray:
+    def _lognormal_peak(
+        x: np.ndarray, amplitude: float, center: float, sigma: float
+    ) -> np.ndarray:
         eps = 1e-12
         x_safe = np.clip(x, eps, None)
         center_safe = max(center, eps)
@@ -106,7 +108,9 @@ class DeconvolutionAnalyzer:
         )
 
     @staticmethod
-    def _gaussian_peak(x: np.ndarray, amplitude: float, center: float, sigma: float) -> np.ndarray:
+    def _gaussian_peak(
+        x: np.ndarray, amplitude: float, center: float, sigma: float
+    ) -> np.ndarray:
         sigma_safe = max(sigma, 1e-12)
         return amplitude * np.exp(-0.5 * ((x - center) / sigma_safe) ** 2)
 
@@ -152,7 +156,9 @@ class DeconvolutionAnalyzer:
             if selected_shape not in {"lognormal", "gaussian"}:
                 raise ValueError("peak_shape must be either 'lognormal' or 'gaussian'")
 
-            requested_baseline = (baseline_mode or params.baseline_mode or "constant").lower()
+            requested_baseline = (
+                baseline_mode or params.baseline_mode or "constant"
+            ).lower()
             if requested_baseline not in {"constant", "linear", "none", "chebyshev"}:
                 raise ValueError(
                     "baseline_mode must be one of {'constant', 'linear', 'none', 'chebyshev'}"
@@ -160,7 +166,9 @@ class DeconvolutionAnalyzer:
 
             configured_intensity_upper_bounds = relative_intensity_upper_bounds
             if configured_intensity_upper_bounds is None:
-                configured_intensity_upper_bounds = params.relative_intensity_upper_bounds
+                configured_intensity_upper_bounds = (
+                    params.relative_intensity_upper_bounds
+                )
 
             if configured_intensity_upper_bounds is not None:
                 if len(configured_intensity_upper_bounds) != n_components:
@@ -196,7 +204,9 @@ class DeconvolutionAnalyzer:
 
             for sample, sample_data in SampleIterator.iter_samples(data, regex):
                 sample_short = pathlib.Path(str(sample)).stem
-                working = sample_data[[age_col, target_col, "sample", "sample_short"]].copy()
+                working = sample_data[
+                    [age_col, target_col, "sample", "sample_short"]
+                ].copy()
                 working = working.replace([np.inf, -np.inf], np.nan).dropna()
                 working = working.sort_values(age_col)
 
@@ -232,7 +242,9 @@ class DeconvolutionAnalyzer:
                 x_fit_opt = x_fit
                 y_fit_opt = y
                 if params.max_fit_points and len(x_fit) > params.max_fit_points:
-                    fit_idx = np.linspace(0, len(x_fit) - 1, params.max_fit_points).astype(int)
+                    fit_idx = np.linspace(
+                        0, len(x_fit) - 1, params.max_fit_points
+                    ).astype(int)
                     x_fit_opt = x_fit[fit_idx]
                     y_fit_opt = y[fit_idx]
 
@@ -243,7 +255,9 @@ class DeconvolutionAnalyzer:
                 candidate_peaks, _ = find_peaks(y, distance=peak_distance)
 
                 if len(candidate_peaks) > 0:
-                    sorted_peak_idx = candidate_peaks[np.argsort(y[candidate_peaks])[::-1]]
+                    sorted_peak_idx = candidate_peaks[
+                        np.argsort(y[candidate_peaks])[::-1]
+                    ]
                     selected_idx = np.sort(sorted_peak_idx[:n_components])
                     init_centers = x_fit[selected_idx].tolist()
                 else:
@@ -254,7 +268,9 @@ class DeconvolutionAnalyzer:
                     init_centers.append(float(np.quantile(x_fit, quantile)))
 
                 baseline_level = float(np.nanmin(y)) if len(y) else 0.0
-                amp_guess = max(float(np.nanmax(y) - baseline_level), 1e-12) / n_components
+                amp_guess = (
+                    max(float(np.nanmax(y) - baseline_level), 1e-12) / n_components
+                )
 
                 p0 = []
                 lower = []
@@ -289,13 +305,19 @@ class DeconvolutionAnalyzer:
 
                     p0.extend([amp_guess, center_guess, width_guess])
                     lower.extend([0.0, x_min, default_width_lower])
-                    upper.extend([
-                        max(float(np.nanmax(y)) * 10.0, 1e-9),
-                        x_max,
-                        width_upper,
-                    ])
+                    upper.extend(
+                        [
+                            max(float(np.nanmax(y)) * 10.0, 1e-9),
+                            x_max,
+                            width_upper,
+                        ]
+                    )
 
-                peak_fn = self._lognormal_peak if selected_shape == "lognormal" else self._gaussian_peak
+                peak_fn = (
+                    self._lognormal_peak
+                    if selected_shape == "lognormal"
+                    else self._gaussian_peak
+                )
 
                 baseline_attempts = [requested_baseline]
                 for fallback_mode in ["linear", "constant", "none"]:
@@ -314,26 +336,37 @@ class DeconvolutionAnalyzer:
 
                     if baseline_try == "constant":
                         p0_try.append(baseline_level)
-                        lower_try.append(float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5)
-                        upper_try.append(float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5)
+                        lower_try.append(
+                            float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5
+                        )
+                        upper_try.append(
+                            float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5
+                        )
                     elif baseline_try == "linear":
                         p0_try.extend([baseline_level, 0.0])
-                        lower_try.extend([
-                            float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5,
-                            -abs(float(np.nanmax(y))) / max(x_range, 1.0),
-                        ])
-                        upper_try.extend([
-                            float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5,
-                            abs(float(np.nanmax(y))) / max(x_range, 1.0),
-                        ])
+                        lower_try.extend(
+                            [
+                                float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5,
+                                -abs(float(np.nanmax(y))) / max(x_range, 1.0),
+                            ]
+                        )
+                        upper_try.extend(
+                            [
+                                float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5,
+                                abs(float(np.nanmax(y))) / max(x_range, 1.0),
+                            ]
+                        )
                     elif baseline_try == "chebyshev":
                         degree = max(0, int(params.chebyshev_degree))
                         p0_try.extend([baseline_level] + [0.0] * degree)
-                        coeff_bound = max(
-                            abs(float(np.nanmax(y))),
-                            abs(float(np.nanmin(y))),
-                            1e-9,
-                        ) * 10.0
+                        coeff_bound = (
+                            max(
+                                abs(float(np.nanmax(y))),
+                                abs(float(np.nanmin(y))),
+                                1e-9,
+                            )
+                            * 10.0
+                        )
                         lower_try.extend([-coeff_bound] * (degree + 1))
                         upper_try.extend([coeff_bound] * (degree + 1))
 
@@ -363,7 +396,9 @@ class DeconvolutionAnalyzer:
                         residual_local = y_fit_opt - model_try(x_fit_opt, *fit_params)
                         return float(np.sum(residual_local * residual_local))
 
-                    def _peak_time_from_params(fit_params: np.ndarray, comp_idx: int) -> float:
+                    def _peak_time_from_params(
+                        fit_params: np.ndarray, comp_idx: int
+                    ) -> float:
                         start = comp_idx * 3
                         center = float(fit_params[start + 1])
                         sigma = float(fit_params[start + 2])
@@ -381,11 +416,11 @@ class DeconvolutionAnalyzer:
                         constraints.append(
                             {
                                 "type": "ineq",
-                                "fun": lambda fit_params, i=comp_idx: _peak_time_from_params(
-                                    fit_params, i + 1
-                                )
-                                - _peak_time_from_params(fit_params, i)
-                                - min_peak_time_separation_s,
+                                "fun": lambda fit_params, i=comp_idx: (
+                                    _peak_time_from_params(fit_params, i + 1)
+                                    - _peak_time_from_params(fit_params, i)
+                                    - min_peak_time_separation_s
+                                ),
                             }
                         )
 
@@ -393,23 +428,8 @@ class DeconvolutionAnalyzer:
                         constraints.append(
                             {
                                 "type": "ineq",
-                                "fun": lambda fit_params: float(
-                                    np.sum(
-                                        [
-                                            fit_params[idx * 3]
-                                            for idx in range(n_components)
-                                        ]
-                                    )
-                                )
-                                - 1e-12,
-                            }
-                        )
-                        for comp_idx, ub in enumerate(configured_intensity_upper_bounds):
-                            constraints.append(
-                                {
-                                    "type": "ineq",
-                                    "fun": lambda fit_params, i=comp_idx, upper_bound=ub: upper_bound
-                                    * float(
+                                "fun": lambda fit_params: (
+                                    float(
                                         np.sum(
                                             [
                                                 fit_params[idx * 3]
@@ -417,7 +437,28 @@ class DeconvolutionAnalyzer:
                                             ]
                                         )
                                     )
-                                    - float(fit_params[i * 3]),
+                                    - 1e-12
+                                ),
+                            }
+                        )
+                        for comp_idx, ub in enumerate(
+                            configured_intensity_upper_bounds
+                        ):
+                            constraints.append(
+                                {
+                                    "type": "ineq",
+                                    "fun": lambda fit_params, i=comp_idx, upper_bound=ub: (
+                                        upper_bound
+                                        * float(
+                                            np.sum(
+                                                [
+                                                    fit_params[idx * 3]
+                                                    for idx in range(n_components)
+                                                ]
+                                            )
+                                        )
+                                        - float(fit_params[i * 3])
+                                    ),
                                 }
                             )
 
@@ -485,11 +526,19 @@ class DeconvolutionAnalyzer:
 
                 total_area = float(np.sum(component_areas))
 
-                for comp_idx, (amplitude, center, sigma, comp_curve) in enumerate(component_curves, start=1):
-                    center_out = float(center - x_shift) if selected_shape == "lognormal" else float(center)
+                for comp_idx, (amplitude, center, sigma, comp_curve) in enumerate(
+                    component_curves, start=1
+                ):
+                    center_out = (
+                        float(center - x_shift)
+                        if selected_shape == "lognormal"
+                        else float(center)
+                    )
                     peak_time = float(x[np.argmax(comp_curve)])
                     component_area = component_areas[comp_idx - 1]
-                    area_fraction = np.nan if total_area == 0 else component_area / total_area
+                    area_fraction = (
+                        np.nan if total_area == 0 else component_area / total_area
+                    )
 
                     all_rows.append(
                         {
@@ -541,7 +590,9 @@ class DeconvolutionAnalyzer:
                 if sample_fit.empty:
                     continue
 
-                left_peak = sample_fit.sort_values("center_time_s", ascending=True).iloc[0]
+                left_peak = sample_fit.sort_values(
+                    "center_time_s", ascending=True
+                ).iloc[0]
 
                 working = sample_data[[age_col, target_col]].copy()
                 working = working.replace([np.inf, -np.inf], np.nan).dropna()
@@ -593,7 +644,9 @@ class DeconvolutionAnalyzer:
                         "inflection_tangent_slope": tangent_slope,
                         "x_intersection_abscissa_s": x_intersection,
                         "x_intersection_abscissa_min": (
-                            x_intersection / 60 if not np.isnan(x_intersection) else np.nan
+                            x_intersection / 60
+                            if not np.isnan(x_intersection)
+                            else np.nan
                         ),
                     }
                 )
@@ -621,13 +674,17 @@ class SlopeAnalyzer:
         time_discarded_s: float = 900,
         exclude_discarded_time: bool = False,
         regex: Optional[str] = None,
-        #read_start_c3s: bool = False,
-        #metadata: Optional[pd.DataFrame] = None,
+        # read_start_c3s: bool = False,
+        # metadata: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """Find the point in time of the maximum slope and calculate gradient."""
         try:
             list_of_characteristics = []
-            time_discarded_s = self.processparams.cutoff.cutoff_min * 60 if self.processparams.cutoff.cutoff_min else 0
+            time_discarded_s = (
+                self.processparams.cutoff.cutoff_min * 60
+                if self.processparams.cutoff.cutoff_min
+                else 0
+            )
             for sample, sample_data in SampleIterator.iter_samples(data, regex):
                 sample_name = pathlib.Path(str(sample)).stem
 
@@ -672,9 +729,10 @@ class SlopeAnalyzer:
                 gradient, curvature = self.processor.calculate_heatflow_derivatives(
                     filtered_data, age_col, target_col
                 )
-                filtered_data["gradient"] = gradient
-                filtered_data["curvature"] = curvature
 
+                filtered_data = filtered_data.assign(
+                    gradient=gradient, curvature=curvature
+                )
                 # Find maximum slope
                 characteristics = self.processor.get_largest_slope(
                     filtered_data, self.processparams
@@ -749,8 +807,8 @@ class OnsetAnalyzer:
         data: pd.DataFrame,
         max_slopes: pd.DataFrame,
         dormant_hfs: pd.DataFrame,
-        #intersection: str = "dormant_hf",
-        #xunit: str = "s",
+        # intersection: str = "dormant_hf",
+        # xunit: str = "s",
     ) -> pd.DataFrame:
         """Calculate peak onset via maximum slope intersection method."""
         try:
@@ -771,16 +829,14 @@ class OnsetAnalyzer:
                 )
 
                 # Calculate intersection with tangent to dormant heat flow
-                #if intersection == "dormant_hf":
-                x_intersect = (
-                    self.intersection_calc.calculate_dormant_hf_intersection(
-                            row, dorm_hf_value
-                    )
+                # if intersection == "dormant_hf":
+                x_intersect = self.intersection_calc.calculate_dormant_hf_intersection(
+                    row, dorm_hf_value
                 )
                 # intersection with abscissa
                 x_intersect_abscissa = (
-                        self.intersection_calc.calculate_abscissa_intersection(row)
-                    )
+                    self.intersection_calc.calculate_abscissa_intersection(row)
+                )
 
                 # Get sample data for limits (not used in this simplified version)
                 sample_data = data[data["sample_short"] == sample_short]
@@ -888,16 +944,14 @@ class DormantPeriodAnalyzer:
                 dormant_hf = pd.concat(list_dfs, ignore_index=True)
                 dormant_hf = self.rename_and_select_columns(dormant_hf)
                 return dormant_hf
-            #pd.concat([dormant_hf, self.rename_and_select_columns(dormant_hf)], ignore_index=True)
+            # pd.concat([dormant_hf, self.rename_and_select_columns(dormant_hf)], ignore_index=True)
             else:
                 return pd.DataFrame()
 
         except Exception as e:
             raise DataProcessingException("get_dormant_period_heatflow", e)
 
-    def rename_and_select_columns(
-        self, dormant_hf: pd.DataFrame
-    ) -> pd.DataFrame:
+    def rename_and_select_columns(self, dormant_hf: pd.DataFrame) -> pd.DataFrame:
         """Rename and select relevant columns for dormant heat flow DataFrame."""
         if dormant_hf.empty:
             return dormant_hf
@@ -912,6 +966,7 @@ class DormantPeriodAnalyzer:
         available_cols = [col for col in cols_to_select if col in dormant_hf.columns]
         reduced_df = dormant_hf[available_cols].rename(columns=rename_map)
         return reduced_df
+
 
 class ASTMC1679Analyzer:
     """Analyzes characteristics according to ASTM C1679."""
@@ -965,10 +1020,12 @@ class ASTMC1679Analyzer:
                     target_value = mean_peak_height / 2
 
                 # get time_s for half the maximum heat flow, i.e. find the time for which normalized_heat_flow_w_g <= target_value
-                #peak_time_s = highest_peaks.query(f"sample == {sample}")#["time_s"].values[0]
+                # peak_time_s = highest_peaks.query(f"sample == {sample}")#["time_s"].values[0]
                 peak_time_s = float(sample_peak["time_s"].iloc[0])
-                sample_data_filtered = sample_data.query(f"time_s < {peak_time_s} and normalized_heat_flow_w_g <= {target_value}")
-                # Get heat at target time   
+                sample_data_filtered = sample_data.query(
+                    f"time_s < {peak_time_s} and normalized_heat_flow_w_g <= {target_value}"
+                )
+                # Get heat at target time
 
                 # sample_data_filtered = sample_data[
                 #     sample_data["normalized_heat_flow_w_g"] <= target_value
@@ -983,7 +1040,7 @@ class ASTMC1679Analyzer:
                     )
 
             if astm_times:
-                df = pd.concat(astm_times, ignore_index=True) 
+                df = pd.concat(astm_times, ignore_index=True)
                 df = self.rename_and_select_columns(df)
                 return df
             else:
@@ -992,9 +1049,7 @@ class ASTMC1679Analyzer:
         except Exception as e:
             raise DataProcessingException("get_astm_c1679_characteristics", e)
 
-    def rename_and_select_columns(
-        self, astm_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def rename_and_select_columns(self, astm_df: pd.DataFrame) -> pd.DataFrame:
         """Rename and select relevant columns for ASTM DataFrame."""
         if astm_df.empty:
             return astm_df
@@ -1009,6 +1064,7 @@ class ASTMC1679Analyzer:
         available_cols = [col for col in cols_to_select if col in astm_df.columns]
         reduced_df = astm_df[available_cols].rename(columns=rename_map)
         return reduced_df
+
 
 class HeatCalculator:
     """Calculates cumulative heat at specific times."""
@@ -1191,10 +1247,10 @@ class FlankTangentAnalyzer:
         data: pd.DataFrame,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        #flank_fraction_start: float = 0.2,
-        #flank_fraction_end: float = 0.8,
-        #window_size: float = 0.1,
-        #cutoff_min: Optional[float] = None,
+        # flank_fraction_start: float = 0.2,
+        # flank_fraction_end: float = 0.8,
+        # window_size: float = 0.1,
+        # cutoff_min: Optional[float] = None,
         regex: Optional[str] = None,
     ) -> pd.DataFrame:
         """
@@ -1228,7 +1284,11 @@ class FlankTangentAnalyzer:
         try:
             from scipy import signal
 
-            cutoff_min = self.processparams.cutoff.cutoff_min if self.processparams.cutoff.cutoff_min else 0
+            cutoff_min = (
+                self.processparams.cutoff.cutoff_min
+                if self.processparams.cutoff.cutoff_min
+                else 0
+            )
             flank_fraction_start = (
                 self.processparams.slope_analysis.flank_fraction_start
             )
@@ -1245,11 +1305,9 @@ class FlankTangentAnalyzer:
                 #     else self.processparams.cutoff.cutoff_min
                 # )
                 if cutoff_min > 0:
-                    sample_data = sample_data.query(
-                        f"{age_col} >= @cutoff_min * 60"
-                    )
+                    sample_data = sample_data.query(f"{age_col} >= @cutoff_min * 60")
 
-                sample_data = sample_data.reset_index(drop=True)
+                sample_data = sample_data.reset_index(drop=True).copy()
 
                 # Find the main peak
                 peaks, _ = signal.find_peaks(
@@ -1257,7 +1315,6 @@ class FlankTangentAnalyzer:
                     prominence=self.processparams.peakdetection.prominence,
                     distance=self.processparams.peakdetection.distance,
                 )
-
 
                 if len(peaks) == 0:
                     logger.warning(f"No peak found in {pathlib.Path(str(sample)).stem}")
@@ -1285,8 +1342,8 @@ class FlankTangentAnalyzer:
                 )
 
                 # Calculate gradient to ensure we only consider regions with positive slope
-                sample_data["gradient"] = np.gradient(
-                    sample_data[target_col], sample_data[age_col]
+                sample_data = sample_data.assign(
+                    gradient=np.gradient(sample_data[target_col], sample_data[age_col])
                 )
 
                 # Extract ascending flank data - only include points with positive gradient
@@ -1407,7 +1464,7 @@ class FlankTangentAnalyzer:
                 else:
                     min_value_before_tangent = np.nan
                     x_intersection_min = np.nan
-                
+
                 # get normalized_heat_j_g at representative_time
                 tangent_j_g = np.interp(
                     representative_time,
@@ -1423,18 +1480,26 @@ class FlankTangentAnalyzer:
                 )
 
                 # get normalized_heat_j_g at x_intersection
-                x_intersection_j_g = np.interp(
-                    x_intersection,
-                    sample_data[age_col],
-                    sample_data["normalized_heat_j_g"],
-                ) if not np.isnan(x_intersection) else np.nan
+                x_intersection_j_g = (
+                    np.interp(
+                        x_intersection,
+                        sample_data[age_col],
+                        sample_data["normalized_heat_j_g"],
+                    )
+                    if not np.isnan(x_intersection)
+                    else np.nan
+                )
 
                 # get normalized_heat_j_g at x_intersection_min
-                x_intersection_dormant_j_g = np.interp(
-                    x_intersection_min,
-                    sample_data[age_col],
-                    sample_data["normalized_heat_j_g"],
-                ) if not np.isnan(x_intersection_min) else np.nan
+                x_intersection_dormant_j_g = (
+                    np.interp(
+                        x_intersection_min,
+                        sample_data[age_col],
+                        sample_data["normalized_heat_j_g"],
+                    )
+                    if not np.isnan(x_intersection_min)
+                    else np.nan
+                )
 
                 result = {
                     "sample": sample,
@@ -1579,7 +1644,9 @@ class FirstAscendingSlopeAnalyzer:
         representative_slope = float(np.median(tangent_slopes))
         representative_time = float(np.median(tangent_times))
         representative_value = float(np.median(tangent_values))
-        representative_intercept = representative_value - representative_slope * representative_time
+        representative_intercept = (
+            representative_value - representative_slope * representative_time
+        )
 
         return {
             "tangent_slope": representative_slope,
@@ -1705,13 +1772,21 @@ class FirstAscendingSlopeAnalyzer:
                 else:
                     base_delta_y = float(sample_delta_y)
                     peak_delta_difference = max(y_main_peak - base_delta_y, 0.0)
-                    normalized_difference = peak_delta_difference / base_delta_y if base_delta_y > 0 else 0.0
-                    delta_multiplier = 1.0 + float(sample_flexible) * normalized_difference**(0.5)
+                    normalized_difference = (
+                        peak_delta_difference / base_delta_y
+                        if base_delta_y > 0
+                        else 0.0
+                    )
+                    delta_multiplier = 1.0 + float(
+                        sample_flexible
+                    ) * normalized_difference ** (0.5)
                     effective_delta_y = base_delta_y * delta_multiplier
 
                     running_min = np.minimum.accumulate(y)
                     rise_over_running_min = y - running_min
-                    crossing_indices = np.where(rise_over_running_min >= effective_delta_y)[0]
+                    crossing_indices = np.where(
+                        rise_over_running_min >= effective_delta_y
+                    )[0]
                     if len(crossing_indices) == 0:
                         continue
                     end_idx_candidate = int(crossing_indices[0])
@@ -1802,10 +1877,14 @@ class FirstAscendingSlopeAnalyzer:
                     "first_ascending_delta_y_w_g": float(sample_delta_y),
                     "first_ascending_flexible": float(sample_flexible),
                     "first_ascending_delta_y_multiplier": (
-                        float(delta_multiplier) if resolved_method == "delta" else np.nan
+                        float(delta_multiplier)
+                        if resolved_method == "delta"
+                        else np.nan
                     ),
                     "first_ascending_delta_y_effective_w_g": (
-                        float(effective_delta_y) if resolved_method == "delta" else np.nan
+                        float(effective_delta_y)
+                        if resolved_method == "delta"
+                        else np.nan
                     ),
                     "fraction_of_max": fraction_of_max,
                     "fraction_threshold_value": threshold_value,
@@ -1823,10 +1902,18 @@ class FirstAscendingSlopeAnalyzer:
                     "first_ascending_fraction_start": float(tangent["fraction_start"]),
                     "first_ascending_fraction_end": float(tangent["fraction_end"]),
                     "first_ascending_window_size": float(tangent["window_size"]),
-                    "first_ascending_window_start_time_s": float(tangent["window_start_time_s"]),
-                    "first_ascending_window_end_time_s": float(tangent["window_end_time_s"]),
-                    "first_ascending_window_start_value": float(tangent["window_start_value"]),
-                    "first_ascending_window_end_value": float(tangent["window_end_value"]),
+                    "first_ascending_window_start_time_s": float(
+                        tangent["window_start_time_s"]
+                    ),
+                    "first_ascending_window_end_time_s": float(
+                        tangent["window_end_time_s"]
+                    ),
+                    "first_ascending_window_start_value": float(
+                        tangent["window_start_value"]
+                    ),
+                    "first_ascending_window_end_value": float(
+                        tangent["window_end_value"]
+                    ),
                     "first_ascending_n_points": int(len(seg_x)),
                 }
                 results.append(result)

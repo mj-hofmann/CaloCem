@@ -3,8 +3,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-from calocem.measurement import Measurement
-from calocem.processparams import ProcessingParameters
+from calocem import Measurement
+from calocem import ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 metadatapath = Path(__file__).parent.parent / "calocem" / "METADATA" / "metadata_dummy.csv"

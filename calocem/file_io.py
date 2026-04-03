@@ -167,11 +167,11 @@ class CSVReader(FileReader):
             data = utils.parse_rowwise_data(data)
             data = utils.tidy_colnames(data)
             data = utils.remove_unnecessary_data(data)
-            data = utils.convert_df_to_float(data)
+            data = utils.convert_df_to_float(data).copy()
 
             if reaction_start_row:
                 reaction_start = float(data.at[reaction_start_row, "time_s"])
-                data["time_s"] = data["time_s"] - reaction_start
+                data = data.assign(time_s=data["time_s"] - reaction_start)
 
             # Check for "in-situ" sample and reset if needed
             try:
@@ -180,7 +180,7 @@ class CSVReader(FileReader):
                     and not data["reaction_start_time_s"].isna().all()
                 ):
                     reaction_start = data["reaction_start_time_s"].dropna().iloc[0]
-                    data["time_s"] = data["time_s"] - reaction_start
+                    data = data.assign(time_s=data["time_s"] - reaction_start)
             except Exception:
                 pass
 

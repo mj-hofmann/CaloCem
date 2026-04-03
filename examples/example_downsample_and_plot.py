@@ -3,8 +3,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #import CaloCem.tacalorimetry as ta
-from calocem.tacalorimetry import Measurement
-from calocem.processparams import ProcessingParameters
+from calocem import Measurement
+from calocem import ProcessingParameters
 
 parentfolder = Path(__file__).parent.parent
 datapath = parentfolder / "calocem" / "DATA"

@@ -1,10 +1,10 @@
-#%%
+# %%
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-from calocem.tacalorimetry import Measurement
-from calocem.processparams import ProcessingParameters
+from calocem import Measurement
+from calocem import ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 
@@ -29,11 +29,12 @@ processparams.spline_interpolation.smoothing_1st_deriv = 1e-13
 processparams.spline_interpolation.smoothing_2nd_deriv = 1e-10
 processparams.median_filter.apply = True
 processparams.median_filter.size = 5
-#%%
+# %%
 # get peak onsets via alternative method
 fig, ax = plt.subplots()
 maxslopes = tam.get_maximum_slope(
     processparams=processparams,
+    xunit="h",
     show_plot=True,
     regex=".*example1.*",
     ax=ax,
@@ -41,20 +42,20 @@ maxslopes = tam.get_maximum_slope(
 ax.set_xlabel("Time / s")
 plt.show()
 
-#%%
+# %%
 fig, ax = plt.subplots()
 slopes = tam.get_average_slope(
     processparams=processparams,
     show_plot=True,
-    xunit="s",
-    regex=".*example3.*",
+    xunit="h",
+    regex=".*example1.*",
     ax=ax,
-    #intersection="abscissa",
+    # intersection="abscissa",
 )
 ax.set_xlabel("Time / s")
-ax.set_xlim(0, 1e5)
-ax.set_ylim(0, 0.006)
-plt.show()
-
+# ax.set_xlim(0, 1e5)
+# ax.set_ylim(0, 0.006)
+plt.show(block=False)
+plt.pause(1)
 
 # %%
