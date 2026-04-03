@@ -30,7 +30,7 @@ processparams.gradient_peakdetection.use_largest_width_height = True
 processparams.cutoff.cutoff_min = 50
 # get peak onsets via alternative method
 
-sample_names = tam._data["sample_short"].unique()
+sample_names = tam.get_data()["sample_short"].unique()
 
 for sample_name in sample_names:
     fig, ax = plt.subplots()

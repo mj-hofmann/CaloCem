@@ -7,14 +7,14 @@ First we load the data
 ```python
 # %%
 from pathlib import Path
-import calocem.tacalorimetry as ta
-from calocem.processparams import ProcessingParameters
+import matplotlib.pyplot as plt
+from calocem import Measurement, ProcessingParameters
 
 # define the Path of the folder with the calorimetry data
 datapath = Path()
 
 # experiments via class
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r".*file.*",
     show_info=True,
@@ -33,12 +33,12 @@ processparams = ProcessingParameters()
 processparams.peakdetection.prominence = 1e-4
 
 # plot the peak position
-fig, ax = ta.plt.subplots()
+fig, ax = plt.subplots()
 
 # get peaks (returns both a dataframe and extends the axes object)
 peaks_found = tam.get_peaks(processparams, plt_right_s=3e5, ax=ax, show_plot=True)
 ax.set_xlim(0, 100000)
-ta.plt.show()
+plt.show()
 
 ```
 ![Peak Detection](assets/example_get_peaks.png)
@@ -73,7 +73,7 @@ processparams.spline_interpolation.apply = True
 processparams.spline_interpolation.smoothing_1st_deriv = 1e-12
 
 # get peak onsets via alternative method
-fig, ax = ta.plt.subplots()
+fig, ax = plt.subplots()
 onsets_spline = tam.get_maximum_slope(
     processparams=processparams,
     show_plot=True,

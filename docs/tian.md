@@ -22,13 +22,12 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import calocem.tacalorimetry as ta
-from calocem.processparams import ProcessingParameters
+from calocem import Measurement, ProcessingParameters
 
 datapath = Path(__file__).parent / "calo_data"
 
 # load experimental data
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     regex=r".*file1.csv",
     show_info=True,
@@ -167,7 +166,8 @@ Here is the result of only applying a [median filter](https://docs.scipy.org/doc
 
 # Set Proceesing Parameters
 processparams.median_filter.apply = True
-processparams.spline_interpolation.apply = 15
+processparams.median_filter.size = 15
+processparams.spline_interpolation.apply = False
 ```
 ![Tian Correction no smoothing](assets/tian_correction_median_smoothing.png)
 

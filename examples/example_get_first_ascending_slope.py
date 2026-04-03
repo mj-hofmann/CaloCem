@@ -1,8 +1,7 @@
 # %%
 from pathlib import Path
 
-from calocem.measurement import Measurement
-from calocem.processparams import ProcessingParameters
+from calocem import Measurement, ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 

@@ -23,7 +23,7 @@ tam = Measurement(
 processparams = ProcessingParameters()
 
 # get peak onsets via alternative method
-for name, group in tam._data.groupby("sample_short"):
+for name, group in tam.get_data().groupby("sample_short"):
     fig, ax = plt.subplots()
     onsets = tam.get_astm_c1679_characteristics(
         processparams=processparams,

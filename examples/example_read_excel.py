@@ -29,5 +29,5 @@ ax.set_ylim(0, 5)
 plt.show()
 
 # print last heat flow values per sample
-for name, sample in tam._data.groupby("sample_short"):
+for name, sample in tam.get_data().groupby("sample_short"):
     print(f"Last time: {sample.time_s.iloc[-1]}")

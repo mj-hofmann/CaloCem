@@ -2,8 +2,7 @@ import matplotlib.pyplot as plt
 
 import sys
 from pathlib import Path
-from calocem.measurement import Measurement
-import calocem.tacalorimetry as tac
+from calocem import Measurement
 
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"

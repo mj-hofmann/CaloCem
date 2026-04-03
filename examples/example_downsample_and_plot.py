@@ -45,11 +45,9 @@ tam = Measurement(
 # %%
 
 fig, ax = plt.subplots()
-for (name, group), (name2, group2) in zip(tam._data.groupby("sample_short"), tam_d._data.groupby("sample_short")) :
+for (name, group), (name2, group2) in zip(tam.get_data().groupby("sample_short"), tam_d.get_data().groupby("sample_short")):
     ax.plot(group["time_s"]/3600, group["normalized_heat_flow_w_g"]*1000, "-", label=name)
     ax.plot(group2["time_s"]/3600, group2["normalized_heat_flow_w_g"]*1000, "-", label=name2 + "_downsampled")
-# ax.plot(tam._data["time_s"]/3600, tam._data["normalized_heat_flow_w_g"]*1000, "-", label="original")
-# ax.plot(tam_d._data["time_s"]/3600, tam_d._data["normalized_heat_flow_w_g"]*1000, "-", label="downsampled")
 ax.legend()
 ax.set_xlim(0,60)
 ax.set_ylim(0,4)

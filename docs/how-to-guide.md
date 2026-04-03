@@ -24,12 +24,12 @@ After collecting multiple experimental results files from a TAM Air calorimeter 
 
 ## Example Usage
 
-Import the ```tacalorimetry``` module from **TAInstCalorimetry**.
+Import ```Measurement``` from **CaloCem**.
 
 ```python
 # import
-import os
-from calocem import tacalorimetry
+from pathlib import Path
+from calocem import Measurement
 ```
 
 Next, we define where the exported files are stored. With this information at hand, a ```Measurement``` is initialized. Experimental raw data and the metadata passed in the course of the measurement are retrieved by the methods ```get_data()``` and ```get_information()```, respectively.
@@ -39,14 +39,10 @@ Next, we define where the exported files are stored. With this information at ha
 # "mycalodata" is the subfoldername where the calorimetry
 # data files (both .csv or .xlsx) are stored
 
-pathname = os.path.dirname(os.path.realpath(__file__))
-path_to_data = pathname + os.sep + "mycalodata"
+path_to_data = Path(__file__).parent / "mycalodata"
 
-# Example: if projectfile is at "C:\Users\myname\myproject\myproject.py", then "mydata"
-# refers to "C:\Users\myname\myproject\mycalodata" where the data is stored
-
-# load experiments via class, i.e. instantiate tacalorimetry object with data
-tam = tacalorimetry.Measurement(folder=path_to_data)
+# load experiments via class, i.e. instantiate Measurement object with data
+tam = Measurement(folder=path_to_data)
 
 # get sample and information
 data = tam.get_data()
@@ -61,7 +57,7 @@ Furthermore, the ```Measurement``` features a ```plot()```-method for readily vi
 # make plot
 tam.plot()
 # show plot
-tacalorimetry.plt.show()
+plt.show()
 ```
 
 Without further options specified, the ```plot()```-method yields the following.
@@ -88,7 +84,7 @@ ax.axvline(target_h, color="gray", alpha=0.5, linestyle=":")
 ax.set_ylim(top=250)
 ax.set_xlim(right=6)
 # show plot
-tacalorimetry.plt.show()
+plt.show()
 ```
 The following plot is obtained:
 
@@ -153,17 +149,17 @@ onsets = tam.get_peak_onsets(
 
 For introducing the idea of plotting calorimetry data "by category" another set of experimental data will be introduced. Next to the calorimetry data alone, information on investigated samples is supplied via an additional source file. In the present example via the file ```mini_metadata.csv```.
 
-To begin with, a ```TAInstCalorimetry.tacalorimetry.Measurement```-object is initialized for selected files from the specified ````path```.
+To begin with, a ```Measurement```-object is initialized for selected files from the specified ````path```.
 
 ```python
-import pathlib
-from CaloCem import tacalorimetry
+from pathlib import Path
+from calocem import Measurement
 
 # path to experimental calorimetry files
-path = pathlib.Path().cwd().parent / "CaloCem" / "DATA"
+path = Path(__file__).parent / "DATA"
 
-# initialize CaloCem.tacalorimetry.Measurement object
-tam_II = tacalorimetry.Measurement(
+# initialize Measurement object
+tam_II = Measurement(
     path, regex="myexp.*", show_info=True, cold_start=True, auto_clean=False
 )
 ```
@@ -191,7 +187,7 @@ for this_plot in tam.plot_by_category(categorize_by):
     # fine tuning of plot/cosmetics
     ax.set_ylim(0, 3)
     # show plot
-    tacalorimetry.plt.show()
+    plt.show()
 ```
 
 This yields plots of the following kind.

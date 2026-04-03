@@ -25,7 +25,7 @@ tam = Measurement(
     processparams=processparams
 )
 
-print(tam._data.head(10))
+print(tam.get_data().head(10))
 
 #%%
 tam.plot()

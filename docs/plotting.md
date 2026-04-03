@@ -18,13 +18,13 @@ It is very easy to load the calorimetry files and to plot them. The file `myscri
 After we have obtained the path, we pass it to `ta.Measurement()`. Besides the `Path` object, we can pass further arguments such as the option `show_info=True` which prints the names of the calo files being loaded in the terminal.
 
 ```python
-from calocem import tacalorimetry as ta
 from pathlib import Path
+from calocem import Measurement
 
 datapath = Path(__file__).parent / "calo_data"
 
 # create the calorimetry Measurement object
-tam = ta.Measurement(
+tam = Measurement(
     folder=datapath,
     show_info=True,
     auto_clean=False,
@@ -89,13 +89,15 @@ plot_configs = [
     {"ycol": "normalized_heat_j_g", "xlim": 48, "ylim": 300},
 ]
 
-fig, axs = ta.plt.subplots(2, 2, layout="constrained")
+import matplotlib.pyplot as plt
+
+fig, axs = plt.subplots(2, 2, layout="constrained")
 for ax, config in zip(axs.flatten(), plot_configs):
     tam.plot(y=config["ycol"], t_unit="h", y_unit_milli=False, ax=ax)
     ax.set_xlim(0, config["xlim"])
     ax.set_ylim(0, config["ylim"])
     ax.get_legend().remove()
-ta.plt.show()
+plt.show()
 ```
 
 ![Subplot Plotting](assets/subplot_example.png)
