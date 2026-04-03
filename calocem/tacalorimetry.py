@@ -1,19 +1,30 @@
 """
-Compatibility shim — this module is deprecated.
+This module has been removed as of version 0.3.0.
 
-Use the following imports instead:
+The legacy ``calocem.tacalorimetry.Measurement`` implementation has been
+replaced by the refactored ``calocem.measurement.Measurement``. The two
+implementations are not guaranteed to produce identical numerical results.
 
+Migrate your imports:
+
+    # old
+    from calocem.tacalorimetry import Measurement
+
+    # new
+    from calocem import Measurement
+    # or
     from calocem.measurement import Measurement
-    from calocem.processparams import ProcessingParameters
 
-This module will be removed in a future major version.
+Users who require the old behaviour should pin to ``calocem<0.3.0``.
 """
 import warnings
 
 warnings.warn(
-    "calocem.tacalorimetry is deprecated and will be removed in a future version. "
-    "Use 'from calocem.measurement import Measurement' instead.",
-    DeprecationWarning,
+    "calocem.tacalorimetry has been removed in version 0.3.0. "
+    "The old implementation is no longer available. "
+    "Migrate to 'from calocem import Measurement' or pin to calocem<0.3.0 "
+    "if you require the previous behaviour.",
+    FutureWarning,
     stacklevel=2,
 )
 

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-03
+
+### Breaking Changes
+
+- **`calocem.tacalorimetry` has been removed.** The legacy monolithic
+  `Measurement` implementation (`tacalorimetry.py`, ~3 400 lines) has been
+  retired. The module now exists as a stub that raises a `FutureWarning` on
+  import and forwards to the refactored implementation. The old and new
+  implementations are **not guaranteed to produce identical numerical results**.
+  Users who require the previous behaviour should pin to `calocem<0.3.0`.
+
+  Migrate your imports:
+
+  ```python
+  # old
+  from calocem.tacalorimetry import Measurement
+
+  # new — preferred
+  from calocem import Measurement
+
+  # new — explicit
+  from calocem.measurement import Measurement
+  ```
+
+### Added
+
+- **Public package API.** `Measurement` and `ProcessingParameters` are now
+  importable directly from the top-level package:
+  ```python
+  from calocem import Measurement, ProcessingParameters
+  ```
+
+### Fixed
+
+- Eliminated all pandas Copy-on-Write `FutureWarning` and `DeprecationWarning`
+  occurrences triggered by chained assignment patterns in `utils.py` and
+  `tacalorimetry.py`. The package is now silent on pandas 2.x and compatible
+  with the Copy-on-Write behaviour that becomes the default in pandas 3.0.
+- `float()` called on a single-element `Series` replaced with
+  `float(series.iloc[0])` to silence pandas `DeprecationWarning`.
+- Removed stray `print("hallo")` debug statement from the data loading path.
+
 ## [0.2.5] - 2026-04-03
 
 ### Fixed
