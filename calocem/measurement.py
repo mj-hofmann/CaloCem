@@ -23,7 +23,7 @@ from .analysis import (
     PeakAnalyzer,
     SlopeAnalyzer,
 )
-from .data_processing import DataCleaner, DataNormalizer, SampleIterator
+from .data_processing import DataCleaner, DataNormalizer, MetadataAggregator, SampleIterator
 from .exceptions import AutoCleanException, ColdStartException, DataProcessingException
 from .file_io import DataPersistence, FolderDataLoader
 from .plotting import SimplePlotter
@@ -1730,6 +1730,49 @@ class Measurement:
 
         if show_info:
             print(f"Metadata successfully added with ID column: '{sample_id_column}'")
+
+    def average_by_metadata(
+        self,
+        groupby: str | list[str],
+        bin_width_s: int = 60,
+    ) -> None:
+        """Replace individual samples with group averages defined by metadata.
+
+        Requires :meth:`add_metadata_source` to have been called first.
+        The averaged data replaces ``self._data`` in-place so that all
+        downstream methods (``plot``, ``get_cumulated_heat_at_hours``, …)
+        operate on the grouped curves.  Call :meth:`undo_average_by_metadata`
+        to restore the original data.
+
+        Parameters
+        ----------
+        groupby : str or list of str
+            Metadata column(s) to group by, e.g. ``"cement_name"`` or
+            ``["cement_name", "cement_amount_g"]``.
+        bin_width_s : int
+            Width of each time bin in seconds. Default is 60 s.
+        """
+        if self._metadata.empty:
+            raise ValueError(
+                "No metadata loaded. Call add_metadata_source() first."
+            )
+        self._data_before_average = self._data.copy()
+        self._data = MetadataAggregator.average_by_metadata(
+            self._data,
+            self._metadata,
+            self._metadata_id,
+            groupby,
+            bin_width_s,
+        )
+
+    def undo_average_by_metadata(self) -> None:
+        """Restore the original per-sample data after average_by_metadata."""
+        if not hasattr(self, "_data_before_average"):
+            raise ValueError(
+                "No averaged data to undo. Call average_by_metadata() first."
+            )
+        self._data = self._data_before_average
+        del self._data_before_average
 
     def remove_pickle_files(self):
         """Remove pickle cache files."""

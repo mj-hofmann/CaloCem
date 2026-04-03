@@ -360,7 +360,8 @@ class SampleIterator:
         
         #if pd.isna(data["sample"]).all():
         #    data["sample"] = data["sample_short"]
-        data["sample"] = data["sample"].fillna(data["sample_short"])
+        # data["sample"] = data["sample"].fillna(data["sample_short"])
+        data = data.assign(sample=data["sample"].fillna(data["sample_short"]))
 
         for sample, sample_data in data.groupby(by="sample"):
             if regex:
@@ -440,3 +441,95 @@ class DataNormalizer:
 
         except Exception as e:
             raise DataProcessingException("infer_heat_j_column", e)
+
+
+class MetadataAggregator:
+    """Averages calorimetry data by metadata grouping."""
+
+    @staticmethod
+    def average_by_metadata(
+        data: pd.DataFrame,
+        metadata: pd.DataFrame,
+        meta_id_col: str,
+        groupby: str | list[str],
+        bin_width_s: int = 60,
+    ) -> pd.DataFrame:
+        """
+        Replace individual samples with group averages defined by metadata.
+
+        Each row in *data* is relabelled with its metadata group name, then
+        time-binned and averaged (mean + std) per group.  The result has the
+        same columns as the input and can be used as a drop-in replacement for
+        ``self._data``.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Full measurement data containing ``time_s`` and ``sample_short``.
+        metadata : pd.DataFrame
+            Metadata table, must contain *meta_id_col*.
+        meta_id_col : str
+            Column in *metadata* whose values match ``sample_short`` in *data*.
+        groupby : str or list of str
+            Metadata column(s) to group by (e.g. ``"cement_name"`` or
+            ``["cement_name", "cement_amount_g"]``).
+        bin_width_s : int
+            Width of each time bin in seconds. Default is 60 s.
+        """
+        try:
+            df = data.copy()
+
+            # Relabel sample_short with the group value from metadata
+            for value, group in metadata.groupby(groupby):
+                mask = df["sample_short"].isin(group[meta_id_col])
+                if isinstance(value, tuple):
+                    label = " | ".join(str(v) for v in value)
+                else:
+                    label = str(value)
+                df.loc[mask, "sample_short"] = label
+
+            # Time-bin the data
+            max_time_s = df["time_s"].max()
+            bins = np.arange(0, max_time_s + bin_width_s, bin_width_s)
+            df["_bin"] = pd.cut(df["time_s"], bins)
+
+            # Aggregate numeric heat columns per group per bin
+            heat_cols = [
+                c for c in df.columns
+                if c in (
+                    "normalized_heat_flow_w_g",
+                    "normalized_heat_j_g",
+                    "heat_flow_w",
+                    "heat_j",
+                )
+            ]
+
+            agg_df = (
+                df.groupby(["sample_short", "_bin"], observed=True)[heat_cols]
+                .agg(["mean", "std"])
+                .dropna(thresh=2)
+                .reset_index()
+            )
+
+            # Flatten multi-level columns
+            agg_df.columns = [
+                "_".join(c).strip("_") if c[1] else c[0]
+                for c in agg_df.columns
+            ]
+
+            # Restore time_s from bin left edge
+            agg_df["time_s"] = [iv.left for iv in agg_df["_bin"]]
+            agg_df = agg_df.drop(columns="_bin")
+
+            # Rename mean columns back to the canonical names so downstream
+            # methods (plot, get_cumulated_heat_at_hours, …) keep working
+            rename = {f"{c}_mean": c for c in heat_cols}
+            agg_df = agg_df.rename(columns=rename)
+
+            # sample == sample_short for grouped data
+            agg_df["sample"] = agg_df["sample_short"]
+
+            return agg_df
+
+        except Exception as e:
+            raise DataProcessingException("average_by_metadata", e)
