@@ -13,7 +13,6 @@ import matplotlib.pyplot
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pysnooper
 from scipy import integrate, signal
 from scipy.interpolate import UnivariateSpline
 from scipy.ndimage import median_filter
@@ -22,14 +21,7 @@ from calocem import utils
 
 from .processparams import *
 
-logging.basicConfig(
-    filename="CaloCem.log",
-    encoding="utf-8",
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%m/%d/%Y %I:%M:%S",
-    filemode="a",
-    level=logging.INFO,
-)
+logger = logging.getLogger(__name__)
 
 
 class AutoCleanException(Exception):
@@ -327,7 +319,7 @@ class Measurement:
             raise ColdStartException()
 
         # log
-        logging.info("_data and _info loaded from pickle files.")
+        logger.info("_data and _info loaded from pickle files.")
 
     #
     # determine csv data range
@@ -417,10 +409,10 @@ class Measurement:
         # valid read
         if data is None:
             # log
-            logging.info(f"\u2716 reading {file} FAILED.")
+            logger.info(f"\u2716 reading {file} FAILED.")
 
         # log
-        logging.info(f"\u2714 reading {file} successful.")
+        logger.info(f"\u2714 reading {file} successful.")
 
         # return
         return data
@@ -476,7 +468,7 @@ class Measurement:
             # offset
             data["time_s"] -= t_offset_in_situ_s
             # write to log
-            logging.info(
+            logger.info(
                 f"\u26a0 Consider {file} as in-situ-file --> time-scale adjusted."
             )
         except Exception:
@@ -753,7 +745,7 @@ class Measurement:
             data = df_data
 
             # log
-            logging.info(f"\u2714 reading {file} successful.")
+            logger.info(f"\u2714 reading {file} successful.")
 
             # return
             return data
@@ -770,7 +762,7 @@ class Measurement:
                 )
 
             # log
-            logging.info(f"\u2716 reading {file} FAILED.")
+            logger.info(f"\u2716 reading {file} FAILED.")
 
             # return
             return None
