@@ -10,6 +10,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from scipy import signal
+from scipy.interpolate import UnivariateSpline
 from scipy.ndimage import median_filter
 
 from .exceptions import DataProcessingException
@@ -129,22 +130,45 @@ class HeatFlowProcessor:
         except Exception as e:
             raise DataProcessingException("apply_rolling_mean", e)
 
+    def _smooth_derivative(
+        self, values: np.ndarray, time: np.ndarray, smoothing: float
+    ) -> np.ndarray:
+        """Apply median filter and/or spline smoothing to a derivative array."""
+        if self.processparams.median_filter.apply:
+            values = median_filter(values, size=self.processparams.median_filter.size)
+
+        if self.processparams.spline_interpolation.apply:
+            mask = np.isfinite(values)
+            spline = UnivariateSpline(time[mask], values[mask], k=3, s=smoothing, ext=1)
+            values = spline(time)
+
+        return values
+
     def calculate_heatflow_derivatives(
         self,
         data: pd.DataFrame,
         time_col: str = "time_s",
         target_col: str = "normalized_heat_flow_w_g",
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Calculate gradient and curvature of heat flow data."""
+        """
+        Calculate gradient and curvature of heat flow data.
+
+        If processparams.median_filter.apply or processparams.spline_interpolation.apply
+        are set, smoothing is applied to each derivative before the next one is computed.
+        """
         try:
             time = data[time_col].to_numpy()
-            heat_flow = data[target_col].to_numpy()
+            heat_flow = np.nan_to_num(data[target_col].to_numpy())
 
-            # Calculate first derivative (gradient)
             gradient = np.gradient(heat_flow, time)
+            gradient = self._smooth_derivative(
+                gradient, time, self.processparams.spline_interpolation.smoothing_1st_deriv
+            )
 
-            # Calculate second derivative (curvature)
             curvature = np.gradient(gradient, time)
+            curvature = self._smooth_derivative(
+                curvature, time, self.processparams.spline_interpolation.smoothing_2nd_deriv
+            )
 
             return gradient, curvature
 
@@ -189,7 +213,7 @@ class HeatFlowProcessor:
             result_data = data.copy()
             if self.processparams.median_filter.apply:
                 result_data[target_col] = median_filter(
-                    result_data[target_col], size=3  # Default kernel size
+                    result_data[target_col], size=self.processparams.median_filter.size
                 )
 
             return result_data

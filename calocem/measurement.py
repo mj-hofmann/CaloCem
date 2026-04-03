@@ -23,7 +23,7 @@ from .analysis import (
     PeakAnalyzer,
     SlopeAnalyzer,
 )
-from .data_processing import DataCleaner, DataNormalizer, MetadataAggregator, SampleIterator
+from .data_processing import DataCleaner, DataNormalizer, HeatFlowProcessor, MetadataAggregator, SampleIterator
 from .exceptions import AutoCleanException, ColdStartException, DataProcessingException
 from .file_io import DataPersistence, FolderDataLoader
 from .plotting import SimplePlotter
@@ -1651,6 +1651,60 @@ class Measurement:
         self._data = DataNormalizer.normalize_sample_to_mass(
             self._data, sample_short, mass_g, show_info
         )
+
+    def apply_tian_correction(
+        self, processparams: Optional[ProcessingParameters] = None
+    ) -> None:
+        """
+        Apply Tian correction to the heat flow data.
+
+        Corrects the measured heat flow for the thermal inertia of the calorimeter
+        using one or two time constants (tau1, tau2) from processparams.
+
+        Single time constant (tau2 = None):
+            hf_corrected = dHF/dt * tau1 + HF
+
+        Dual time constants:
+            hf_corrected = dHF/dt * (tau1 + tau2) + d²HF/dt² * tau1*tau2 + HF
+
+        Results are written to three new columns:
+        - ``normalized_heat_flow_w_g_tian``
+        - ``gradient_normalized_heat_flow_w_g``
+        - ``normalized_heat_j_g_tian``
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters containing time_constants.tau1 and
+            time_constants.tau2. Uses instance processparams if not provided.
+        """
+        from scipy import integrate
+
+        if processparams is None:
+            processparams = self._processparams
+
+        for s, sample_data in SampleIterator.iter_samples(self._data):
+            processor = HeatFlowProcessor(processparams)
+            gradient, curvature = processor.calculate_heatflow_derivatives(sample_data)
+
+            hf = sample_data["normalized_heat_flow_w_g"].to_numpy()
+            x = sample_data["time_s"].to_numpy()
+            tau1 = processparams.time_constants.tau1
+
+            if processparams.time_constants.tau2 is None:
+                norm_hf = gradient * tau1 + hf
+            else:
+                tau2 = processparams.time_constants.tau2
+                norm_hf = gradient * (tau1 + tau2) + curvature * tau1 * tau2 + hf
+
+            mask = self._data["sample"] == s
+            self._data.loc[mask, "normalized_heat_flow_w_g_tian"] = norm_hf
+            self._data.loc[mask, "gradient_normalized_heat_flow_w_g"] = gradient
+            self._data.loc[mask, "normalized_heat_j_g_tian"] = (
+                integrate.cumulative_trapezoid(
+                    np.nan_to_num(norm_hf), x=x, initial=0
+                )
+            )
 
     def add_metadata_source(
         self,
