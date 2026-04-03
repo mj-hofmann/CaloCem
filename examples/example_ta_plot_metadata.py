@@ -2,7 +2,7 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from calocem.tacalorimetry import Measurement
+from calocem import Measurement
 
 parentfolder = Path(__file__).parent.parent
 datapath = parentfolder / "calocem" / "DATA"

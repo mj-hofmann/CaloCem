@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 #import matplotlib.ticker as ticker
 
 # from calocem.tacalorimetry import Measurement
-from calocem.measurement import Measurement
-from calocem.processparams import ProcessingParameters
+from calocem import Measurement
+from calocem import ProcessingParameters
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
 assetpath = Path(__file__).parent.parent / "docs" / "assets"
@@ -27,7 +27,7 @@ processparams = ProcessingParameters()
 processparams.spline_interpolation.apply = True
 processparams.spline_interpolation.smoothing_1st_deriv = 5e-12
 processparams.gradient_peakdetection.use_largest_width_height = True
-
+processparams.cutoff.cutoff_min = 50
 # get peak onsets via alternative method
 
 sample_names = tam._data["sample_short"].unique()
@@ -37,8 +37,8 @@ for sample_name in sample_names:
 
     onsets_spline = tam.get_maximum_slope(
         processparams=processparams,
-        time_discarded_s=3000,
-        exclude_discarded_time=True,
+        # time_discarded_s=3000,
+        # exclude_discarded_time=True,
         show_plot=True,
         save_path=assetpath,
         regex=sample_name,
@@ -53,7 +53,7 @@ for sample_name in sample_names:
     handles, labels = ax.get_legend_handles_labels()
     #handles2, labels2 = ax2.get_legend_handles_labels()
     #handles = handles + handles2
-    ax.set_ylim(0, 0.03)
+    ax.set_ylim(0, 0.005)
     labels = ["Sample", "Gradient"]
     ax.legend(handles, labels, loc="upper right")
     ax.set_title(f"Maximum Slope - {sample_name}")

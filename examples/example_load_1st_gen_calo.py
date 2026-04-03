@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 import sys
 from pathlib import Path
-from calocem.tacalorimetry import Measurement
+from calocem import Measurement
 
 
 
