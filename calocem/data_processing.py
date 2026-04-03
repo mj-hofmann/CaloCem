@@ -477,25 +477,10 @@ class MetadataAggregator:
             Width of each time bin in seconds. Default is 60 s.
         """
         try:
-            df = data.copy()
+            from scipy.interpolate import interp1d
 
-            # Relabel sample_short with the group value from metadata
-            for value, group in metadata.groupby(groupby):
-                mask = df["sample_short"].isin(group[meta_id_col])
-                if isinstance(value, tuple):
-                    label = " | ".join(str(v) for v in value)
-                else:
-                    label = str(value)
-                df.loc[mask, "sample_short"] = label
-
-            # Time-bin the data
-            max_time_s = df["time_s"].max()
-            bins = np.arange(0, max_time_s + bin_width_s, bin_width_s)
-            df["_bin"] = pd.cut(df["time_s"], bins)
-
-            # Aggregate numeric heat columns per group per bin
             heat_cols = [
-                c for c in df.columns
+                c for c in data.columns
                 if c in (
                     "normalized_heat_flow_w_g",
                     "normalized_heat_j_g",
@@ -504,32 +489,63 @@ class MetadataAggregator:
                 )
             ]
 
-            agg_df = (
-                df.groupby(["sample_short", "_bin"], observed=True)[heat_cols]
-                .agg(["mean", "std"])
-                .dropna(thresh=2)
-                .reset_index()
-            )
+            # Common time grid spanning the full experiment
+            t_common = np.arange(0, data["time_s"].max() + bin_width_s, bin_width_s, dtype=float)
 
-            # Flatten multi-level columns
-            agg_df.columns = [
-                "_".join(c).strip("_") if c[1] else c[0]
-                for c in agg_df.columns
-            ]
+            rows = []
 
-            # Restore time_s from bin left edge
-            agg_df["time_s"] = [iv.left for iv in agg_df["_bin"]]
-            agg_df = agg_df.drop(columns="_bin")
+            for value, meta_group in metadata.groupby(groupby):
+                # Group label
+                label = " | ".join(str(v) for v in value) if isinstance(value, tuple) else str(value)
 
-            # Rename mean columns back to the canonical names so downstream
-            # methods (plot, get_cumulated_heat_at_hours, …) keep working
-            rename = {f"{c}_mean": c for c in heat_cols}
-            agg_df = agg_df.rename(columns=rename)
+                # Samples belonging to this group
+                sample_names = meta_group[meta_id_col].tolist()
+                group_data = data[data["sample_short"].isin(sample_names)]
 
-            # sample == sample_short for grouped data
-            agg_df["sample"] = agg_df["sample_short"]
+                if group_data.empty:
+                    continue
 
-            return agg_df
+                # Interpolate each sample onto the common grid, then stack
+                interpolated = {col: [] for col in heat_cols}
+
+                for _, sample_df in group_data.groupby("sample_short"):
+                    sample_df = sample_df.sort_values("time_s")
+                    for col in heat_cols:
+                        f = interp1d(
+                            sample_df["time_s"].values,
+                            sample_df[col].values,
+                            kind="linear",
+                            bounds_error=False,
+                            fill_value=np.nan,
+                        )
+                        interpolated[col].append(f(t_common))
+
+                # Average point-by-point, ignoring NaN outside each sample's range
+                for col in heat_cols:
+                    arr = np.vstack(interpolated[col])   # (n_samples, n_timepoints)
+                    with np.errstate(all="ignore"):
+                        mean = np.nanmean(arr, axis=0)
+                        std  = np.nanstd(arr, axis=0)
+
+                    # Build one row per time point, dropping points where all
+                    # samples are NaN (outside every sample's time range)
+                    valid = ~np.isnan(mean)
+                    if col == heat_cols[0]:
+                        # Initialise the per-group result DataFrame on first col
+                        group_df = pd.DataFrame({
+                            "time_s": t_common[valid],
+                            "sample_short": label,
+                            "sample": label,
+                        })
+                    group_df[col] = mean[valid]
+                    group_df[f"{col}_std"] = std[valid]
+
+                rows.append(group_df)
+
+            if not rows:
+                return pd.DataFrame()
+
+            return pd.concat(rows, ignore_index=True)
 
         except Exception as e:
             raise DataProcessingException("average_by_metadata", e)
