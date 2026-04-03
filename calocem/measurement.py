@@ -460,54 +460,31 @@ class Measurement:
         processparams: Optional[ProcessingParameters] = None,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        time_discarded_s: float = 900,
         show_plot: bool = False,
-        show_info: bool = True,
-        exclude_discarded_time: bool = False,
         regex: Optional[str] = None,
-        read_start_c3s: bool = False,
         ax=None,
         save_path: Optional[pathlib.Path] = None,
-        xscale: str = "linear",
         xunit: str = "s",
-    ):
-        """Find the point in time of the maximum slope."""
-        params = processparams or self.processparams
+    ) -> pd.DataFrame:
+        """Find the point in time of the maximum slope.
 
-        time_discarded_s = (
-            params.cutoff.cutoff_min * 60 if params.cutoff.cutoff_min else 0
+        Wrapper around :meth:`get_mainpeak_params` returning only the
+        ``max_slope`` columns together with sample identifiers.
+        """
+        result = self.get_mainpeak_params(
+            processparams=processparams,
+            target_col=target_col,
+            age_col=age_col,
+            show_plot=show_plot,
+            plot_type="max",
+            regex=regex,
+            ax=ax,
         )
-        analyzer = SlopeAnalyzer(params)
-
-        result = analyzer.get_maximum_slope(
-            self._data,
-            target_col,
-            age_col,
-            time_discarded_s,
-            exclude_discarded_time,
-            regex,
-            # read_start_c3s,
-            # self._metadata,
-        )
-
-        if show_plot and not result.empty:
-            for sample, sample_data in SampleIterator.iter_samples(self._data, regex):
-                sample_short = pathlib.Path(str(sample)).stem
-                sample_result = result[result["sample_short"] == sample_short]
-                sample_result = sample_result[
-                    sample_result[age_col] >= time_discarded_s
-                ]
-                if not sample_result.empty:
-                    self._plotter.plot_slopes(
-                        sample_data,
-                        sample_result,
-                        str(sample_short),
-                        ax,
-                        age_col,
-                        target_col,
-                    )
-
-        return result
+        if result.empty:
+            return result
+        id_cols = ["sample", "sample_short"]
+        max_slope_cols = [c for c in result.columns if "max_slope" in c]
+        return result[id_cols + max_slope_cols].reset_index(drop=True)
 
     def get_mainpeak_params(
         self,
@@ -1361,27 +1338,27 @@ class Measurement:
         show_plot: bool = False,
         ax=None,
         save_path: Optional[pathlib.Path] = None,
-        xscale: str = "log",
         xunit: str = "s",
     ) -> pd.DataFrame:
-        """Calculate average slope between onset and heat flow maximum."""
-        params = processparams or self.processparams
+        """Calculate the mean (flank tangent) slope of the main hydration peak.
 
-        # Get required data
-        max_slopes = self.get_maximum_slope(
-            params, target_col, age_col, regex=regex, show_plot=False
+        Wrapper around :meth:`get_mainpeak_params` returning only the
+        ``mean_slope`` columns together with sample identifiers.
+        """
+        result = self.get_mainpeak_params(
+            processparams=processparams,
+            target_col=target_col,
+            age_col=age_col,
+            show_plot=show_plot,
+            plot_type="mean",
+            regex=regex,
+            ax=ax,
         )
-        onsets = self.get_peak_onset_via_max_slope(params, regex=regex, show_plot=False)
-
-        if max_slopes.empty or onsets.empty:
-            logger.warning("Cannot calculate average slopes - missing required data")
-            return pd.DataFrame()
-
-        analyzer = AverageSlopeAnalyzer(params)
-        result = analyzer.get_average_slope(
-            self._data, max_slopes, onsets, target_col, age_col, regex
-        )
-        return result
+        if result.empty:
+            return result
+        id_cols = ["sample", "sample_short"]
+        mean_slope_cols = [c for c in result.columns if "mean_slope" in c]
+        return result[id_cols + mean_slope_cols].reset_index(drop=True)
 
     def _plot_tangent_analysis_unified(
         self,
