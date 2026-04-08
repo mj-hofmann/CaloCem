@@ -4,11 +4,13 @@ Data processing operations for calorimetry data.
 
 import logging
 import re
+import warnings
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 from scipy import signal
+from scipy.interpolate import UnivariateSpline
 from scipy.ndimage import median_filter
 
 from .exceptions import DataProcessingException
@@ -128,22 +130,45 @@ class HeatFlowProcessor:
         except Exception as e:
             raise DataProcessingException("apply_rolling_mean", e)
 
+    def _smooth_derivative(
+        self, values: np.ndarray, time: np.ndarray, smoothing: float
+    ) -> np.ndarray:
+        """Apply median filter and/or spline smoothing to a derivative array."""
+        if self.processparams.median_filter.apply:
+            values = median_filter(values, size=self.processparams.median_filter.size)
+
+        if self.processparams.spline_interpolation.apply:
+            mask = np.isfinite(values)
+            spline = UnivariateSpline(time[mask], values[mask], k=3, s=smoothing, ext=1)
+            values = spline(time)
+
+        return values
+
     def calculate_heatflow_derivatives(
         self,
         data: pd.DataFrame,
         time_col: str = "time_s",
         target_col: str = "normalized_heat_flow_w_g",
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Calculate gradient and curvature of heat flow data."""
+        """
+        Calculate gradient and curvature of heat flow data.
+
+        If processparams.median_filter.apply or processparams.spline_interpolation.apply
+        are set, smoothing is applied to each derivative before the next one is computed.
+        """
         try:
             time = data[time_col].to_numpy()
-            heat_flow = data[target_col].to_numpy()
+            heat_flow = np.nan_to_num(data[target_col].to_numpy())
 
-            # Calculate first derivative (gradient)
             gradient = np.gradient(heat_flow, time)
+            gradient = self._smooth_derivative(
+                gradient, time, self.processparams.spline_interpolation.smoothing_1st_deriv
+            )
 
-            # Calculate second derivative (curvature)
             curvature = np.gradient(gradient, time)
+            curvature = self._smooth_derivative(
+                curvature, time, self.processparams.spline_interpolation.smoothing_2nd_deriv
+            )
 
             return gradient, curvature
 
@@ -188,7 +213,7 @@ class HeatFlowProcessor:
             result_data = data.copy()
             if self.processparams.median_filter.apply:
                 result_data[target_col] = median_filter(
-                    result_data[target_col], size=3  # Default kernel size
+                    result_data[target_col], size=self.processparams.median_filter.size
                 )
 
             return result_data
@@ -360,7 +385,8 @@ class SampleIterator:
         
         #if pd.isna(data["sample"]).all():
         #    data["sample"] = data["sample_short"]
-        data["sample"] = data["sample"].fillna(data["sample_short"])
+        # data["sample"] = data["sample"].fillna(data["sample_short"])
+        data = data.assign(sample=data["sample"].fillna(data["sample_short"]))
 
         for sample, sample_data in data.groupby(by="sample"):
             if regex:
@@ -440,3 +466,112 @@ class DataNormalizer:
 
         except Exception as e:
             raise DataProcessingException("infer_heat_j_column", e)
+
+
+class MetadataAggregator:
+    """Averages calorimetry data by metadata grouping."""
+
+    @staticmethod
+    def average_by_metadata(
+        data: pd.DataFrame,
+        metadata: pd.DataFrame,
+        meta_id_col: str,
+        groupby: str | list[str],
+        bin_width_s: int = 60,
+    ) -> pd.DataFrame:
+        """
+        Replace individual samples with group averages defined by metadata.
+
+        Each row in *data* is relabelled with its metadata group name, then
+        time-binned and averaged (mean + std) per group.  The result has the
+        same columns as the input and can be used as a drop-in replacement for
+        ``self._data``.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Full measurement data containing ``time_s`` and ``sample_short``.
+        metadata : pd.DataFrame
+            Metadata table, must contain *meta_id_col*.
+        meta_id_col : str
+            Column in *metadata* whose values match ``sample_short`` in *data*.
+        groupby : str or list of str
+            Metadata column(s) to group by (e.g. ``"cement_name"`` or
+            ``["cement_name", "cement_amount_g"]``).
+        bin_width_s : int
+            Width of each time bin in seconds. Default is 60 s.
+        """
+        try:
+            from scipy.interpolate import interp1d
+
+            heat_cols = [
+                c for c in data.columns
+                if c in (
+                    "normalized_heat_flow_w_g",
+                    "normalized_heat_j_g",
+                    "heat_flow_w",
+                    "heat_j",
+                )
+            ]
+
+            # Common time grid spanning the full experiment
+            t_common = np.arange(0, data["time_s"].max() + bin_width_s, bin_width_s, dtype=float)
+
+            rows = []
+
+            for value, meta_group in metadata.groupby(groupby):
+                # Group label
+                label = " | ".join(str(v) for v in value) if isinstance(value, tuple) else str(value)
+
+                # Samples belonging to this group
+                sample_names = meta_group[meta_id_col].tolist()
+                group_data = data[data["sample_short"].isin(sample_names)]
+
+                if group_data.empty:
+                    continue
+
+                # Interpolate each sample onto the common grid, then stack
+                interpolated = {col: [] for col in heat_cols}
+
+                for _, sample_df in group_data.groupby("sample_short"):
+                    sample_df = sample_df.sort_values("time_s")
+                    for col in heat_cols:
+                        f = interp1d(
+                            sample_df["time_s"].values,
+                            sample_df[col].values,
+                            kind="linear",
+                            bounds_error=False,
+                            fill_value=np.nan,
+                        )
+                        interpolated[col].append(f(t_common))
+
+                # Average point-by-point, ignoring NaN outside each sample's range
+                for col in heat_cols:
+                    arr = np.vstack(interpolated[col])   # (n_samples, n_timepoints)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", RuntimeWarning)
+                        mean = np.nanmean(arr, axis=0)
+                        std  = np.nanstd(arr, axis=0)
+
+                    # Build one row per time point, dropping points where all
+                    # samples are NaN (outside every sample's time range)
+                    valid = ~np.isnan(mean)
+                    if col == heat_cols[0]:
+                        # Initialise the per-group result DataFrame on first col
+                        group_df = pd.DataFrame({
+                            "time_s": t_common[valid],
+                            "sample_short": label,
+                            "sample": label,
+                        })
+                    group_df[col] = mean[valid]
+                    group_df[f"{col}_std"] = std[valid]
+
+                rows.append(group_df)
+
+            if not rows:
+                return pd.DataFrame()
+
+            return pd.concat(rows, ignore_index=True)
+
+        except Exception as e:
+            raise DataProcessingException("average_by_metadata", e)

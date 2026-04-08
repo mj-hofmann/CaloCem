@@ -1,4 +1,16 @@
+import re
+from copy import deepcopy
 from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class SampleParamRule:
+    """Regex-based override rule for sample-specific processing parameters."""
+
+    pattern: str
+    overrides: dict[str, Any]
+    priority: int = 100
 
 
 @dataclass
@@ -185,12 +197,77 @@ class SlopeAnalysisParameters:
         The end fraction of the window for averaging the slope of the main hydration peak. Example: 0.55 (the default value) means that the slope is calculated up to 55% of the peak height measured relative to the minimum of the dormant period heat flow.
     window_size: float
         The size of the window for averaging the slope, given as a fraction of the total number of data points. Example: 0.1 (the default value) means that the slope is averaged over a window that is 10% of the total number of data points.
+    first_ascending_fraction_of_max: float
+        Fraction of the global maximum heat flow used to detect the first ascending slope.
+        Example: 0.2 means the first ascending slope is determined up to 20% of the
+        global maximum of the heat-flow curve.
+        first_ascending_range_method: str
+                Method used to define the first-ascending segment range.
+                - 'fraction' (default): end at first crossing of
+                    ``first_ascending_fraction_of_max * max(heat_flow)``
+                - 'delta': end at first crossing of
+                    ``min(heat_flow) + first_ascending_delta_y_w_g`` where the minimum is
+                    evaluated on the search interval (after cutoff).
+        first_ascending_delta_y_w_g: float
+                Delta heat-flow value in W/g used when
+                ``first_ascending_range_method == 'delta'``.
+        flexible: float
+            Adaptive multiplier factor for ``first_ascending_delta_y_w_g`` in delta mode.
+            The effective delta is computed from a multiplier that increases with the
+            difference between main peak height and base delta value. Set to 0 to
+            disable adaptive scaling.
     """
 
     flank_fraction_start: float = 0.35
     flank_fraction_end: float = 0.55
     window_size: float = 0.1  # as fraction of total data points
+    first_ascending_fraction_of_max: float = 0.2
+    first_ascending_range_method: str = "fraction"
+    first_ascending_delta_y_w_g: float = 0.001
+    flexible: float = 0.0
 
+
+@dataclass
+class DeconvolutionParameters:
+    """Parameters controlling peak deconvolution fitting."""
+
+    n_peaks: int = 2
+    peak_shape: str = "lognormal"
+    baseline_mode: str = "constant"
+    chebyshev_degree: int = 2
+    max_nfev: int = 5000
+    max_fit_points: int = 2500
+    min_points: int = 30
+    min_peak_distance_fraction: float = 0.05
+    min_sigma_fraction: float = 0.005
+    max_sigma_fraction: float = 0.30
+    min_peak_time_separation_fraction: float = 1e-4
+    relative_intensity_upper_bounds: list[float] | None = None
+    peak_width_upper_bounds: list[float] | None = None
+
+
+@dataclass
+class PlottingParameters:
+    """
+    Parameters for plotting data.
+
+    Attributes
+    show_plot_title: bool
+        Default is true. If True, the plot will have a title.
+    legend_pos: str
+        String that determines the position of the legend. legend_pos can be 'best' (default) or 'outside' which positions the legend to the right of the plot.
+    plot_title: str
+        String that determines the title of the plot. plot_title can be 'filename' (default) or a list containing the column names of the metadata e.g. '["cement_name", "dosage"]'. 
+    ----------
+    """
+    figsize: tuple = (10, 6)
+    time_unit: str = "seconds"
+    heat_unit: str = "W"
+    show_plot_title: bool = True
+    legend_pos: str = "best"
+    plot_title = "filename"
+    xlims: tuple = None
+    ylims: tuple = None
 
 @dataclass
 class ProcessingParameters:
@@ -229,6 +306,8 @@ class ProcessingParameters:
     slope_analysis: SlopeAnalysisParameters
         Parameters for slope analysis of the heat flow data. This includes settings which control the identification of the mean slope of the main hydration peak.
 
+    plotting: PlottingParameters
+        Parameters for plotting data. This includes settings such as figure size.
 
     Examples
     --------
@@ -271,3 +350,50 @@ class ProcessingParameters:
     slope_analysis: SlopeAnalysisParameters = field(
         default_factory=SlopeAnalysisParameters
     )
+    deconvolution: DeconvolutionParameters = field(
+        default_factory=DeconvolutionParameters
+    )
+    plotting: PlottingParameters = field(default_factory=PlottingParameters)
+    sample_param_rules: list[SampleParamRule] = field(default_factory=list)
+
+    def add_sample_param_rule(
+        self,
+        pattern: str,
+        overrides: dict[str, Any],
+        priority: int = 100,
+    ) -> None:
+        """Add a regex rule to override parameters for matching sample names."""
+        self.sample_param_rules.append(
+            SampleParamRule(pattern=pattern, overrides=overrides, priority=priority)
+        )
+
+    def resolve_for_sample(self, sample_name: str) -> "ProcessingParameters":
+        """Resolve effective parameters for a sample based on regex override rules."""
+        if not self.sample_param_rules:
+            return self
+
+        matched_rules = sorted(
+            (rule for rule in self.sample_param_rules if re.search(rule.pattern, sample_name)),
+            key=lambda item: item.priority,
+        )
+
+        if not matched_rules:
+            return self
+
+        resolved = deepcopy(self)
+        for rule in matched_rules:
+            self._apply_nested_overrides(resolved, rule.overrides)
+
+        return resolved
+
+    def _apply_nested_overrides(self, target: Any, overrides: dict[str, Any]) -> None:
+        """Apply nested dictionary overrides to a dataclass-like object."""
+        for key, value in overrides.items():
+            if not hasattr(target, key):
+                raise AttributeError(f"Unknown processing parameter field: {key}")
+
+            current_value = getattr(target, key)
+            if isinstance(value, dict):
+                self._apply_nested_overrides(current_value, value)
+            else:
+                setattr(target, key, value)

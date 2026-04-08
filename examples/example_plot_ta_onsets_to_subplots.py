@@ -1,5 +1,5 @@
 from pathlib import Path
-from calocem.tacalorimetry import Measurement
+from calocem import Measurement
 import matplotlib.pyplot as plt
 
 parentfolder = Path(__file__).parent.parent
@@ -25,9 +25,9 @@ fig, axs = plt.subplots(1, 3, layout="constrained", sharey=True)
 for i, grad in enumerate([5e-9, 3e-8, 7e-8]):
     
     # get and show onsets
-    _, ax = tam.get_peak_onsets(
+    _, ax = tam.get_mainpeak_params(
         ax=axs[i],
-        gradient_threshold=grad,
+        # gradient_threshold=grad,
         show_plot=True
         )
 

@@ -2,7 +2,7 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from calocem.tacalorimetry import Measurement
+from calocem import Measurement
 
 parentfolder = Path(__file__).parent.parent
 datapath = parentfolder / "calocem" / "DATA"
@@ -12,10 +12,10 @@ testpath = parentfolder / "tests"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex=r".*data_[1-5].csv",
+    regex=r".*calorimetry_data_[1-5].csv",
     show_info=True,
     auto_clean=False,
-    cold_start=False,
+    cold_start=True,
 )
 
 
@@ -30,7 +30,7 @@ plt.show()
 tam.add_metadata_source(
     testpath / "mini_metadata.csv", sample_id_column="experiment_nr"
 )
-tam.average_by_metadata(group_by="cement_name")
+tam.average_by_metadata("cement_name")
 
 fig, ax = plt.subplots()
 tam.plot(ax=ax)

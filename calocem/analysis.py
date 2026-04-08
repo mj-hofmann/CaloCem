@@ -89,6 +89,576 @@ class PeakAnalyzer:
             raise DataProcessingException("get_peaks", e)
 
 
+class DeconvolutionAnalyzer:
+    """Fits peak deconvolution models to calorimetry heat-flow curves."""
+
+    def __init__(self, processparams: ProcessingParameters):
+        self.processparams = processparams
+
+    @staticmethod
+    def _lognormal_peak(
+        x: np.ndarray, amplitude: float, center: float, sigma: float
+    ) -> np.ndarray:
+        eps = 1e-12
+        x_safe = np.clip(x, eps, None)
+        center_safe = max(center, eps)
+        sigma_safe = max(sigma, eps)
+        return amplitude * np.exp(
+            -0.5 * ((np.log(x_safe) - np.log(center_safe)) / sigma_safe) ** 2
+        )
+
+    @staticmethod
+    def _gaussian_peak(
+        x: np.ndarray, amplitude: float, center: float, sigma: float
+    ) -> np.ndarray:
+        sigma_safe = max(sigma, 1e-12)
+        return amplitude * np.exp(-0.5 * ((x - center) / sigma_safe) ** 2)
+
+    def _evaluate_component_curve(
+        self,
+        x: np.ndarray,
+        component_row: pd.Series,
+    ) -> np.ndarray:
+        shape = str(component_row.get("peak_shape", "lognormal")).lower()
+        amplitude = float(component_row["amplitude"])
+        center = float(component_row["center_time_s"])
+        width = float(component_row["width"])
+
+        if shape == "gaussian":
+            return self._gaussian_peak(x, amplitude, center, width)
+
+        x_logn = np.clip(x, 1e-12, None)
+        return self._lognormal_peak(x_logn, amplitude, center, width)
+
+    def get_deconvolution(
+        self,
+        data: pd.DataFrame,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        regex: Optional[str] = None,
+        n_peaks: Optional[int] = None,
+        peak_shape: Optional[str] = None,
+        baseline_mode: Optional[str] = None,
+        relative_intensity_upper_bounds: Optional[list[float]] = None,
+        peak_width_upper_bounds: Optional[list[float]] = None,
+    ) -> pd.DataFrame:
+        """Fit peak deconvolution and return one result row per fitted component."""
+        try:
+            from scipy.optimize import minimize
+            from scipy.signal import find_peaks
+
+            params = self.processparams.deconvolution
+            n_components = int(n_peaks if n_peaks is not None else params.n_peaks)
+            if n_components < 1:
+                raise ValueError("n_peaks must be >= 1")
+
+            selected_shape = (peak_shape or params.peak_shape or "lognormal").lower()
+            if selected_shape not in {"lognormal", "gaussian"}:
+                raise ValueError("peak_shape must be either 'lognormal' or 'gaussian'")
+
+            requested_baseline = (
+                baseline_mode or params.baseline_mode or "constant"
+            ).lower()
+            if requested_baseline not in {"constant", "linear", "none", "chebyshev"}:
+                raise ValueError(
+                    "baseline_mode must be one of {'constant', 'linear', 'none', 'chebyshev'}"
+                )
+
+            configured_intensity_upper_bounds = relative_intensity_upper_bounds
+            if configured_intensity_upper_bounds is None:
+                configured_intensity_upper_bounds = (
+                    params.relative_intensity_upper_bounds
+                )
+
+            if configured_intensity_upper_bounds is not None:
+                if len(configured_intensity_upper_bounds) != n_components:
+                    raise ValueError(
+                        "relative_intensity_upper_bounds must have length n_peaks"
+                    )
+                configured_intensity_upper_bounds = [
+                    float(v) for v in configured_intensity_upper_bounds
+                ]
+                if not all(0.0 < v <= 1.0 for v in configured_intensity_upper_bounds):
+                    raise ValueError(
+                        "relative_intensity_upper_bounds entries must be in (0, 1]"
+                    )
+                if float(sum(configured_intensity_upper_bounds)) < 1.0:
+                    raise ValueError(
+                        "relative_intensity_upper_bounds must sum to >= 1.0"
+                    )
+
+            configured_width_upper_bounds = peak_width_upper_bounds
+            if configured_width_upper_bounds is None:
+                configured_width_upper_bounds = params.peak_width_upper_bounds
+
+            if configured_width_upper_bounds is not None:
+                if len(configured_width_upper_bounds) != n_components:
+                    raise ValueError("peak_width_upper_bounds must have length n_peaks")
+                configured_width_upper_bounds = [
+                    float(v) for v in configured_width_upper_bounds
+                ]
+                if not all(v > 0.0 for v in configured_width_upper_bounds):
+                    raise ValueError("peak_width_upper_bounds entries must be > 0")
+
+            all_rows = []
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                working = sample_data[
+                    [age_col, target_col, "sample", "sample_short"]
+                ].copy()
+                working = working.replace([np.inf, -np.inf], np.nan).dropna()
+                working = working.sort_values(age_col)
+
+                if self.processparams.cutoff.cutoff_min:
+                    cutoff_s = self.processparams.cutoff.cutoff_min * 60
+                    working = working[working[age_col] >= cutoff_s]
+
+                if len(working) < params.min_points:
+                    logger.warning(
+                        f"Skipping deconvolution for {sample_short}: not enough points"
+                    )
+                    continue
+
+                x = working[age_col].to_numpy(dtype=float)
+                y = working[target_col].to_numpy(dtype=float)
+
+                if np.nanmax(y) <= 0:
+                    logger.warning(
+                        f"Skipping deconvolution for {sample_short}: non-positive signal"
+                    )
+                    continue
+
+                x_shift = 0.0
+                x_fit = x.copy()
+                if selected_shape == "lognormal" and np.nanmin(x_fit) <= 0:
+                    x_shift = abs(np.nanmin(x_fit)) + 1e-9
+                    x_fit = x_fit + x_shift
+
+                x_min = float(np.nanmin(x_fit))
+                x_max = float(np.nanmax(x_fit))
+                x_range = max(x_max - x_min, 1e-12)
+
+                x_fit_opt = x_fit
+                y_fit_opt = y
+                if params.max_fit_points and len(x_fit) > params.max_fit_points:
+                    fit_idx = np.linspace(
+                        0, len(x_fit) - 1, params.max_fit_points
+                    ).astype(int)
+                    x_fit_opt = x_fit[fit_idx]
+                    y_fit_opt = y[fit_idx]
+
+                peak_distance = max(
+                    1,
+                    int(len(y) * max(params.min_peak_distance_fraction, 0.0)),
+                )
+                candidate_peaks, _ = find_peaks(y, distance=peak_distance)
+
+                if len(candidate_peaks) > 0:
+                    sorted_peak_idx = candidate_peaks[
+                        np.argsort(y[candidate_peaks])[::-1]
+                    ]
+                    selected_idx = np.sort(sorted_peak_idx[:n_components])
+                    init_centers = x_fit[selected_idx].tolist()
+                else:
+                    init_centers = []
+
+                while len(init_centers) < n_components:
+                    quantile = (len(init_centers) + 1) / (n_components + 1)
+                    init_centers.append(float(np.quantile(x_fit, quantile)))
+
+                baseline_level = float(np.nanmin(y)) if len(y) else 0.0
+                amp_guess = (
+                    max(float(np.nanmax(y) - baseline_level), 1e-12) / n_components
+                )
+
+                p0 = []
+                lower = []
+                upper = []
+
+                for comp_idx, center_guess in enumerate(init_centers):
+                    default_width_guess = (
+                        0.35 if selected_shape == "lognormal" else 0.08 * x_range
+                    )
+                    default_width_lower = (
+                        0.05
+                        if selected_shape == "lognormal"
+                        else params.min_sigma_fraction * x_range
+                    )
+                    default_width_upper = (
+                        2.0
+                        if selected_shape == "lognormal"
+                        else params.max_sigma_fraction * x_range
+                    )
+
+                    width_upper = default_width_upper
+                    if configured_width_upper_bounds is not None:
+                        width_upper = configured_width_upper_bounds[comp_idx]
+
+                    if width_upper <= default_width_lower:
+                        raise ValueError(
+                            "Each peak_width_upper_bounds entry must be greater than the"
+                            " corresponding minimum width bound"
+                        )
+
+                    width_guess = min(default_width_guess, width_upper)
+
+                    p0.extend([amp_guess, center_guess, width_guess])
+                    lower.extend([0.0, x_min, default_width_lower])
+                    upper.extend(
+                        [
+                            max(float(np.nanmax(y)) * 10.0, 1e-9),
+                            x_max,
+                            width_upper,
+                        ]
+                    )
+
+                peak_fn = (
+                    self._lognormal_peak
+                    if selected_shape == "lognormal"
+                    else self._gaussian_peak
+                )
+
+                baseline_attempts = [requested_baseline]
+                for fallback_mode in ["linear", "constant", "none"]:
+                    if fallback_mode not in baseline_attempts:
+                        baseline_attempts.append(fallback_mode)
+
+                fitted_params = None
+                selected_baseline = requested_baseline
+                model = None
+                last_fit_error = None
+
+                for baseline_try in baseline_attempts:
+                    p0_try = list(p0)
+                    lower_try = list(lower)
+                    upper_try = list(upper)
+
+                    if baseline_try == "constant":
+                        p0_try.append(baseline_level)
+                        lower_try.append(
+                            float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5
+                        )
+                        upper_try.append(
+                            float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5
+                        )
+                    elif baseline_try == "linear":
+                        p0_try.extend([baseline_level, 0.0])
+                        lower_try.extend(
+                            [
+                                float(np.nanmin(y)) - abs(float(np.nanmin(y))) * 5,
+                                -abs(float(np.nanmax(y))) / max(x_range, 1.0),
+                            ]
+                        )
+                        upper_try.extend(
+                            [
+                                float(np.nanmax(y)) + abs(float(np.nanmax(y))) * 5,
+                                abs(float(np.nanmax(y))) / max(x_range, 1.0),
+                            ]
+                        )
+                    elif baseline_try == "chebyshev":
+                        degree = max(0, int(params.chebyshev_degree))
+                        p0_try.extend([baseline_level] + [0.0] * degree)
+                        coeff_bound = (
+                            max(
+                                abs(float(np.nanmax(y))),
+                                abs(float(np.nanmin(y))),
+                                1e-9,
+                            )
+                            * 10.0
+                        )
+                        lower_try.extend([-coeff_bound] * (degree + 1))
+                        upper_try.extend([coeff_bound] * (degree + 1))
+
+                    def model_try(xvals: np.ndarray, *fit_params: float) -> np.ndarray:
+                        y_model = np.zeros_like(xvals, dtype=float)
+                        for comp_idx in range(n_components):
+                            start = comp_idx * 3
+                            amplitude, center, sigma = fit_params[start : start + 3]
+                            y_model += peak_fn(xvals, amplitude, center, sigma)
+
+                        if baseline_try == "constant":
+                            y_model += fit_params[-1]
+                        elif baseline_try == "linear":
+                            b0, b1 = fit_params[-2], fit_params[-1]
+                            y_model += b0 + b1 * xvals
+                        elif baseline_try == "chebyshev":
+                            degree = max(0, int(params.chebyshev_degree))
+                            cheb_coeffs = fit_params[-(degree + 1) :]
+                            xvals_scaled = 2.0 * (xvals - x_min) / x_range - 1.0
+                            y_model += np.polynomial.chebyshev.chebval(
+                                xvals_scaled, cheb_coeffs
+                            )
+
+                        return y_model
+
+                    def objective_fn(fit_params: np.ndarray) -> float:
+                        residual_local = y_fit_opt - model_try(x_fit_opt, *fit_params)
+                        return float(np.sum(residual_local * residual_local))
+
+                    def _peak_time_from_params(
+                        fit_params: np.ndarray, comp_idx: int
+                    ) -> float:
+                        start = comp_idx * 3
+                        center = float(fit_params[start + 1])
+                        sigma = float(fit_params[start + 2])
+                        if selected_shape == "gaussian":
+                            return center
+                        return center * float(np.exp(-(sigma**2)))
+
+                    min_peak_time_separation_s = max(
+                        params.min_peak_time_separation_fraction * x_range,
+                        1e-12,
+                    )
+
+                    constraints = []
+                    for comp_idx in range(n_components - 1):
+                        constraints.append(
+                            {
+                                "type": "ineq",
+                                "fun": lambda fit_params, i=comp_idx: (
+                                    _peak_time_from_params(fit_params, i + 1)
+                                    - _peak_time_from_params(fit_params, i)
+                                    - min_peak_time_separation_s
+                                ),
+                            }
+                        )
+
+                    if configured_intensity_upper_bounds is not None:
+                        constraints.append(
+                            {
+                                "type": "ineq",
+                                "fun": lambda fit_params: (
+                                    float(
+                                        np.sum(
+                                            [
+                                                fit_params[idx * 3]
+                                                for idx in range(n_components)
+                                            ]
+                                        )
+                                    )
+                                    - 1e-12
+                                ),
+                            }
+                        )
+                        for comp_idx, ub in enumerate(
+                            configured_intensity_upper_bounds
+                        ):
+                            constraints.append(
+                                {
+                                    "type": "ineq",
+                                    "fun": lambda fit_params, i=comp_idx, upper_bound=ub: (
+                                        upper_bound
+                                        * float(
+                                            np.sum(
+                                                [
+                                                    fit_params[idx * 3]
+                                                    for idx in range(n_components)
+                                                ]
+                                            )
+                                        )
+                                        - float(fit_params[i * 3])
+                                    ),
+                                }
+                            )
+
+                    bounded_x0 = np.array(
+                        [
+                            min(max(v, lo), hi)
+                            for v, lo, hi in zip(p0_try, lower_try, upper_try)
+                        ],
+                        dtype=float,
+                    )
+
+                    try:
+                        result = minimize(
+                            objective_fn,
+                            x0=bounded_x0,
+                            method="SLSQP",
+                            bounds=list(zip(lower_try, upper_try)),
+                            constraints=constraints,
+                            options={"maxiter": int(params.max_nfev), "ftol": 1e-12},
+                        )
+                        if not result.success:
+                            raise RuntimeError(result.message)
+                        fitted_params = np.asarray(result.x, dtype=float)
+                        model = model_try
+                        selected_baseline = baseline_try
+                        break
+                    except Exception as fit_error:
+                        last_fit_error = fit_error
+                        fitted_params = None
+
+                if fitted_params is None or model is None:
+                    logger.warning(
+                        f"Deconvolution failed for {sample_short}: {last_fit_error}"
+                    )
+                    continue
+
+                y_fit = model(x_fit, *fitted_params)
+                residual = y - y_fit
+                ss_res = float(np.sum(residual**2))
+                ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+                fit_r2 = np.nan if ss_tot == 0 else 1 - ss_res / ss_tot
+                fit_rmse = float(np.sqrt(np.mean(residual**2)))
+
+                baseline_constant = np.nan
+                baseline_slope = np.nan
+                baseline_cheb_coeffs = None
+                if selected_baseline == "constant":
+                    baseline_constant = float(fitted_params[-1])
+                elif selected_baseline == "linear":
+                    baseline_constant = float(fitted_params[-2])
+                    baseline_slope = float(fitted_params[-1])
+                elif selected_baseline == "chebyshev":
+                    degree = max(0, int(params.chebyshev_degree))
+                    cheb_coeffs = fitted_params[-(degree + 1) :]
+                    baseline_cheb_coeffs = tuple(float(v) for v in cheb_coeffs)
+
+                component_areas = []
+                component_curves = []
+                for comp_idx in range(n_components):
+                    start = comp_idx * 3
+                    amplitude, center, sigma = fitted_params[start : start + 3]
+                    comp_curve = peak_fn(x_fit, amplitude, center, sigma)
+                    component_curves.append((amplitude, center, sigma, comp_curve))
+                    component_areas.append(float(np.trapezoid(comp_curve, x)))
+
+                total_area = float(np.sum(component_areas))
+
+                for comp_idx, (amplitude, center, sigma, comp_curve) in enumerate(
+                    component_curves, start=1
+                ):
+                    center_out = (
+                        float(center - x_shift)
+                        if selected_shape == "lognormal"
+                        else float(center)
+                    )
+                    peak_time = float(x[np.argmax(comp_curve)])
+                    component_area = component_areas[comp_idx - 1]
+                    area_fraction = (
+                        np.nan if total_area == 0 else component_area / total_area
+                    )
+
+                    all_rows.append(
+                        {
+                            "sample": sample,
+                            "sample_short": sample_short,
+                            "component": comp_idx,
+                            "n_peaks_fitted": n_components,
+                            "peak_shape": selected_shape,
+                            "baseline_mode": selected_baseline,
+                            "amplitude": float(amplitude),
+                            "center_time_s": center_out,
+                            "peak_time_s": peak_time,
+                            "width": float(sigma),
+                            "component_area": component_area,
+                            "component_area_fraction": area_fraction,
+                            "fit_r2": fit_r2,
+                            "fit_rmse": fit_rmse,
+                            "baseline_constant": baseline_constant,
+                            "baseline_slope": baseline_slope,
+                            "baseline_cheb_coeffs": baseline_cheb_coeffs,
+                        }
+                    )
+
+            return pd.DataFrame(all_rows)
+
+        except Exception as e:
+            raise DataProcessingException("get_deconvolution", e)
+
+    def get_left_peak_inflection_tangent_intersection(
+        self,
+        data: pd.DataFrame,
+        deconvolution_results: pd.DataFrame,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        regex: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """Get abscissa intersection of tangent at left-flank inflection of the left fitted peak."""
+        try:
+            if deconvolution_results.empty:
+                return pd.DataFrame()
+
+            result_rows = []
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                sample_fit = deconvolution_results[
+                    deconvolution_results["sample_short"] == sample_short
+                ]
+                if sample_fit.empty:
+                    continue
+
+                left_peak = sample_fit.sort_values(
+                    "center_time_s", ascending=True
+                ).iloc[0]
+
+                working = sample_data[[age_col, target_col]].copy()
+                working = working.replace([np.inf, -np.inf], np.nan).dropna()
+                if self.processparams.cutoff.cutoff_min:
+                    cutoff_s = self.processparams.cutoff.cutoff_min * 60
+                    working = working[working[age_col] >= cutoff_s]
+                working = working.sort_values(age_col)
+                if len(working) < 5:
+                    continue
+
+                x = working[age_col].to_numpy(dtype=float)
+                component_curve = self._evaluate_component_curve(x, left_peak)
+                peak_idx = int(np.argmax(component_curve))
+                if peak_idx <= 1:
+                    continue
+
+                first_derivative = np.gradient(component_curve, x)
+                second_derivative = np.gradient(first_derivative, x)
+
+                left_second = second_derivative[:peak_idx]
+                if len(left_second) < 2:
+                    continue
+
+                sign_changes = np.where(np.diff(np.sign(left_second)) != 0)[0]
+                if len(sign_changes) > 0:
+                    inflection_idx = int(sign_changes[-1] + 1)
+                else:
+                    inflection_idx = int(np.argmin(np.abs(left_second)))
+
+                inflection_time = float(x[inflection_idx])
+                inflection_value = float(component_curve[inflection_idx])
+                tangent_slope = float(first_derivative[inflection_idx])
+
+                if np.isclose(tangent_slope, 0.0):
+                    x_intersection = np.nan
+                else:
+                    x_intersection = float(
+                        inflection_time - inflection_value / tangent_slope
+                    )
+
+                result_rows.append(
+                    {
+                        "sample": sample,
+                        "sample_short": sample_short,
+                        "left_peak_component": int(left_peak["component"]),
+                        "left_peak_center_time_s": float(left_peak["center_time_s"]),
+                        "inflection_time_s": inflection_time,
+                        "inflection_heat_flow_w_g": inflection_value,
+                        "inflection_tangent_slope": tangent_slope,
+                        "x_intersection_abscissa_s": x_intersection,
+                        "x_intersection_abscissa_min": (
+                            x_intersection / 60
+                            if not np.isnan(x_intersection)
+                            else np.nan
+                        ),
+                    }
+                )
+
+            return pd.DataFrame(result_rows)
+
+        except Exception as e:
+            raise DataProcessingException(
+                "get_left_peak_inflection_tangent_intersection", e
+            )
+
+
 class SlopeAnalyzer:
     """Analyzes maximum slopes in calorimetry data."""
 
@@ -104,13 +674,17 @@ class SlopeAnalyzer:
         time_discarded_s: float = 900,
         exclude_discarded_time: bool = False,
         regex: Optional[str] = None,
-        #read_start_c3s: bool = False,
-        #metadata: Optional[pd.DataFrame] = None,
+        # read_start_c3s: bool = False,
+        # metadata: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """Find the point in time of the maximum slope and calculate gradient."""
         try:
             list_of_characteristics = []
-            time_discarded_s = self.processparams.cutoff.cutoff_min * 60 if self.processparams.cutoff.cutoff_min else 0
+            time_discarded_s = (
+                self.processparams.cutoff.cutoff_min * 60
+                if self.processparams.cutoff.cutoff_min
+                else 0
+            )
             for sample, sample_data in SampleIterator.iter_samples(data, regex):
                 sample_name = pathlib.Path(str(sample)).stem
 
@@ -155,9 +729,10 @@ class SlopeAnalyzer:
                 gradient, curvature = self.processor.calculate_heatflow_derivatives(
                     filtered_data, age_col, target_col
                 )
-                filtered_data["gradient"] = gradient
-                filtered_data["curvature"] = curvature
 
+                filtered_data = filtered_data.assign(
+                    gradient=gradient, curvature=curvature
+                )
                 # Find maximum slope
                 characteristics = self.processor.get_largest_slope(
                     filtered_data, self.processparams
@@ -232,8 +807,8 @@ class OnsetAnalyzer:
         data: pd.DataFrame,
         max_slopes: pd.DataFrame,
         dormant_hfs: pd.DataFrame,
-        #intersection: str = "dormant_hf",
-        #xunit: str = "s",
+        # intersection: str = "dormant_hf",
+        # xunit: str = "s",
     ) -> pd.DataFrame:
         """Calculate peak onset via maximum slope intersection method."""
         try:
@@ -254,16 +829,14 @@ class OnsetAnalyzer:
                 )
 
                 # Calculate intersection with tangent to dormant heat flow
-                #if intersection == "dormant_hf":
-                x_intersect = (
-                    self.intersection_calc.calculate_dormant_hf_intersection(
-                            row, dorm_hf_value
-                    )
+                # if intersection == "dormant_hf":
+                x_intersect = self.intersection_calc.calculate_dormant_hf_intersection(
+                    row, dorm_hf_value
                 )
                 # intersection with abscissa
                 x_intersect_abscissa = (
-                        self.intersection_calc.calculate_abscissa_intersection(row)
-                    )
+                    self.intersection_calc.calculate_abscissa_intersection(row)
+                )
 
                 # Get sample data for limits (not used in this simplified version)
                 sample_data = data[data["sample_short"] == sample_short]
@@ -371,16 +944,14 @@ class DormantPeriodAnalyzer:
                 dormant_hf = pd.concat(list_dfs, ignore_index=True)
                 dormant_hf = self.rename_and_select_columns(dormant_hf)
                 return dormant_hf
-            #pd.concat([dormant_hf, self.rename_and_select_columns(dormant_hf)], ignore_index=True)
+            # pd.concat([dormant_hf, self.rename_and_select_columns(dormant_hf)], ignore_index=True)
             else:
                 return pd.DataFrame()
 
         except Exception as e:
             raise DataProcessingException("get_dormant_period_heatflow", e)
 
-    def rename_and_select_columns(
-        self, dormant_hf: pd.DataFrame
-    ) -> pd.DataFrame:
+    def rename_and_select_columns(self, dormant_hf: pd.DataFrame) -> pd.DataFrame:
         """Rename and select relevant columns for dormant heat flow DataFrame."""
         if dormant_hf.empty:
             return dormant_hf
@@ -395,6 +966,7 @@ class DormantPeriodAnalyzer:
         available_cols = [col for col in cols_to_select if col in dormant_hf.columns]
         reduced_df = dormant_hf[available_cols].rename(columns=rename_map)
         return reduced_df
+
 
 class ASTMC1679Analyzer:
     """Analyzes characteristics according to ASTM C1679."""
@@ -448,10 +1020,12 @@ class ASTMC1679Analyzer:
                     target_value = mean_peak_height / 2
 
                 # get time_s for half the maximum heat flow, i.e. find the time for which normalized_heat_flow_w_g <= target_value
-                #peak_time_s = highest_peaks.query(f"sample == {sample}")#["time_s"].values[0]
+                # peak_time_s = highest_peaks.query(f"sample == {sample}")#["time_s"].values[0]
                 peak_time_s = float(sample_peak["time_s"].iloc[0])
-                sample_data_filtered = sample_data.query(f"time_s < {peak_time_s} and normalized_heat_flow_w_g <= {target_value}")
-                # Get heat at target time   
+                sample_data_filtered = sample_data.query(
+                    f"time_s < {peak_time_s} and normalized_heat_flow_w_g <= {target_value}"
+                )
+                # Get heat at target time
 
                 # sample_data_filtered = sample_data[
                 #     sample_data["normalized_heat_flow_w_g"] <= target_value
@@ -466,7 +1040,7 @@ class ASTMC1679Analyzer:
                     )
 
             if astm_times:
-                df = pd.concat(astm_times, ignore_index=True) 
+                df = pd.concat(astm_times, ignore_index=True)
                 df = self.rename_and_select_columns(df)
                 return df
             else:
@@ -475,9 +1049,7 @@ class ASTMC1679Analyzer:
         except Exception as e:
             raise DataProcessingException("get_astm_c1679_characteristics", e)
 
-    def rename_and_select_columns(
-        self, astm_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def rename_and_select_columns(self, astm_df: pd.DataFrame) -> pd.DataFrame:
         """Rename and select relevant columns for ASTM DataFrame."""
         if astm_df.empty:
             return astm_df
@@ -492,6 +1064,7 @@ class ASTMC1679Analyzer:
         available_cols = [col for col in cols_to_select if col in astm_df.columns]
         reduced_df = astm_df[available_cols].rename(columns=rename_map)
         return reduced_df
+
 
 class HeatCalculator:
     """Calculates cumulative heat at specific times."""
@@ -674,10 +1247,10 @@ class FlankTangentAnalyzer:
         data: pd.DataFrame,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        #flank_fraction_start: float = 0.2,
-        #flank_fraction_end: float = 0.8,
-        #window_size: float = 0.1,
-        #cutoff_min: Optional[float] = None,
+        # flank_fraction_start: float = 0.2,
+        # flank_fraction_end: float = 0.8,
+        # window_size: float = 0.1,
+        # cutoff_min: Optional[float] = None,
         regex: Optional[str] = None,
     ) -> pd.DataFrame:
         """
@@ -711,7 +1284,11 @@ class FlankTangentAnalyzer:
         try:
             from scipy import signal
 
-            cutoff_min = self.processparams.cutoff.cutoff_min if self.processparams.cutoff.cutoff_min else 0
+            cutoff_min = (
+                self.processparams.cutoff.cutoff_min
+                if self.processparams.cutoff.cutoff_min
+                else 0
+            )
             flank_fraction_start = (
                 self.processparams.slope_analysis.flank_fraction_start
             )
@@ -728,11 +1305,9 @@ class FlankTangentAnalyzer:
                 #     else self.processparams.cutoff.cutoff_min
                 # )
                 if cutoff_min > 0:
-                    sample_data = sample_data.query(
-                        f"{age_col} >= @cutoff_min * 60"
-                    )
+                    sample_data = sample_data.query(f"{age_col} >= @cutoff_min * 60")
 
-                sample_data = sample_data.reset_index(drop=True)
+                sample_data = sample_data.reset_index(drop=True).copy()
 
                 # Find the main peak
                 peaks, _ = signal.find_peaks(
@@ -740,7 +1315,6 @@ class FlankTangentAnalyzer:
                     prominence=self.processparams.peakdetection.prominence,
                     distance=self.processparams.peakdetection.distance,
                 )
-
 
                 if len(peaks) == 0:
                     logger.warning(f"No peak found in {pathlib.Path(str(sample)).stem}")
@@ -768,8 +1342,8 @@ class FlankTangentAnalyzer:
                 )
 
                 # Calculate gradient to ensure we only consider regions with positive slope
-                sample_data["gradient"] = np.gradient(
-                    sample_data[target_col], sample_data[age_col]
+                sample_data = sample_data.assign(
+                    gradient=np.gradient(sample_data[target_col], sample_data[age_col])
                 )
 
                 # Extract ascending flank data - only include points with positive gradient
@@ -890,7 +1464,7 @@ class FlankTangentAnalyzer:
                 else:
                     min_value_before_tangent = np.nan
                     x_intersection_min = np.nan
-                
+
                 # get normalized_heat_j_g at representative_time
                 tangent_j_g = np.interp(
                     representative_time,
@@ -906,18 +1480,26 @@ class FlankTangentAnalyzer:
                 )
 
                 # get normalized_heat_j_g at x_intersection
-                x_intersection_j_g = np.interp(
-                    x_intersection,
-                    sample_data[age_col],
-                    sample_data["normalized_heat_j_g"],
-                ) if not np.isnan(x_intersection) else np.nan
+                x_intersection_j_g = (
+                    np.interp(
+                        x_intersection,
+                        sample_data[age_col],
+                        sample_data["normalized_heat_j_g"],
+                    )
+                    if not np.isnan(x_intersection)
+                    else np.nan
+                )
 
                 # get normalized_heat_j_g at x_intersection_min
-                x_intersection_dormant_j_g = np.interp(
-                    x_intersection_min,
-                    sample_data[age_col],
-                    sample_data["normalized_heat_j_g"],
-                ) if not np.isnan(x_intersection_min) else np.nan
+                x_intersection_dormant_j_g = (
+                    np.interp(
+                        x_intersection_min,
+                        sample_data[age_col],
+                        sample_data["normalized_heat_j_g"],
+                    )
+                    if not np.isnan(x_intersection_min)
+                    else np.nan
+                )
 
                 result = {
                     "sample": sample,
@@ -947,3 +1529,396 @@ class FlankTangentAnalyzer:
 
         except Exception as e:
             raise DataProcessingException("get_ascending_flank_tangent", e)
+
+
+class FirstAscendingSlopeAnalyzer:
+    """Analyzes the first ascending slope segment reaching a fraction of global peak height."""
+
+    def __init__(self, processparams: ProcessingParameters):
+        self.processparams = processparams
+
+    @staticmethod
+    def _calculate_segment_mean_tangent(
+        x_segment: np.ndarray,
+        y_segment: np.ndarray,
+        fraction_start: float,
+        fraction_end: float,
+        window_size: float,
+    ) -> Optional[dict]:
+        """Calculate representative mean tangent on a segment using fraction-based windows."""
+        if len(x_segment) < 3:
+            return None
+
+        if not np.isfinite(y_segment).any():
+            return None
+
+        fraction_start = float(np.clip(fraction_start, 0.0, 1.0))
+        fraction_end = float(np.clip(fraction_end, 0.0, 1.0))
+        if fraction_end <= fraction_start:
+            fraction_start, fraction_end = 0.35, 0.55
+
+        baseline_value = float(np.nanmin(y_segment))
+        top_value = float(np.nanmax(y_segment))
+        height_range = top_value - baseline_value
+
+        if np.isclose(height_range, 0.0):
+            return None
+
+        y_start = baseline_value + fraction_start * height_range
+        y_end = baseline_value + fraction_end * height_range
+
+        selected_mask = (y_segment >= y_start) & (y_segment <= y_end)
+        x_selected = x_segment[selected_mask]
+        y_selected = y_segment[selected_mask]
+
+        if len(x_selected) < 3:
+            x_selected = x_segment
+            y_selected = y_segment
+
+        selected_time_range = float(np.nanmax(x_selected) - np.nanmin(x_selected))
+
+        if selected_time_range <= 0:
+            slope, intercept = np.polyfit(x_selected, y_selected, 1)
+            return {
+                "tangent_slope": float(slope),
+                "tangent_time_s": float(np.nanmean(x_selected)),
+                "tangent_value": float(np.nanmean(y_selected)),
+                "tangent_intercept": float(intercept),
+                "n_windows": 1,
+                "slope_std": 0.0,
+                "fraction_start": fraction_start,
+                "fraction_end": fraction_end,
+                "window_size": window_size,
+                "window_start_time_s": float(np.nanmin(x_selected)),
+                "window_end_time_s": float(np.nanmax(x_selected)),
+                "window_start_value": float(np.nanmin(y_selected)),
+                "window_end_value": float(np.nanmax(y_selected)),
+            }
+
+        window_time = max(float(window_size) * selected_time_range, 1e-12)
+        step_size = window_time * 1.1
+
+        tangent_slopes = []
+        tangent_times = []
+        tangent_values = []
+
+        start_time = float(np.nanmin(x_selected))
+        end_time = float(np.nanmax(x_selected)) - window_time
+
+        current_time = start_time
+        while current_time <= end_time:
+            window_end = current_time + window_time
+            window_mask = (x_selected >= current_time) & (x_selected <= window_end)
+            x_window = x_selected[window_mask]
+            y_window = y_selected[window_mask]
+
+            if len(x_window) >= 3:
+                slope, _ = np.polyfit(x_window, y_window, 1)
+                if slope > 0:
+                    tangent_slopes.append(float(slope))
+                    tangent_times.append(float(np.mean(x_window)))
+                    tangent_values.append(float(np.mean(y_window)))
+
+            current_time += step_size
+
+        if not tangent_slopes:
+            slope, intercept = np.polyfit(x_selected, y_selected, 1)
+            tangent_time = float(np.nanmean(x_selected))
+            tangent_value = float(np.nanmean(y_selected))
+            return {
+                "tangent_slope": float(slope),
+                "tangent_time_s": tangent_time,
+                "tangent_value": tangent_value,
+                "tangent_intercept": float(intercept),
+                "n_windows": 1,
+                "slope_std": 0.0,
+                "fraction_start": fraction_start,
+                "fraction_end": fraction_end,
+                "window_size": window_size,
+                "window_start_time_s": float(np.nanmin(x_selected)),
+                "window_end_time_s": float(np.nanmax(x_selected)),
+                "window_start_value": float(np.nanmin(y_selected)),
+                "window_end_value": float(np.nanmax(y_selected)),
+            }
+
+        representative_slope = float(np.median(tangent_slopes))
+        representative_time = float(np.median(tangent_times))
+        representative_value = float(np.median(tangent_values))
+        representative_intercept = (
+            representative_value - representative_slope * representative_time
+        )
+
+        return {
+            "tangent_slope": representative_slope,
+            "tangent_time_s": representative_time,
+            "tangent_value": representative_value,
+            "tangent_intercept": float(representative_intercept),
+            "n_windows": int(len(tangent_slopes)),
+            "slope_std": float(np.std(tangent_slopes)),
+            "fraction_start": fraction_start,
+            "fraction_end": fraction_end,
+            "window_size": float(window_size),
+            "window_start_time_s": float(np.nanmin(x_selected)),
+            "window_end_time_s": float(np.nanmax(x_selected)),
+            "window_start_value": float(np.nanmin(y_selected)),
+            "window_end_value": float(np.nanmax(y_selected)),
+        }
+
+    def get_first_ascending_slope_to_fraction(
+        self,
+        data: pd.DataFrame,
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        fraction_of_max: float = 0.2,
+        range_method: Optional[str] = None,
+        delta_y: Optional[float] = None,
+        flexible: Optional[float] = None,
+        min_points: int = 4,
+        regex: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Find the first ascending segment from a configurable threshold strategy.
+
+        Range strategy ``range_method='fraction'``:
+        The segment ends at the first crossing point ``y >= fraction_of_max * max(y)`` and
+        starts at the nearest previous local minimum-like point detected by tracing left while
+        values are non-decreasing. Small isolated decreases (noise) are tolerated so
+        one outlier point does not abruptly truncate the segment.
+
+        Range strategy ``range_method='delta'``:
+        The segment starts at the minimum heat flow on the search interval and ends at the
+        first crossing of ``y >= min_heat_flow + delta_y``.
+
+        The threshold is computed from the full available curve. The segment detection itself
+        is restricted to times after ``cutoff_min`` (if configured).
+        """
+        try:
+            if not (0 < fraction_of_max <= 1):
+                raise ValueError("fraction_of_max must be in (0, 1].")
+
+            results = []
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                sample_params = self.processparams.resolve_for_sample(sample_short)
+
+                resolved_method = (
+                    range_method
+                    or sample_params.slope_analysis.first_ascending_range_method
+                    or "fraction"
+                ).lower()
+                if resolved_method not in ("fraction", "delta"):
+                    raise ValueError("range_method must be 'fraction' or 'delta'.")
+
+                sample_delta_y = (
+                    float(delta_y)
+                    if delta_y is not None
+                    else sample_params.slope_analysis.first_ascending_delta_y_w_g
+                )
+                if resolved_method == "delta" and sample_delta_y <= 0:
+                    raise ValueError("delta_y must be > 0 for range_method='delta'.")
+
+                sample_flexible = (
+                    float(flexible)
+                    if flexible is not None
+                    else sample_params.slope_analysis.flexible
+                )
+                if sample_flexible < 0:
+                    raise ValueError("flexible must be >= 0.")
+
+                cutoff_min = (
+                    sample_params.cutoff.cutoff_min
+                    if sample_params.cutoff.cutoff_min
+                    else 0
+                )
+                fraction_start = sample_params.slope_analysis.flank_fraction_start
+                fraction_end = sample_params.slope_analysis.flank_fraction_end
+                window_size = sample_params.slope_analysis.window_size
+
+                working_full = sample_data[
+                    [age_col, target_col, "sample", "sample_short"]
+                ].copy()
+                working_full = working_full.replace([np.inf, -np.inf], np.nan).dropna()
+                working_full = working_full.sort_values(age_col).reset_index(drop=True)
+
+                if len(working_full) < max(min_points, 3):
+                    continue
+
+                threshold_value = np.nan
+                threshold_basis = ""
+
+                working_search = working_full
+                if cutoff_min > 0:
+                    cutoff_s = cutoff_min * 60
+                    working_search = working_full[working_full[age_col] >= cutoff_s]
+
+                if len(working_search) < max(min_points, 3):
+                    continue
+
+                x = working_search[age_col].to_numpy(dtype=float)
+                y = working_search[target_col].to_numpy(dtype=float)
+
+                if not np.isfinite(y).any():
+                    continue
+
+                y_main_peak = float(np.nanmax(y))
+                if not np.isfinite(y_main_peak):
+                    continue
+
+                if resolved_method == "fraction":
+                    threshold_value = fraction_of_max * y_main_peak
+                    threshold_basis = "post_cutoff"
+                    crossing_indices = np.where(y >= threshold_value)[0]
+                else:
+                    base_delta_y = float(sample_delta_y)
+                    peak_delta_difference = max(y_main_peak - base_delta_y, 0.0)
+                    normalized_difference = (
+                        peak_delta_difference / base_delta_y
+                        if base_delta_y > 0
+                        else 0.0
+                    )
+                    delta_multiplier = 1.0 + float(
+                        sample_flexible
+                    ) * normalized_difference ** (0.5)
+                    effective_delta_y = base_delta_y * delta_multiplier
+
+                    running_min = np.minimum.accumulate(y)
+                    rise_over_running_min = y - running_min
+                    crossing_indices = np.where(
+                        rise_over_running_min >= effective_delta_y
+                    )[0]
+                    if len(crossing_indices) == 0:
+                        continue
+                    end_idx_candidate = int(crossing_indices[0])
+                    min_idx = int(np.argmin(y[: end_idx_candidate + 1]))
+                    min_value = float(y[min_idx])
+                    threshold_value = min_value + effective_delta_y
+                    threshold_basis = "min_plus_delta"
+                    crossing_indices = np.where(
+                        (np.arange(len(y)) >= min_idx) & (y >= threshold_value)
+                    )[0]
+
+                if len(crossing_indices) == 0:
+                    continue
+
+                end_idx = int(crossing_indices[0])
+
+                y_diff = np.diff(y)
+                if len(y_diff) > 0 and np.isfinite(y_diff).any():
+                    diff_median = float(np.nanmedian(y_diff))
+                    diff_mad = float(np.nanmedian(np.abs(y_diff - diff_median)))
+                    drop_tolerance = max(3.0 * diff_mad, np.finfo(float).eps)
+                else:
+                    drop_tolerance = np.finfo(float).eps
+
+                max_consecutive_drop_points = 1
+
+                if resolved_method == "delta":
+                    start_idx = int(np.nanargmin(y[: end_idx + 1]))
+                elif end_idx < 1:
+                    ascending_steps = np.where(np.diff(y) > 0)[0]
+                    if len(ascending_steps) == 0:
+                        continue
+                    start_idx = int(ascending_steps[0])
+                    end_idx = start_idx + 1
+                    drop_streak = 0
+                    while end_idx + 1 < len(y):
+                        delta = y[end_idx + 1] - y[end_idx]
+                        if delta >= -drop_tolerance:
+                            drop_streak = 0
+                            end_idx += 1
+                            continue
+                        drop_streak += 1
+                        if drop_streak <= max_consecutive_drop_points:
+                            end_idx += 1
+                            continue
+                        break
+                else:
+                    start_idx = end_idx
+                    drop_streak = 0
+                    while start_idx > 0:
+                        delta = y[start_idx] - y[start_idx - 1]
+                        if delta >= -drop_tolerance:
+                            drop_streak = 0
+                            start_idx -= 1
+                            continue
+                        drop_streak += 1
+                        if drop_streak <= max_consecutive_drop_points:
+                            start_idx -= 1
+                            continue
+                        break
+
+                if (end_idx - start_idx + 1) < min_points:
+                    if start_idx == 0:
+                        end_idx = min(len(y) - 1, start_idx + min_points - 1)
+                    else:
+                        start_idx = max(0, end_idx - min_points + 1)
+
+                if (end_idx - start_idx + 1) < 2:
+                    continue
+
+                seg_x = x[start_idx : end_idx + 1]
+                seg_y = y[start_idx : end_idx + 1]
+
+                tangent = self._calculate_segment_mean_tangent(
+                    seg_x,
+                    seg_y,
+                    fraction_start=fraction_start,
+                    fraction_end=fraction_end,
+                    window_size=window_size,
+                )
+                if tangent is None:
+                    continue
+
+                result = {
+                    "sample": working_search["sample"].iloc[0],
+                    "sample_short": sample_short,
+                    "first_ascending_range_method": resolved_method,
+                    "first_ascending_delta_y_w_g": float(sample_delta_y),
+                    "first_ascending_flexible": float(sample_flexible),
+                    "first_ascending_delta_y_multiplier": (
+                        float(delta_multiplier)
+                        if resolved_method == "delta"
+                        else np.nan
+                    ),
+                    "first_ascending_delta_y_effective_w_g": (
+                        float(effective_delta_y)
+                        if resolved_method == "delta"
+                        else np.nan
+                    ),
+                    "fraction_of_max": fraction_of_max,
+                    "fraction_threshold_value": threshold_value,
+                    "fraction_threshold_basis": threshold_basis,
+                    "first_ascending_start_time_s": float(x[start_idx]),
+                    "first_ascending_end_time_s": float(x[end_idx]),
+                    "first_ascending_start_value": float(y[start_idx]),
+                    "first_ascending_end_value": float(y[end_idx]),
+                    "first_ascending_slope": float(tangent["tangent_slope"]),
+                    "first_ascending_intercept": float(tangent["tangent_intercept"]),
+                    "first_ascending_tangent_time_s": float(tangent["tangent_time_s"]),
+                    "first_ascending_tangent_value": float(tangent["tangent_value"]),
+                    "first_ascending_n_windows": int(tangent["n_windows"]),
+                    "first_ascending_slope_std": float(tangent["slope_std"]),
+                    "first_ascending_fraction_start": float(tangent["fraction_start"]),
+                    "first_ascending_fraction_end": float(tangent["fraction_end"]),
+                    "first_ascending_window_size": float(tangent["window_size"]),
+                    "first_ascending_window_start_time_s": float(
+                        tangent["window_start_time_s"]
+                    ),
+                    "first_ascending_window_end_time_s": float(
+                        tangent["window_end_time_s"]
+                    ),
+                    "first_ascending_window_start_value": float(
+                        tangent["window_start_value"]
+                    ),
+                    "first_ascending_window_end_value": float(
+                        tangent["window_end_value"]
+                    ),
+                    "first_ascending_n_points": int(len(seg_x)),
+                }
+                results.append(result)
+
+            return pd.DataFrame(results)
+
+        except Exception as e:
+            raise DataProcessingException("get_first_ascending_slope_to_fraction", e)

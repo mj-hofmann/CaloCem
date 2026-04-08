@@ -1,7 +1,6 @@
 #%%
 from pathlib import Path
-from calocem.measurement import Measurement
-from calocem.processparams import ProcessingParameters
+from calocem import Measurement, ProcessingParameters
 
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
@@ -26,15 +25,9 @@ tam = Measurement(
     processparams=processparams
 )
 
-print(tam._data.head(10))
+print(tam.get_data().head(10))
 
 #%%
-
-onsets = tam.get_peak_onset_via_slope(
-    processparams=processparams,
-    show_plot=True,
-    plot_type="mean",
-    #regex=".*example[1-7].*",
-    #ax=ax,
-)
+tam.plot()
+slopes = tam.get_maximum_slope(processparams=processparams, show_plot=True)
 # %%

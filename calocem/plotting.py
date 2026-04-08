@@ -6,8 +6,10 @@ import logging
 import pathlib
 from typing import Optional
 
+import matplotlib as mpl
 import matplotlib.axes
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 import numpy as np
 import pandas as pd
 
@@ -16,6 +18,7 @@ from .exceptions import DataProcessingException
 
 logger = logging.getLogger(__name__)
 
+mpl.rcParams["font.family"] = "serif"
 
 class SimplePlotter:
     """Simplified plotting functionality."""
@@ -92,7 +95,7 @@ class SimplePlotter:
 
                 # Apply unit conversions
                 plot_data = sample_data.copy()
-                plot_data["time_s"] = plot_data["time_s"] * x_factor
+                plot_data = plot_data.assign(time_s=plot_data["time_s"] * x_factor)
 
                 # Convert heat columns
                 heat_cols = [col for col in plot_data.columns if "heat" in col]
@@ -130,7 +133,7 @@ class SimplePlotter:
                 fig, ax = plt.subplots(figsize=(10, 6))
 
             # Plot main data
-            ax.plot(data[age_col], data[target_col], label=sample)
+            ax.plot(data[age_col], data[target_col], label=data["sample_short"].iloc[0])
 
             # Mark peaks
             if len(peaks) > 0:
@@ -293,6 +296,8 @@ class SimplePlotter:
         analysis_type: str = "mean",
         results: Optional[pd.DataFrame] = None,
         figsize: tuple = (8, 5),
+        metadata: Optional[pd.DataFrame] = None,
+        metadata_id: Optional[str] = None,
     ):
         """
         Unified plotting method for tangent-based analysis results.
@@ -320,14 +325,47 @@ class SimplePlotter:
             DataFrame containing analysis results
         figsize : tuple
             Figure size for the plot
+        metadata : pd.DataFrame, optional
+            Metadata DataFrame for enriching plot titles
+        metadata_id : str, optional
+            Column name in metadata that matches sample names
         """
         try:
             if ax is None:
-                fig, ax = plt.subplots(figsize=figsize)
+                fig_size = (
+                    processparams.plotting.figsize
+                    if hasattr(processparams, "plotting")
+                    else figsize
+                )
+                fig, ax = plt.subplots(figsize=fig_size)
 
             # Plot main data
+            if processparams.plotting.time_unit == "seconds":
+                time_correction_factor = 1.0
+                time_unit = "s"
+                decimal_number_format = "{:,.0f}"
+            elif processparams.plotting.time_unit == "minutes":
+                time_correction_factor = 1 / 60.0
+                time_unit = "min"
+                decimal_number_format = "{:,.1f}"
+            elif processparams.plotting.time_unit == "hours":
+                time_correction_factor = 1 / 3600.0
+                time_unit = "h"
+                decimal_number_format = "{:,.2f}"
+
+            if processparams.plotting.heat_unit == "W":
+                heat_correction_factor = 1.0
+                heat_unit = "W"
+            elif processparams.plotting.heat_unit == "mW":
+                heat_correction_factor = 1000.0
+                heat_unit = "mW"
+
             ax.plot(
-                data[age_col], data[target_col], color="gray", alpha=0.7, label="Data"
+                data[age_col] * time_correction_factor,
+                data[target_col] * heat_correction_factor,
+                color="gray",
+                alpha=0.7,
+                label="Data",
             )
 
             # Show cutoff line if data was filtered
@@ -342,7 +380,7 @@ class SimplePlotter:
                         label=f"Cutoff: {cutoff_time_min:,.0f} min",
                     )
 
-            if analysis_type == "max" or analysis_type == "mean":
+            if analysis_type in ("max", "mean", "ascending"):
                 self._plot_onset_intersection_elements(
                     ax,
                     data,
@@ -352,18 +390,45 @@ class SimplePlotter:
                     age_col,
                     target_col,
                     analysis_type,
+                    time_correction_factor=time_correction_factor,
+                    time_unit=time_unit,
+                    decimal_number_format=decimal_number_format,
+                    heat_correction_factor=heat_correction_factor,
+                    heat_unit=heat_unit,
+                    metadata=metadata,
+                    metadata_id=metadata_id,
                 )
             else:
                 raise ValueError(f"Unknown analysis_type: {analysis_type}")
 
-            ax.set_xlabel("Time / s")
-            ax.set_ylabel("Normalized Heat Flow / W$g^{-1}$")
+            ax.set_xlabel(f"Time / {time_unit}")
+            ax.set_ylabel(f"Normalized Heat Flow / {heat_unit}g$^{-1}$")
 
-            ax.legend(loc="best", labelspacing=0.1, fontsize=8)
-            max_time = results.peak_time_s.values[0] * 4
-            if max_time < data[age_col].max():
-                ax.set_xlim(right=max_time)
-            ax.set_ylim(bottom=-5e-5)
+            legend_loc = processparams.plotting.legend_pos if hasattr(processparams.plotting, "legend_pos") else "best"
+            if legend_loc == "best":
+                ax.legend(loc=legend_loc, labelspacing=0.1, fontsize=8)
+            elif legend_loc == "outside":
+                ax.legend(
+                    bbox_to_anchor=(1.01, 1),
+                    loc="upper left",
+                    borderaxespad=0.0,
+                    labelspacing=0.1,
+                    fontsize=8,
+                )
+            else:
+                print(f"Unknown legend position: {legend_loc}, defaulting to 'best'")
+                ax.legend(loc="best", labelspacing=0.1, fontsize=8)
+
+            if not processparams.plotting.xlims:
+                if "peak_time_s" in results.columns and pd.notna(results["peak_time_s"].iloc[0]):
+                    max_time = results.peak_time_s.values[0] * 4
+                    if max_time < data[age_col].max():
+                        ax.set_xlim(right=max_time * time_correction_factor)
+                ax.set_ylim(bottom=-5e-5)
+
+            else:
+                ax.set_xlim(processparams.plotting.xlims)
+                ax.set_ylim(processparams.plotting.ylims)
 
             return ax
 
@@ -544,162 +609,321 @@ class SimplePlotter:
         data: pd.DataFrame,
         results: Optional[pd.DataFrame],
         processparams,
-        # max_slopes: Optional[pd.DataFrame],
-        # dormant_hfs: Optional[pd.DataFrame],
-        # onsets: Optional[pd.DataFrame],
         sample: str,
         age_col: str,
         target_col: str,
         analysis_type: str,
-        # intersection: str,
+        time_correction_factor: float = 1.0,
+        time_unit: str = "seconds",
+        decimal_number_format: str = "{:,.2f}",
+        heat_correction_factor: float = 1.0,
+        heat_unit: str = "W",
+        metadata: Optional[pd.DataFrame] = None,
+        metadata_id: Optional[str] = None,
     ):
         """Plot elements specific to onset intersection analysis."""
         if results is None:
             raise ValueError(
-                "max_slopes and onsets required for onset_intersection analysis"
+                "results required for onset_intersection analysis"
             )
 
         # Get sample-specific data
         sample_results = results[results["sample_short"] == sample]
-        # sample_dormant = (
-        #     dormant_hfs[dormant_hfs["sample_short"] == sample]
-        #     if dormant_hfs is not None
-        #     else pd.DataFrame()
-        # )
-        # sample_onset = onsets[onsets["sample"] == sample]
 
         if sample_results.empty:
             ax.set_title(f"No data available for sample: {sample}")
             return
 
-        # Extract slope characteristics
-        if analysis_type == "max":
-            slope_time = results["max_slope_time_s"].iloc[0]
-            slope_value = results["normalized_heat_flow_w_g_at_max_slope"].iloc[0]
-            gradient = results["gradient_from_max_slope"].iloc[0]
-            onset_time = results["onset_time_s_from_max_slope"].iloc[0]
-            intersection_abscissa = results["onset_time_s_max_slope_abscissa"].iloc[0]
-            flank_start_value = None
-            flank_end_value = None
+        # Define column mapping based on analysis type
+        col_map = {
+            "max": {
+                "time": "max_slope_time_s",
+                "val": "normalized_heat_flow_w_g_at_max_slope",
+                "grad": "gradient_from_max_slope",
+                "onset": "onset_time_s_from_max_slope",
+                "abscissa": "onset_time_s_max_slope_abscissa",
+            },
+            "mean": {
+                "time": "mean_slope_time_s",
+                "val": "normalized_heat_flow_w_g_at_mean_slope",
+                "grad": "gradient_of_mean_slope",
+                "onset": "onset_time_s_from_mean_slope",
+                "abscissa": "onset_time_s_from_mean_slope_abscissa",
+            },
+            "ascending": {
+                "time": "first_ascending_mean_slope_time_s",
+                "val": "normalized_heat_flow_w_g_at_first_ascending_mean_slope",
+                "grad": "gradient_of_first_ascending_slope_to_fraction_of_max",
+                "onset": "onset_time_s_from_first_ascending_slope",
+                "abscissa": "onset_time_s_from_first_ascending_slope_abscissa",
+            },
+        }
 
-        elif analysis_type == "mean":
-            slope_time = results["mean_slope_time_s"].iloc[0]
-            slope_value = results["normalized_heat_flow_w_g_at_mean_slope"].iloc[0]
-            gradient = results["gradient_of_mean_slope"].iloc[0]
-            onset_time = results["onset_time_s_from_mean_slope"].iloc[0]
-            intersection_abscissa = results["onset_time_s_from_mean_slope_abscissa"].iloc[0]
-            flank_start_value = results["flank_start_value"].iloc[0]
-            flank_end_value = results["flank_end_value"].iloc[0]
+        if analysis_type not in col_map:
+            raise ValueError(f"Unknown analysis_type: {analysis_type}")
 
-        peak_time = results["peak_time_s"].iloc[0]
-        peak_heatflow = results["normalized_heat_flow_w_g_at_peak"].iloc[0]
-        dormant_minimum_time = results["dorm_time_s"].iloc[0]
-        onset_heat_flow = results["normalized_heat_flow_w_g_dormant"].iloc[0]
+        cols = col_map[analysis_type]
+        res = sample_results.iloc[0]
 
-        # Plot maximum slope point
-        ax.scatter(
-            slope_time,
-            slope_value,
-            # color="orange",
-            c="orange",
-            s=30,
-            label=f"{analysis_type.title()} Slope",
-            zorder=5,
+        # Extract and scale values
+        slope_time_raw = res.get(cols["time"], np.nan)
+        slope_value_raw = res.get(cols["val"], np.nan)
+        gradient_raw = res.get(cols["grad"], np.nan)
+        onset_time_raw = res.get(cols["onset"], np.nan)
+        intersection_abscissa_raw = res.get(cols["abscissa"], np.nan)
+
+        if pd.isna(slope_time_raw) or pd.isna(slope_value_raw) or pd.isna(gradient_raw):
+            ax.set_title(f"Incomplete data for sample: {sample}")
+            return
+
+        slope_time = slope_time_raw * time_correction_factor
+        slope_value = slope_value_raw * heat_correction_factor
+        gradient = gradient_raw / time_correction_factor * heat_correction_factor
+        onset_time = (
+            onset_time_raw * time_correction_factor if pd.notna(onset_time_raw) else np.nan
         )
-        # Calculate and plot tangent line
+        intersection_abscissa = (
+            intersection_abscissa_raw * time_correction_factor
+            if pd.notna(intersection_abscissa_raw)
+            else np.nan
+        )
+
+        peak_time_raw = res.get("peak_time_s", np.nan)
+        peak_heatflow_raw = res.get("normalized_heat_flow_w_g_at_peak", np.nan)
+        peak_time = peak_time_raw * time_correction_factor if pd.notna(peak_time_raw) else data[age_col].max() * time_correction_factor
+        peak_heatflow = peak_heatflow_raw * heat_correction_factor if pd.notna(peak_heatflow_raw) else data[target_col].max() * heat_correction_factor
+        onset_heat_flow_raw = res.get("normalized_heat_flow_w_g_dormant", np.nan)
+        onset_heat_flow = onset_heat_flow_raw * heat_correction_factor if pd.notna(onset_heat_flow_raw) else np.nan
+
+
+        # Plot tangent line
         tangent_intercept = slope_value - gradient * slope_time
-
-        # get x_start from processparams.slope_analysis.flank_fraction_start
-        flank_fraction_start = processparams.slope_analysis.flank_fraction_start
-        flank_fraction_end = processparams.slope_analysis.flank_fraction_end
-        # get time_s for the flank_fraction_start
-        hf_start = float(results.normalized_heat_flow_w_g_dormant.values[0]) + (
-            float(results.normalized_heat_flow_w_g_at_peak.values[0])
-            - float(results.normalized_heat_flow_w_g_dormant.values[0])
-        ) * float(flank_fraction_start)
-        hf_end = float(results.normalized_heat_flow_w_g_dormant.values[0]) + (
-            float(results.normalized_heat_flow_w_g_at_peak.values[0])
-            - float(results.normalized_heat_flow_w_g_dormant.values[0])
-        ) * float(flank_fraction_end)
-        # find the first time after the dormant period where hf >= hf_start
-        dorm_time_s = (
-            float(results.dorm_time_s.values[0]) if "dorm_time_s" in results else 0.0
-        )
-        start_time_s = self._find_time_for_hf_after_dorm(
-            data, hf_start, dorm_time_s, age_col=age_col, target_col=target_col
-        )
-
-        end_time_s = self._find_time_for_hf_after_dorm(
-            data, hf_end, dorm_time_s, age_col=age_col, target_col=target_col
-        )
-
-        x_start = 0
-        x_end = peak_time  #slope_time + slope_time * 0.25
-        x_tangent = np.linspace(x_start, x_end, 100)
+        x_tangent = np.linspace(0, peak_time, 100)
         y_tangent = gradient * x_tangent + tangent_intercept
 
+        # Mask tangent to stay within reasonable bounds
         mask = (y_tangent <= peak_heatflow) & (y_tangent >= 0)
-        x_tangent = x_tangent[mask]
-        y_tangent = y_tangent[mask]
-
         ax.plot(
-            x_tangent,
-            y_tangent,
+            x_tangent[mask],
+            y_tangent[mask],
             color="orange",
             linestyle="--",
             linewidth=2,
             alpha=0.8,
-            label=f"{analysis_type.title()} Grad. {gradient:.2e} W/(gs)",
+            label=f"{analysis_type.title()} Gradient:\n{gradient:.2e} W/(g·{time_unit})",
         )
 
-        if (
-            analysis_type == "mean"
-            and flank_start_value is not None
-            and flank_end_value is not None
-        ):
-            # If no valid start_time_s was found fall back to a reasonable window
+        # Handle mean slope specific fill area
+        if analysis_type == "mean":
+            flank_start_val = res["flank_start_value"] * heat_correction_factor
+            flank_end_val = res["flank_end_value"] * heat_correction_factor
+
+            # Calculate start/end times for fill based on flank fractions
+            raw_dormant = res["normalized_heat_flow_w_g_dormant"]
+            raw_peak = res["normalized_heat_flow_w_g_at_peak"]
+            
+            hf_start = raw_dormant + (raw_peak - raw_dormant) * float(
+                processparams.slope_analysis.flank_fraction_start
+            )
+            hf_end = raw_dormant + (raw_peak - raw_dormant) * float(
+                processparams.slope_analysis.flank_fraction_end
+            )
+            
+            dorm_time_s = res["dorm_time_s"] if "dorm_time_s" in res else 0.0
+            
+            start_time_s = self._find_time_for_hf_after_dorm(
+                data, hf_start, dorm_time_s, age_col=age_col, target_col=target_col
+            )
+            end_time_s = self._find_time_for_hf_after_dorm(
+                data, hf_end, dorm_time_s, age_col=age_col, target_col=target_col
+            )
+
+            # Fallback if start time not found
             if start_time_s is None:
+                raw_slope_time = res[cols["time"]]
                 start_time_s = max(
                     data[age_col].min(),
-                    slope_time - 0.5 * (slope_time - data[age_col].min()),
+                    raw_slope_time - 0.5 * (raw_slope_time - data[age_col].min()),
                 )
 
-            # Create fill data that includes the pre-flank region
             fill_data = data[
                 (data[age_col] >= start_time_s) & (data[age_col] <= end_time_s)
             ]
-
             if not fill_data.empty:
                 ax.fill_between(
-                    fill_data[age_col],
-                    flank_start_value,
-                    flank_end_value,
+                    fill_data[age_col] * time_correction_factor,
+                    flank_start_val,
+                    flank_end_val,
                     alpha=0.3,
                     color="orange",
-                    label="y-vals averaged",
+                    label="y-val range averaged",
                 )
 
-        if not pd.isna(intersection_abscissa) and intersection_abscissa is not None:
+            first_ascending_slope = res.get(
+                "gradient_of_first_ascending_slope_to_fraction_of_max", np.nan
+            )
+            first_ascending_start_time = res.get(
+                "first_ascending_slope_start_time_s", np.nan
+            )
+            first_ascending_end_time = res.get(
+                "first_ascending_slope_end_time_s", np.nan
+            )
+            first_ascending_start_value = res.get(
+                "normalized_heat_flow_w_g_at_first_ascending_slope_start", np.nan
+            )
+            first_ascending_mean_time = res.get(
+                "first_ascending_mean_slope_time_s", np.nan
+            )
+            first_ascending_mean_value = res.get(
+                "normalized_heat_flow_w_g_at_first_ascending_mean_slope", np.nan
+            )
+            first_ascending_fraction = res.get(
+                "fraction_of_max_for_first_ascending_slope", np.nan
+            )
+
+            if (
+                pd.notna(first_ascending_slope)
+                and pd.notna(first_ascending_start_time)
+                and pd.notna(first_ascending_end_time)
+                and pd.notna(first_ascending_start_value)
+                and first_ascending_end_time > first_ascending_start_time
+            ):
+                first_slope = (
+                    first_ascending_slope / time_correction_factor * heat_correction_factor
+                )
+                first_start_t = first_ascending_start_time * time_correction_factor
+                first_end_t = first_ascending_end_time * time_correction_factor
+                if pd.notna(first_ascending_mean_time) and pd.notna(first_ascending_mean_value):
+                    first_anchor_t = first_ascending_mean_time * time_correction_factor
+                    first_anchor_v = first_ascending_mean_value * heat_correction_factor
+                else:
+                    first_anchor_t = first_start_t
+                    first_anchor_v = first_ascending_start_value * heat_correction_factor
+
+                first_intercept = first_anchor_v - first_slope * first_anchor_t
+
+                x_first_tangent = np.linspace(first_start_t, first_end_t, 100)
+                y_first_tangent = first_slope * x_first_tangent + first_intercept
+
+                fraction_label = ""
+                if pd.notna(first_ascending_fraction):
+                    fraction_label = f" ({100 * float(first_ascending_fraction):.0f}% max)"
+
+                ax.plot(
+                    x_first_tangent,
+                    y_first_tangent,
+                    color="purple",
+                    linestyle="--",
+                    linewidth=2,
+                    alpha=0.9,
+                    label=(
+                        "First Ascending Tangent"
+                        f"{fraction_label}:\n{first_slope:.2e} W/(g·{time_unit})"
+                    ),
+                )
+
+                ax.scatter(
+                    [first_start_t, first_end_t],
+                    [
+                        first_slope * first_start_t + first_intercept,
+                        first_slope * first_end_t + first_intercept,
+                    ],
+                    c="purple",
+                    s=20,
+                    zorder=5,
+                    label="First ascending segment",
+                )
+
+
+        # Helper for formatted labels
+        def fmt_lbl(name, val, unit):
+            return rf"${name}$: {decimal_number_format.format(val)} {unit}".replace(
+                ",", "\u2009"
+                # ",", ";"
+            )
+
+        # Plot Standard Markers (ASTM, Max Slope, Peak)
+        markers = [
+            ("peak_time_s", "normalized_heat_flow_w_g_at_peak", "mD", "t_{peak}"),
+            ("max_slope_time_s", "normalized_heat_flow_w_g_at_max_slope", "c^", "t_{max\; slope}"),
+            ("astm_time_s", "normalized_heat_flow_w_g_astm", "gs", "t_{ASTM\; C1679}"),
+        ]
+
+        for t_col, v_col, style, label_name in markers:
+            t_raw = res.get(t_col, np.nan)
+            v_raw = res.get(v_col, np.nan)
+            if pd.notna(t_raw) and pd.notna(v_raw):
+                t_val = t_raw * time_correction_factor
+                v_val = v_raw * heat_correction_factor
+                ax.plot(
+                    t_val,
+                    v_val,
+                    style,
+                    alpha=0.7,
+                    label=fmt_lbl(label_name, t_val, time_unit),
+                )
+        
+        # Plot slope point
+        ax.scatter(
+            slope_time,
+            slope_value,
+            c="orange",
+            s=30,
+            label=fr"$t_{{{analysis_type}\ slope}}$: {decimal_number_format.format(slope_time)} {time_unit}, ",
+            zorder=5,
+        )
+
+        if analysis_type == "ascending":
+            frac_start_time = res.get("first_ascending_window_start_time_s", np.nan)
+            frac_end_time = res.get("first_ascending_window_end_time_s", np.nan)
+            frac_start_value = res.get("first_ascending_window_start_value", np.nan)
+            frac_end_value = res.get("first_ascending_window_end_value", np.nan)
+
+            if pd.notna(frac_start_time) and pd.notna(frac_start_value):
+                ax.scatter(
+                    frac_start_time * time_correction_factor,
+                    frac_start_value * heat_correction_factor,
+                    c="purple",
+                    marker="o",
+                    s=36,
+                    zorder=6,
+                    label="First ascending fraction start",
+                )
+
+            if pd.notna(frac_end_time) and pd.notna(frac_end_value):
+                ax.scatter(
+                    frac_end_time * time_correction_factor,
+                    frac_end_value * heat_correction_factor,
+                    c="purple",
+                    marker="s",
+                    s=36,
+                    zorder=6,
+                    label="First ascending fraction end",
+                )
+
+
+
+        # Plot Abscissa Intersection
+        if not pd.isna(intersection_abscissa):
             ax.plot(
                 intersection_abscissa,
                 0,
                 "k*",
                 markersize=7,
                 alpha=0.7,
-                label=rf"$t_{{onset,abscissa}}$: {intersection_abscissa:,.0f} s".replace(
-                    ",", "\u2009"
-                ),
+                label=fmt_lbl("t_{onset,abscissa}", intersection_abscissa, time_unit),
+                clip_on=False,
             )
 
-        if onset_time is not None and not np.isnan(onset_time):
+
+        # Plot Onset Point
+        if onset_time is not None and not np.isnan(onset_time) and pd.notna(onset_heat_flow):
             ax.plot(
                 onset_time,
                 onset_heat_flow,
                 "rv",
                 markersize=6,
-                label=rf"$t_{{onset,dormant}}$: {onset_time:,.0f} s".replace(
-                    ",", "\u2009"
-                ),
+                label=fmt_lbl("t_{onset,dormant}", onset_time, time_unit),
                 zorder=5,
             )
             ax.axhline(
@@ -707,63 +931,56 @@ class SimplePlotter:
                 color="orange",
                 linestyle=":",
                 alpha=1,
-                label=rf"$\dot{{Q}}_{{dormant}}$: {onset_heat_flow:.2e} W/g",
+                label=rf"$\dot{{Q}}_{{dormant}}$: {decimal_number_format.format(onset_heat_flow)} W/g",
             )
-
         else:
-            # Fallback when onset_time is None or NaN
+            # Fallback
             ax.axhline(
                 0, color="orange", linestyle=":", alpha=0.8, label="Abscissa (y=0)"
             )
-            if intersection_abscissa is not None and not np.isnan(
-                intersection_abscissa
-            ):
+            if not pd.isna(intersection_abscissa):
                 ax.plot(
                     intersection_abscissa,
                     0,
                     "ro",
                     markersize=6,
-                    label=rf"$t_{{onset,abcissa}}$: {intersection_abscissa:,.0f} s".replace(
-                        ",", "\u2009"
-                    ),
+                    label=fmt_lbl("t_{onset,abcissa}", intersection_abscissa, time_unit),
                     zorder=5,
                 )
 
-        if results["astm_time_s"] is not None:
-            astm_time = results["astm_time_s"].values[0]
-            ax.plot(
-                results["astm_time_s"],
-                results["normalized_heat_flow_w_g_astm"],
-                "gs",
-                alpha=0.7,
-                label=rf"$t_{{ASTM\; C1679}}$: {astm_time:,.0f} s".replace(
-                    ",", "\u2009"
-                ),
-            )
 
-        if results["max_slope_time_s"] is not None:
-            max_slope_time = results["max_slope_time_s"].values[0]
-            ax.plot(
-                results["max_slope_time_s"],
-                results["normalized_heat_flow_w_g_at_max_slope"],
-                "c^",
-                alpha=0.7,
-                label=rf"$t_{{max\; slope}}$: {max_slope_time:,.0f} s".replace(
-                    ",", "\u2009"
-                ),
-            )
+        if processparams.plotting.show_plot_title:
+            title = f"{sample}"
+            
+            # Add metadata to title if available and configured
+            if (metadata is not None and not metadata.empty and 
+                metadata_id and hasattr(processparams.plotting, 'plot_title')):
+                
+                plot_title_cols = processparams.plotting.plot_title
+                
+                # Handle string input (comma-separated)
+                if isinstance(plot_title_cols, str):
+                    plot_title_cols = [col.strip() for col in plot_title_cols.split(',')]
+                
+                if isinstance(plot_title_cols, list) and len(plot_title_cols) > 0:
+                    # Find matching metadata row
+                    sample_metadata = metadata[metadata[metadata_id] == sample]
+                    
+                    if not sample_metadata.empty:
+                        metadata_parts = []
+                        for col in plot_title_cols:
+                            if col in sample_metadata.columns:
+                                value = sample_metadata.iloc[0][col]
+                                colname = col.replace("_", " ").title()
+                                if pd.notna(value):
+                                    metadata_parts.append(f"{value}")
+                            else:
+                                metadata_parts.append(str(col))
+                        
+                        if metadata_parts:
+                            title = f"{' '.join(metadata_parts)}"
 
-        if results["peak_time_s"] is not None:
-            peak_time = results["peak_time_s"].values[0]
-            ax.plot(
-                results["peak_time_s"],
-                results["normalized_heat_flow_w_g_at_peak"],
-                "mD",
-                alpha=0.7,
-                label=rf"$t_{{peak}}$: {peak_time:,.0f} s".replace(",", "\u2009"),
-            )
-
-        ax.set_title(f"C3S Peak Analysis - {sample}")
+            ax.set_title(title, fontsize=9)
 
         return ax
 
@@ -793,6 +1010,65 @@ class SimplePlotter:
             tangent_results=tangent_results,
             figsize=(7, 5),
         )
+
+    def plot_astm_c1679(
+        self,
+        data: pd.DataFrame,
+        results: pd.DataFrame,
+        ax: Optional[matplotlib.axes.Axes] = None,
+        xunit: str = "h",
+    ) -> matplotlib.axes.Axes:
+        """Plot heat flow curves with ASTM C1679 characteristic points marked.
+
+        Each sample's heat flow curve is drawn, with a square marker at the
+        half-maximum point determined by the ASTM C1679 procedure.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Full measurement data containing time_s and normalized_heat_flow_w_g.
+        results : pd.DataFrame
+            Output of get_astm_c1679_characteristics(), containing astm_time_s
+            and normalized_heat_flow_w_g_astm per sample.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. A new figure is created when not provided.
+        xunit : str
+            Time unit for the x-axis: 's', 'min', 'h', or 'd'.
+        """
+        unit_conversions = {
+            "s": (1.0, "Time [s]"),
+            "min": (1 / 60, "Time [min]"),
+            "h": (1 / 3600, "Time [h]"),
+            "d": (1 / (24 * 3600), "Time [d]"),
+        }
+        x_factor, x_label = unit_conversions.get(xunit, (1.0, "Time [s]"))
+
+        if ax is None:
+            _, ax = plt.subplots(figsize=(10, 6))
+
+        for _, row in results.iterrows():
+            sample_data = data[data["sample_short"] == row["sample_short"]]
+            (line,) = ax.plot(
+                sample_data["time_s"] * x_factor,
+                sample_data["normalized_heat_flow_w_g"],
+                label=row["sample_short"],
+            )
+            ax.plot(
+                row["astm_time_s"] * x_factor,
+                row["normalized_heat_flow_w_g_astm"],
+                marker="s",
+                color=line.get_color(),
+                markersize=8,
+                linestyle="none",
+                zorder=5,
+                label=f"{row['sample_short']} (ASTM C1679)",
+            )
+
+        ax.set_xlabel(x_label)
+        ax.set_ylabel("Normalized Heat Flow / [W/g]")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        return ax
 
     def plot_onset_intersections(
         self,

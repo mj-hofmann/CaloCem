@@ -1,6 +1,6 @@
 # %%
 import matplotlib.pyplot as plt
-from calocem.measurement import Measurement
+from calocem import Measurement
 from pathlib import Path
 
 datapath = Path(__file__).parent.parent / "calocem" / "DATA"
@@ -11,7 +11,7 @@ plotpath = Path(__file__).parent.parent / "docs" / "assets"
 # experiments via class
 tam = Measurement(
     folder=datapath,
-    regex="calorimetry_data_[1].csv",
+    regex="calorimetry_data_[7].csv",
     show_info=True,
     auto_clean=False,
     cold_start=True,

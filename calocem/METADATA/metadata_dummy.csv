@@ -1,0 +1,6 @@
+sample_code,file_name,operator,date,cement_name,cement_amount_g,water_amount_g
+sample1,peak_detection_example1,schmidt,01.02.2024,A,100,50
+sample2,peak_detection_example2,schmidt,02.02.2024,A,100,40
+sample3,peak_detection_example3,schmidt,03.02.2024,A,100,30
+sample4,peak_detection_example4,schmidt,05.02.2024,B,100,50
+sample5,peak_detection_example5,schmidt,12.05.2024,B,100,40

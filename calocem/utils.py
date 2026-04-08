@@ -222,15 +222,32 @@ def convert_df_to_float(df: pd.DataFrame) -> pd.DataFrame:
 
     """
 
-    # type conversion
+    # Build a new DataFrame column-by-column to avoid pandas CoW warnings.
+    # Empty strings (including whitespace-only cells) are treated as missing values.
+    result = {}
     for c in df.columns:
-        # safe type conversion of the columns to float if possible
-        try:
-            df[c] = df[c].astype(float)
-        except (ValueError, TypeError):
-            pass
+        col = df[c]
 
-    return df
+        # Keep direct numeric conversion path for already numeric dtypes.
+        if pd.api.types.is_numeric_dtype(col):
+            result[c] = col.astype(float)
+            continue
+
+        # Normalize empty strings to NaN before conversion attempts.
+        normalized = col.replace(r"^\s*$", np.nan, regex=True)
+        numeric = pd.to_numeric(normalized, errors="coerce")
+
+        # Convert column if it contains numeric content, or if it is entirely empty.
+        non_empty_values = normalized.notna().sum()
+        has_numeric_values = numeric.notna().sum() > 0
+        is_only_empty = non_empty_values == 0
+
+        if has_numeric_values or is_only_empty:
+            result[c] = numeric.astype(float)
+        else:
+            result[c] = col
+
+    return pd.DataFrame(result)
 
 
 def fit_univariate_spline(df, target_col, s=1e-6):
@@ -249,7 +266,7 @@ def fit_univariate_spline(df, target_col, s=1e-6):
         DESCRIPTION. The default is 1e-6.
 
     """
-    df[target_col].fillna(0, inplace=True)
+    df[target_col] = df[target_col].fillna(0)
     spl = UnivariateSpline(df["time_s"], df[target_col], s=s)
     df["interpolated"] = spl(df["time_s"])
     # cut off last 100 points to avoid large gradient detection due to potential interpolation artifacts at the end of the data
@@ -382,7 +399,7 @@ def prepare_tab_columns(df,file):
 
 def parse_rowwise_data(data):
     # get "column" count
-    data["count"] = [len(i) for i in data[0].str.split(",")]
+    data.loc[:, "count"] = [len(i) for i in data[0].str.split(",")]
 
     # check if all count are the same
     if len(data["count"].value_counts()) > 1:    
@@ -422,12 +439,13 @@ def parse_rowwise_data(data):
 
 
 def make_equidistant(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.reset_index(drop=True)
-    df["td"] = pd.to_timedelta(df["time_s"], unit="s")
+    df = df.reset_index(drop=True).copy()
+    df.loc[:, "td"] = pd.to_timedelta(df["time_s"], unit="s")
     resample = df.resample("10s", on="td")
     string_cols = df.select_dtypes(include="object").columns
     num_cols = df.select_dtypes(include="number").columns
-    resampled_stringcols = resample[string_cols].first().ffill()
+    with pd.option_context("future.no_silent_downcasting", True):
+        resampled_stringcols = resample[string_cols].first().ffill()
     resampled_numcols = resample[num_cols].mean().interpolate()
     df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
     return df
