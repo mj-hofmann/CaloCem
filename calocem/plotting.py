@@ -498,6 +498,8 @@ class SimplePlotter:
         figsize: tuple = (8, 5),
         metadata: Optional[pd.DataFrame] = None,
         metadata_id: Optional[str] = None,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """
         Unified plotting method for tangent-based analysis results.
@@ -597,6 +599,8 @@ class SimplePlotter:
                     heat_unit=heat_unit,
                     metadata=metadata,
                     metadata_id=metadata_id,
+                    monochrome=monochrome,
+                    marker_size=marker_size,
                 )
             else:
                 raise ValueError(f"Unknown analysis_type: {analysis_type}")
@@ -820,8 +824,68 @@ class SimplePlotter:
         heat_unit: str = "W",
         metadata: Optional[pd.DataFrame] = None,
         metadata_id: Optional[str] = None,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """Plot elements specific to onset intersection analysis."""
+        # Color / marker style helpers driven by monochrome flag
+        def mc(color):
+            return "black" if monochrome else color
+
+        def mc_line_color(default_color: str) -> str:
+            """Tangent / line color: gray in monochrome mode."""
+            return "gray" if monochrome else default_color
+
+        def mc_fill_color(default_color: str) -> str:
+            """Fill-area color: lightgray in monochrome mode."""
+            return "lightgray" if monochrome else default_color
+
+        def strip_style_color(style: str) -> str:
+            """Drop leading single-letter matplotlib color from a style string."""
+            if not style:
+                return style
+            color_letters = set("bgrcmykw")
+            if style[0] in color_letters:
+                return style[1:]
+            return style
+
+        def mc_style(style):
+            # matplotlib short-format style strings start with a single-letter color
+            if not monochrome or not style:
+                return style
+            color_letters = set("bgrcmykw")
+            if style[0] in color_letters:
+                return "k" + style[1:]
+            return style
+
+        def mc_marker_plot(style):
+            """Return (style, extra_kwargs) for an ax.plot() marker call.
+
+            In monochrome mode markers are drawn with white fill and black edge.
+            """
+            if not monochrome:
+                return style, {}
+            return strip_style_color(style), {
+                "markerfacecolor": "white",
+                "markeredgecolor": "black",
+                "markeredgewidth": 1.0,
+            }
+
+        def mc_scatter_kwargs(default_color: str) -> dict:
+            """Return kwargs for ax.scatter() honoring monochrome mode."""
+            if monochrome:
+                return {
+                    "facecolors": "white",
+                    "edgecolors": "black",
+                    "linewidths": 1.0,
+                }
+            return {"c": default_color}
+
+        def s_size(size):
+            return size * marker_size
+
+        def m_size(size):
+            return size * marker_size
         if results is None:
             raise ValueError(
                 "results required for onset_intersection analysis"
@@ -906,7 +970,7 @@ class SimplePlotter:
         ax.plot(
             x_tangent[mask],
             y_tangent[mask],
-            color="orange",
+            color="black" if monochrome else "orange",
             linestyle="--",
             linewidth=2,
             alpha=0.8,
@@ -954,8 +1018,8 @@ class SimplePlotter:
                     fill_data[age_col] * time_correction_factor,
                     flank_start_val,
                     flank_end_val,
-                    alpha=0.3,
-                    color="orange",
+                    alpha=0.45 if monochrome else 0.3,
+                    color="darkgray" if monochrome else "orange",
                     label="y-val range averaged",
                 )
 
@@ -1012,7 +1076,7 @@ class SimplePlotter:
                 ax.plot(
                     x_first_tangent,
                     y_first_tangent,
-                    color="purple",
+                    color=mc_line_color("purple"),
                     linestyle="--",
                     linewidth=2,
                     alpha=0.9,
@@ -1028,10 +1092,10 @@ class SimplePlotter:
                         first_slope * first_start_t + first_intercept,
                         first_slope * first_end_t + first_intercept,
                     ],
-                    c="purple",
-                    s=20,
+                    s=s_size(20),
                     zorder=5,
                     label="First ascending segment",
+                    **mc_scatter_kwargs("purple"),
                 )
 
 
@@ -1055,22 +1119,25 @@ class SimplePlotter:
             if pd.notna(t_raw) and pd.notna(v_raw):
                 t_val = t_raw * time_correction_factor
                 v_val = v_raw * heat_correction_factor
+                m_style, m_kwargs = mc_marker_plot(style)
                 ax.plot(
                     t_val,
                     v_val,
-                    style,
+                    m_style,
                     alpha=0.7,
+                    markersize=m_size(6),
                     label=fmt_lbl(label_name, t_val, time_unit),
+                    **m_kwargs,
                 )
-        
+
         # Plot slope point
         ax.scatter(
             slope_time,
             slope_value,
-            c="orange",
-            s=30,
+            s=s_size(30),
             label=fr"$t_{{{analysis_type}\ slope}}$: {decimal_number_format.format(slope_time)} {time_unit}, ",
             zorder=5,
+            **mc_scatter_kwargs("orange"),
         )
 
         if analysis_type == "ascending":
@@ -1083,52 +1150,56 @@ class SimplePlotter:
                 ax.scatter(
                     frac_start_time * time_correction_factor,
                     frac_start_value * heat_correction_factor,
-                    c="purple",
                     marker="o",
-                    s=36,
+                    s=s_size(36),
                     zorder=6,
                     label="First ascending fraction start",
+                    **mc_scatter_kwargs("purple"),
                 )
 
             if pd.notna(frac_end_time) and pd.notna(frac_end_value):
                 ax.scatter(
                     frac_end_time * time_correction_factor,
                     frac_end_value * heat_correction_factor,
-                    c="purple",
                     marker="s",
-                    s=36,
+                    s=s_size(36),
                     zorder=6,
                     label="First ascending fraction end",
+                    **mc_scatter_kwargs("purple"),
                 )
 
 
 
         # Plot Abscissa Intersection
         if not pd.isna(intersection_abscissa):
+            abs_style, abs_kwargs = mc_marker_plot("k*")
             ax.plot(
                 intersection_abscissa,
                 0,
-                "k*",
-                markersize=7,
+                abs_style,
+                markersize=m_size(7),
                 alpha=0.7,
                 label=fmt_lbl("t_{onset,abscissa}", intersection_abscissa, time_unit),
                 clip_on=False,
+                **abs_kwargs,
             )
 
 
         # Plot Onset Point
         if onset_time is not None and not np.isnan(onset_time) and pd.notna(onset_heat_flow):
+            ons_style, ons_kwargs = mc_marker_plot("rv")
             ax.plot(
                 onset_time,
                 onset_heat_flow,
-                "rv",
-                markersize=6,
+                ons_style,
+                markersize=m_size(6),
                 label=fmt_lbl("t_{onset,dormant}", onset_time, time_unit),
                 zorder=5,
+                **ons_kwargs,
             )
             ax.axhline(
                 onset_heat_flow,
-                color="orange",
+                color="black" if monochrome else "orange",
                 linestyle=":",
                 alpha=1,
                 label=rf"$\dot{{Q}}_{{dormant}}$: {decimal_number_format.format(onset_heat_flow)} W/g",
@@ -1139,13 +1210,15 @@ class SimplePlotter:
                 0, color="orange", linestyle=":", alpha=0.8, label="Abscissa (y=0)"
             )
             if not pd.isna(intersection_abscissa):
+                fb_style, fb_kwargs = mc_marker_plot("ro")
                 ax.plot(
                     intersection_abscissa,
                     0,
-                    "ro",
-                    markersize=6,
+                    fb_style,
+                    markersize=m_size(6),
                     label=fmt_lbl("t_{onset,abcissa}", intersection_abscissa, time_unit),
                     zorder=5,
+                    **fb_kwargs,
                 )
 
 

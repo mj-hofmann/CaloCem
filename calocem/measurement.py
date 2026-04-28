@@ -551,6 +551,8 @@ class Measurement:
         plotpath: Optional[pathlib.Path] = None,
         ax=None,
         method: str = "mean",
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ) -> pd.DataFrame:
         """
                 Unified method for main-peak slope analysis.
@@ -584,6 +586,12 @@ class Measurement:
             Matplotlib axes to plot on
         method : str
             Slope analysis method to run: 'mean' or 'ascending'.
+        monochrome : bool
+            If True, render all scatter/marker symbols on the analysis plot in
+            black instead of their default colors. Default is False.
+        marker_size : float
+            Multiplicative scale factor applied to all scatter/marker sizes on
+            the analysis plot. Default is 1.0.
 
         Returns
         -------
@@ -656,6 +664,8 @@ class Measurement:
                 plotpath if save_plot else None,
                 ax,
                 show_plot=show_plot,
+                monochrome=monochrome,
+                marker_size=marker_size,
             )
             # if not ax:
             #     plt.show()
@@ -681,6 +691,8 @@ class Measurement:
                 plotpath if save_plot else None,
                 ax,
                 show_plot=show_plot,
+                monochrome=monochrome,
+                marker_size=marker_size,
             )
 
         elif method == "mean" and mean_slope_results.empty:
@@ -1070,6 +1082,8 @@ class Measurement:
         plotpath: Optional[pathlib.Path],
         ax,
         show_plot: bool = True,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """
         Plot combined slope analysis results based on plot_type parameter.
@@ -1136,6 +1150,8 @@ class Measurement:
                     figsize=(7, 5),
                     metadata=self._metadata,
                     metadata_id=self._metadata_id,
+                    monochrome=monochrome,
+                    marker_size=marker_size,
                 )
             self._save_and_show_plot(
                 plotpath, f"{plot_type}_slope_{sample_short}.png", ax, show_plot=show_plot
@@ -1151,6 +1167,8 @@ class Measurement:
         plotpath: Optional[pathlib.Path],
         ax,
         show_plot: bool = True,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """Plot first ascending slope analysis results."""
         cutoff_min = params.cutoff.cutoff_min
@@ -1178,6 +1196,8 @@ class Measurement:
                 figsize=(7, 5),
                 metadata=self._metadata,
                 metadata_id=self._metadata_id,
+                monochrome=monochrome,
+                marker_size=marker_size,
             )
 
             self._save_and_show_plot(

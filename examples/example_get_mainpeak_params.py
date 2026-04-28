@@ -48,7 +48,9 @@ mainpeak = tam.get_mainpeak_params(
     processparams=processparams,
     show_plot=True,
     save_plot=True,
-    plot_type="mean"
+    plot_type="mean",
+    monochrome=True,
+    marker_size=1.2,
     #regex=".*example3.*",
 )
 
