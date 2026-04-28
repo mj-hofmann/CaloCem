@@ -35,14 +35,14 @@ processparams.median_filter.size = 5
 processparams.cutoff.cutoff_min = 75
 processparams.slope_analysis.flank_fraction_start = 0.4
 processparams.slope_analysis.flank_fraction_end = 0.6
-processparams.plotting.figsize = (2.6, 2.3)
+processparams.plotting.figsize = (5, 4)
 processparams.plotting.time_unit = "hours"
 processparams.plotting.heat_unit = "mW"
 processparams.plotting.show_plot_title = True
 processparams.plotting.plot_title = ['cem:', 'cement_name', 'cement_amount_g']
 processparams.plotting.legend_pos = "outside"
 processparams.plotting.xlims = (0, 75)
-processparams.plotting.ylims = (0, 5)  # Set x-axis limits
+processparams.plotting.ylims = (0, 3)  # Set x-axis limits
 # %%
 mainpeak = tam.get_mainpeak_params(
     processparams=processparams,

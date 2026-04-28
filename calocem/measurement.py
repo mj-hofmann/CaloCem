@@ -213,6 +213,51 @@ class Measurement:
             self._data, t_unit, y, y_unit_milli, regex, show_info, ax
         )
 
+    def plot_heatflow_with_gradient(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        t_unit: str = "h",
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        y_unit_milli: bool = True,
+        gradient_unit_milli: bool = True,
+        gradient_color: Optional[str] = "orange",
+        align_zeros: bool = True,
+        show_zero_line: bool = False,
+        grid: bool = False,
+        regex: Optional[str] = None,
+        show_info: bool = True,
+        ax=None,
+    ):
+        """Plot heat flow curve(s) with their gradient on a secondary y-axis.
+
+        The gradient is computed using the smoothing settings (rolling mean,
+        median filter, spline interpolation) from ``processparams`` (or the
+        instance's processparams when not provided).
+
+        Returns
+        -------
+        (ax, ax_grad) : tuple of matplotlib.axes.Axes
+            Primary (heat flow) and secondary (gradient) axes.
+        """
+        params = processparams or self.processparams
+        return self._plotter.plot_heatflow_with_gradient(
+            self._data,
+            params,
+            t_unit=t_unit,
+            target_col=target_col,
+            age_col=age_col,
+            y_unit_milli=y_unit_milli,
+            gradient_unit_milli=gradient_unit_milli,
+            gradient_color=gradient_color,
+            align_zeros=align_zeros,
+            show_zero_line=show_zero_line,
+            grid=grid,
+            regex=regex,
+            show_info=show_info,
+            ax=ax,
+        )
+
     def plot_by_category(
         self,
         categories: str,
