@@ -54,4 +54,38 @@ mainpeak = tam.get_mainpeak_params(
     #regex=".*example3.*",
 )
 
+# %% composite 2x2 figure of selected samples
+tam_multi = Measurement(
+    folder=datapath,
+    regex=r".*peak_detection_example[1234].*",
+    show_info=True,
+    auto_clean=False,
+    cold_start=True,
+    metadata_path=metadatapath,
+    metadata_id_column="file_name",
+)
+
+selected_patterns = [
+    r".*peak_detection_example1\..*",
+    r".*peak_detection_example2\..*",
+    r".*peak_detection_example3\..*",
+    r".*peak_detection_example4\..*",
+]
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+for ax, pattern in zip(axes.flat, selected_patterns):
+    tam_multi.get_mainpeak_params(
+        processparams=processparams,
+        ax=ax,
+        regex=pattern,
+        show_plot=True,
+        save_plot=False,
+        plot_type="mean",
+        monochrome=True,
+        marker_size=1.2,
+    )
+
+fig.tight_layout()
+plt.show()
+
 # %%
