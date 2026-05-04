@@ -16,6 +16,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: github.repository == 'mj-hofmann/calocem'
 
     steps:
     - name: Checkout code
