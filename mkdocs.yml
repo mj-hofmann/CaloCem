@@ -30,6 +30,7 @@ plugins:
             docstring_style: numpy
   - mkdocs-jupyter:
       no_input: False
+      execute: True
   - search
   - table-reader
   - offline
