@@ -47,6 +47,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "mkdocstrings[python]>=0.30.1",
     "mkdocs-jupyter>=0.25.1",
+    "nbmake>=1.5",
     "calocem",
 ]
 
@@ -75,8 +76,8 @@ warn_unused_configs = true
 no_implicit_reexport = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-q"
+testpaths = ["tests", "docs"]
+addopts = "-q --nbmake"
 
 
 [tool.tox]
