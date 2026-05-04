@@ -62,7 +62,7 @@ The dataframe looks like this:
 
 Programmatic, automatic detection the maximum slope can be a little tricky.
 The first example is straightforward and looks a normal Portland cement hydration case.
-Assuming that the data is already loaded, we can inistantiate the ProcessingParameters object.
+Assuming that the data is already loaded, we can instantiate the ProcessingParameters object.
 The algorithm detects the maxima of the gradient of the heat flow.
 It is therefore very useful to apply a little smoothing to the first derivative.
 
