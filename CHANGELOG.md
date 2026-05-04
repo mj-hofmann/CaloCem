@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- **Pickle caching is now opt-in.** `Measurement(folder=...)` no longer writes
+  `_data.pickle` and `_info.pickle` to the working directory by default. Pass
+  `save_cache=True` explicitly to enable it.
+
+  Migrate:
+
+  ```python
+  # old (implicit caching)
+  m = Measurement(folder)
+
+  # new — equivalent caching behavior
+  m = Measurement(folder, save_cache=True)
+  ```
+
+### Added
+
+- **`save_cache: bool = False` kwarg on `Measurement.__init__`.** Controls whether
+  pickle cache files are written when loading from a folder. The existing
+  `cold_start=False` read path is unchanged.
+
 ## [0.3.0] - 2026-04-03
 
 ### Breaking Changes
