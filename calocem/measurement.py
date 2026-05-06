@@ -213,6 +213,51 @@ class Measurement:
             self._data, t_unit, y, y_unit_milli, regex, show_info, ax
         )
 
+    def plot_heatflow_with_gradient(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        t_unit: str = "h",
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        y_unit_milli: bool = True,
+        gradient_unit_milli: bool = True,
+        gradient_color: Optional[str] = "orange",
+        align_zeros: bool = True,
+        show_zero_line: bool = False,
+        grid: bool = False,
+        regex: Optional[str] = None,
+        show_info: bool = True,
+        ax=None,
+    ):
+        """Plot heat flow curve(s) with their gradient on a secondary y-axis.
+
+        The gradient is computed using the smoothing settings (rolling mean,
+        median filter, spline interpolation) from ``processparams`` (or the
+        instance's processparams when not provided).
+
+        Returns
+        -------
+        (ax, ax_grad) : tuple of matplotlib.axes.Axes
+            Primary (heat flow) and secondary (gradient) axes.
+        """
+        params = processparams or self.processparams
+        return self._plotter.plot_heatflow_with_gradient(
+            self._data,
+            params,
+            t_unit=t_unit,
+            target_col=target_col,
+            age_col=age_col,
+            y_unit_milli=y_unit_milli,
+            gradient_unit_milli=gradient_unit_milli,
+            gradient_color=gradient_color,
+            align_zeros=align_zeros,
+            show_zero_line=show_zero_line,
+            grid=grid,
+            regex=regex,
+            show_info=show_info,
+            ax=ax,
+        )
+
     def plot_by_category(
         self,
         categories: str,
@@ -506,6 +551,8 @@ class Measurement:
         plotpath: Optional[pathlib.Path] = None,
         ax=None,
         method: str = "mean",
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ) -> pd.DataFrame:
         """
                 Unified method for main-peak slope analysis.
@@ -539,6 +586,12 @@ class Measurement:
             Matplotlib axes to plot on
         method : str
             Slope analysis method to run: 'mean' or 'ascending'.
+        monochrome : bool
+            If True, render all scatter/marker symbols on the analysis plot in
+            black instead of their default colors. Default is False.
+        marker_size : float
+            Multiplicative scale factor applied to all scatter/marker sizes on
+            the analysis plot. Default is 1.0.
 
         Returns
         -------
@@ -611,6 +664,8 @@ class Measurement:
                 plotpath if save_plot else None,
                 ax,
                 show_plot=show_plot,
+                monochrome=monochrome,
+                marker_size=marker_size,
             )
             # if not ax:
             #     plt.show()
@@ -636,6 +691,8 @@ class Measurement:
                 plotpath if save_plot else None,
                 ax,
                 show_plot=show_plot,
+                monochrome=monochrome,
+                marker_size=marker_size,
             )
 
         elif method == "mean" and mean_slope_results.empty:
@@ -1025,6 +1082,8 @@ class Measurement:
         plotpath: Optional[pathlib.Path],
         ax,
         show_plot: bool = True,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """
         Plot combined slope analysis results based on plot_type parameter.
@@ -1091,6 +1150,8 @@ class Measurement:
                     figsize=(7, 5),
                     metadata=self._metadata,
                     metadata_id=self._metadata_id,
+                    monochrome=monochrome,
+                    marker_size=marker_size,
                 )
             self._save_and_show_plot(
                 plotpath, f"{plot_type}_slope_{sample_short}.png", ax, show_plot=show_plot
@@ -1106,6 +1167,8 @@ class Measurement:
         plotpath: Optional[pathlib.Path],
         ax,
         show_plot: bool = True,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """Plot first ascending slope analysis results."""
         cutoff_min = params.cutoff.cutoff_min
@@ -1133,6 +1196,8 @@ class Measurement:
                 figsize=(7, 5),
                 metadata=self._metadata,
                 metadata_id=self._metadata_id,
+                monochrome=monochrome,
+                marker_size=marker_size,
             )
 
             self._save_and_show_plot(
