@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-06
+
 ### Breaking Changes
 
 - **Pickle caching is now opt-in.** `Measurement(folder=...)` no longer writes
@@ -28,6 +30,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`save_cache: bool = False` kwarg on `Measurement.__init__`.** Controls whether
   pickle cache files are written when loading from a folder. The existing
   `cold_start=False` read path is unchanged.
+
+### Documentation
+
+- New tutorial notebook `docs/example_get_mainpeak_params.ipynb` walking through
+  `get_mainpeak_params`, with notebooks executed at docs build time so outputs
+  stay in sync with the code.
+- Replaced stale `TAInstCalorimetry` references and corrected the package name
+  and PyPI URL across `docs/index.md`, `docs/how-to-guide.md`,
+  `docs/quantification.md`, and `docs/tian.md`.
+
+### Internal
+
+- Notebooks are now exercised under pytest via `nbmake` so doc examples cannot
+  silently rot.
+- `nbstripout` configured to keep notebook diffs clean.
+
+## [0.3.2] - 2026-05-02
+
+### Added
+
+- CSV files with a trailing comments column (e.g. annotations like
+  "experiment interrupted and restarted") are now parsed correctly.
 
 ## [0.3.0] - 2026-04-03
 
