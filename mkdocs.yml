@@ -30,6 +30,7 @@ plugins:
             docstring_style: numpy
   - mkdocs-jupyter:
       no_input: False
+      execute: True
   - search
   - table-reader
   - offline
@@ -43,6 +44,7 @@ nav:
   - Docs: index.md
   #- Plotting: plotting.md
   - Plotting Example: plotting_example.ipynb
+  - Main Peak Parameters: example_get_mainpeak_params.ipynb
   - Quantification: quantification.md
   - Tian Correction: tian.md
   - How-To Guides: how-to-guide.md

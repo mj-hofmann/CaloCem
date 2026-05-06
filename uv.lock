@@ -98,7 +98,7 @@ wheels = [
 
 [[package]]
 name = "calocem"
-version = "0.3.1"
+version = "0.3.3"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
@@ -126,6 +126,7 @@ dev = [
     { name = "mkdocs-table-reader-plugin" },
     { name = "mkdocstrings", extra = ["python"] },
     { name = "nbmake" },
+    { name = "nbstripout" },
     { name = "pysnooper" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -158,6 +159,7 @@ dev = [
     { name = "mkdocs-table-reader-plugin", specifier = ">=2.2.2" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.30.1" },
     { name = "nbmake", specifier = ">=1.5" },
+    { name = "nbstripout", specifier = ">=0.7" },
     { name = "pysnooper", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
@@ -1679,6 +1681,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/43/9a/aae201cee5639e1d562b3843af8fd9f8d018bb323e776a2b973bdd5fc64b/nbmake-1.5.5.tar.gz", hash = "sha256:239dc868ea13a7c049746e2aba2c229bd0f6cdbc6bfa1d22f4c88638aa4c5f5c", size = 85929, upload-time = "2024-12-23T18:33:46.774Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/be/b257e12f9710819fde40adc972578bee6b72c5992da1bc8369bef2597756/nbmake-1.5.5-py3-none-any.whl", hash = "sha256:c6fbe6e48b60cacac14af40b38bf338a3b88f47f085c54ac5b8639ff0babaf4b", size = 12818, upload-time = "2024-12-23T18:33:44.566Z" },
+]
+
+[[package]]
+name = "nbstripout"
+version = "0.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nbformat" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f9/6f/b52c4da26babeb521078c08c78c3187a59197098ffc7a70b0fe76851813a/nbstripout-0.9.1.tar.gz", hash = "sha256:313bbb4217c8e38998567e5d790b6bd6c3a17a8c39073b205b84dadfc5d756dc", size = 32356, upload-time = "2026-02-21T16:19:55.975Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/16/e777eadfa0c0305878c36fae1d5e6db474fbb15dae202b9ec378809dfb4d/nbstripout-0.9.1-py3-none-any.whl", hash = "sha256:ca027ee45742ee77e4f8e9080254f9a707f1161ba11367b82fdf4a29892c759e", size = 19136, upload-time = "2026-02-21T16:19:54.868Z" },
 ]
 
 [[package]]
