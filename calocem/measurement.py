@@ -52,6 +52,7 @@ class Measurement:
         processed: bool = False,
         metadata_path: Optional[Union[str, pathlib.Path]] = None,
         metadata_id_column: Optional[str] = None,
+        save_cache: bool = False,
     ):
         """
         Initialize measurements from folder or existing data.
@@ -78,6 +79,11 @@ class Measurement:
             Path to metadata file (CSV, Excel, etc.), by default None
         metadata_id_column : str, optional
             Column name in metadata file that matches sample names, by default None
+        save_cache : bool, optional
+            Whether to write `_data.pickle` and `_info.pickle` cache files when loading
+            from a folder, by default False. When True, subsequent runs can be sped up
+            with ``cold_start=False`` to read from the cache instead of re-parsing the
+            folder. When False (default), no pickle files are created.
         """
         # Initialize attributes
         self._data = pd.DataFrame()
@@ -89,6 +95,7 @@ class Measurement:
         # Store configuration
         self._new_code = new_code
         self._processed = processed
+        self._save_cache = save_cache
 
         # Setup processing parameters
         if not isinstance(processparams, ProcessingParameters):
@@ -148,8 +155,9 @@ class Measurement:
             )
             self._data_unprocessed = self._data.copy()
 
-            # Save to cache
-            self._data_persistence.save_data(self._data, self._info)
+            # Save to cache only if requested
+            if self._save_cache:
+                self._data_persistence.save_data(self._data, self._info)
 
         except Exception as e:
             raise DataProcessingException("load_from_folder", e)
