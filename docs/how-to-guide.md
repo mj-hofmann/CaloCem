@@ -1,16 +1,16 @@
-![Logo](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/icon/icon.png?raw=true)
+![Logo](https://github.com/mj-hofmann/CaloCem/blob/main/icon/icon.png?raw=true)
 
 # Interfacing with experimental results file from TAM Air calorimeters made easy.
 
-After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **TAInstCalorimetry** is here to get this done smoothly.
+After collecting multiple experimental results files from a TAM Air calorimeter you will be left with multiple *.xls*-files obtained as exports from the device control software. To achieve a side by side comparison of theses results and some basic extraction of relevant parameters, **CaloCem** is here to get this done smoothly.
 
-*Note: **TAInstCalorimetry** has been developed without involvement of **TA Instruments** and is thus independent from the company and its software.*
+*Note: **CaloCem** has been developed without involvement of **TA Instruments** and is thus independent from the company and its software.*
 
 ## Info / Downloads
 
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/tainstcalorimetry.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/tainstcalorimetry)
-[![PyPI - Downloads](https://static.pepy.tech/personalized-badge/tainstcalorimetry?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/tainstcalorimetry.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/tainstcalorimetry/) 
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/calocem.svg?color=blue&label=Downloads&logo=pypi&logoColor=gold)](https://pepy.tech/project/calocem)
+[![PyPI - Downloads](https://static.pepy.tech/personalized-badge/calocem?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/calocem)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/calocem.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/calocem/) 
 
 ## Table of Contents  
 - [Example Usage](#example-usage)<br>
@@ -62,7 +62,7 @@ plt.show()
 
 Without further options specified, the ```plot()```-method yields the following.
 
-![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-08%20112743.png?raw=true)
+![enter image description here](https://github.com/mj-hofmann/CaloCem/blob/main/tests/plots/Figure%202022-08-08%20112743.png?raw=true)
 
 The ```plot()```-method can also be tuned to show the temporal course of normalized heat. On the one hand, this "tuning" refers to the specification of further keyword arguments such as ```t_unit``` and ```y```. On the other hand, the ```plot()```-method returns an object of type ```matplotlib.axes._subplots.AxesSubplot```, which can be used to further customize the plot. In the following, a guide-to-the-eye line is introduced next to adjuting the axes limts, which is not provided for via the ```plot()```-method's signature.
 
@@ -88,7 +88,7 @@ plt.show()
 ```
 The following plot is obtained:
 
-![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-19%20085928.png?raw=true)
+![enter image description here](https://github.com/mj-hofmann/CaloCem/blob/main/tests/plots/Figure%202022-08-19%20085928.png?raw=true)
 
 ### Getting cumulated heat values
 
@@ -125,9 +125,9 @@ peaks = tam.get_peaks(
 
 Tweaking some of the available keyword arguments, the following plot is obtained:
 
-![Identified peaks for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-25%20193222.png?raw=true)
+![Identified peaks for one sample.](https://github.com/mj-hofmann/CaloCem/blob/main/tests/plots/Figure%202023-01-25%20193222.png?raw=true)
 
-Please keep in mind, that in particular for samples of ordinary Portland cement (OPC) a clear and unambiguous identification/assigment of peaks remains a challenging task which cannot be achieved in each and every case by **TAInstCalorimetry**. It is left to the user draw meaningful scientific conclusions from the characteristics derived from this method.
+Please keep in mind, that in particular for samples of ordinary Portland cement (OPC) a clear and unambiguous identification/assigment of peaks remains a challenging task which cannot be achieved in each and every case by **CaloCem**. It is left to the user draw meaningful scientific conclusions from the characteristics derived from this method.
 
 ### Identifying peak onsets
 
@@ -143,7 +143,7 @@ onsets = tam.get_peak_onsets(
     regex="OPC"
 )
 ```
-![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-01-26%20174524.png?raw=true)
+![Identified peak onsets for one sample.](https://github.com/mj-hofmann/CaloCem/blob/main/tests/plots/Figure%202023-01-26%20174524.png?raw=true)
 
 ### Plotting by Category
 
@@ -192,13 +192,13 @@ for this_plot in tam.plot_by_category(categorize_by):
 
 This yields plots of the following kind.
 
-![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170659.png?raw=true)
+![Identified peak onsets for one sample.](https://github.com/mj-hofmann/CaloCem/blob/main/tests/plots/Figure%202023-03-20%20170659.png?raw=true)
 
-![Identified peak onsets for one sample.](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202023-03-20%20170711.png?raw=true)
+![Identified peak onsets for one sample.](https://github.com/mj-hofmann/CaloCem/blob/main/tests/plots/Figure%202023-03-20%20170711.png?raw=true)
 
 ## Installation
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install TAInstCalorimetry.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install CaloCem.
 
 ```bash
 pip install CaloCem
@@ -218,7 +218,7 @@ List of contributors
 
 
 ## Test
-![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/run-tests.yml/badge.svg)
+![Tests](https://github.com/mj-hofmann/CaloCem/actions/workflows/run-tests.yml/badge.svg)
 
 ## Code Styling
 

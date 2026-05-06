@@ -152,16 +152,22 @@ class CSVReader(FileReader):
         """
         Scan the file line-by-line to determine its structure.
 
-        Returns (header_row, footer_row, reaction_start_time) where:
+        Returns (header_row, footer_row, reaction_start_time, gap_intervals) where:
           - header_row: line index of the column-name row
           - footer_row: line index of the "Data series" footer (or None)
           - reaction_start_time: float offset to subtract from time_s (or None)
+          - gap_intervals: list of (t_start, t_end) seconds spanning instrument
+            interruptions. Each "Experiment interrupted" marker is paired with
+            the next "Experiment restarted" marker; an unmatched interruption
+            extends to +inf so the truncated tail is also discarded.
 
         Returns None if the file appears to be tab-separated.
         """
         header_row = None
         footer_row = None
         reaction_start_time = None
+        gap_intervals: list = []
+        pending_interrupt: Optional[float] = None
 
         with open(file_path, "r", encoding="utf-8", errors="replace") as fh:
             for i, line in enumerate(fh):
@@ -183,6 +189,25 @@ class CSVReader(FileReader):
                 if header_row is None and "time" in line_lower and "heat" in line_lower:
                     header_row = i
 
+                # Instrument-interruption markers: capture the time of each
+                # "Experiment interrupted" / "Experiment restarted" pair so the
+                # affected segment can be excised after parsing.
+                if header_row is not None:
+                    if "experiment interrupted" in line_lower and pending_interrupt is None:
+                        try:
+                            pending_interrupt = float(
+                                line.split(",")[0].strip().strip('"')
+                            )
+                        except (ValueError, IndexError):
+                            pass
+                    elif "experiment restarted" in line_lower and pending_interrupt is not None:
+                        try:
+                            t_end = float(line.split(",")[0].strip().strip('"'))
+                            gap_intervals.append((pending_interrupt, t_end))
+                        except (ValueError, IndexError):
+                            pass
+                        pending_interrupt = None
+
                 # Footer row: "Data series" statistics block — stop reading here
                 if header_row is not None and "data series" in line_lower:
                     footer_row = i
@@ -191,7 +216,11 @@ class CSVReader(FileReader):
         if header_row is None:
             return None
 
-        return header_row, footer_row, reaction_start_time
+        # Unmatched interruption: discard everything from that point onward
+        if pending_interrupt is not None:
+            gap_intervals.append((pending_interrupt, float("inf")))
+
+        return header_row, footer_row, reaction_start_time, gap_intervals
 
     def _read_comma_separated_fast(
         self, file_path: pathlib.Path, show_info: bool
@@ -207,7 +236,7 @@ class CSVReader(FileReader):
         if structure is None:
             return None  # tab-separated
 
-        header_row, footer_row, reaction_start_time = structure
+        header_row, footer_row, reaction_start_time, gap_intervals = structure
 
         data = pd.read_csv(
             file_path,
@@ -246,6 +275,21 @@ class CSVReader(FileReader):
             pass
 
         data = data.query("time_s > 0").reset_index(drop=True)
+
+        # Excise rows inside instrument-interruption gaps. Marker rows lie on
+        # the boundary and are dropped along with the corrupted segment.
+        for t_start, t_end in gap_intervals:
+            mask = (data["time_s"] < t_start) | (data["time_s"] > t_end)
+            n_dropped = (~mask).sum()
+            data = data.loc[mask]
+            if n_dropped:
+                logger.warning(
+                    f"{file_path.name}: excised {n_dropped} rows in "
+                    f"interruption gap [{t_start:.1f} s, {t_end:.1f} s]"
+                )
+        if gap_intervals:
+            data = data.reset_index(drop=True)
+
         data = utils.add_sample_info(data, file_path)
 
         return data

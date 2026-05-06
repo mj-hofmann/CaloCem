@@ -13,8 +13,9 @@ from matplotlib.font_manager import FontProperties
 import numpy as np
 import pandas as pd
 
-from .data_processing import SampleIterator
+from .data_processing import DataCleaner, HeatFlowProcessor, SampleIterator
 from .exceptions import DataProcessingException
+from .processparams import ProcessingParameters
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,205 @@ class SimplePlotter:
 
         except Exception as e:
             raise DataProcessingException("plot_data", e)
+
+    @staticmethod
+    def _align_zero_baselines(
+        ax: matplotlib.axes.Axes, ax_grad: matplotlib.axes.Axes
+    ) -> None:
+        """Adjust both y-axes so y=0 sits at the same vertical position.
+
+        The axis whose data extends further from zero (relative to its range)
+        determines the shared zero fraction; the other axis is expanded so it
+        never crops existing data.
+        """
+        lo1, hi1 = ax.get_ylim()
+        lo2, hi2 = ax_grad.get_ylim()
+
+        def zero_fraction(lo: float, hi: float) -> float:
+            span = hi - lo
+            if span <= 0:
+                return 0.5
+            if lo >= 0:
+                return 0.0
+            if hi <= 0:
+                return 1.0
+            return -lo / span
+
+        f1 = zero_fraction(lo1, hi1)
+        f2 = zero_fraction(lo2, hi2)
+        f = max(f1, f2)
+        f = min(max(f, 1e-6), 1 - 1e-6)
+
+        def adjust(lo: float, hi: float, target: float) -> tuple[float, float]:
+            cur = zero_fraction(lo, hi)
+            if cur < target:
+                # extend lower bound so zero is higher in the axis
+                new_lo = -target / (1 - target) * max(hi, 0.0)
+                return (new_lo, hi)
+            # extend upper bound so zero is lower in the axis
+            new_hi = -min(lo, 0.0) * (1 - target) / target
+            return (lo, new_hi)
+
+        ax.set_ylim(*adjust(lo1, hi1, f))
+        ax_grad.set_ylim(*adjust(lo2, hi2, f))
+
+    def plot_heatflow_with_gradient(
+        self,
+        data: pd.DataFrame,
+        processparams: ProcessingParameters,
+        t_unit: str = "h",
+        target_col: str = "normalized_heat_flow_w_g",
+        age_col: str = "time_s",
+        y_unit_milli: bool = True,
+        gradient_unit_milli: bool = True,
+        gradient_color: Optional[str] = "orange",
+        align_zeros: bool = True,
+        show_zero_line: bool = False,
+        grid: bool = False,
+        regex: Optional[str] = None,
+        show_info: bool = True,
+        ax: Optional[matplotlib.axes.Axes] = None,
+    ) -> tuple[matplotlib.axes.Axes, matplotlib.axes.Axes]:
+        """Plot heat flow curve(s) together with their gradient on a secondary y-axis.
+
+        The gradient is computed via :meth:`HeatFlowProcessor.calculate_heatflow_derivatives`,
+        so smoothing options on ``processparams`` (rolling mean, median filter, spline
+        interpolation) are honored. Heat flow is drawn on the primary y-axis with a solid
+        line; the matching gradient is drawn on a twin y-axis with a dashed line of the
+        same color per sample.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Calorimetry data containing ``age_col`` and ``target_col``.
+        processparams : ProcessingParameters
+            Processing parameters controlling gradient smoothing.
+        t_unit : str
+            Time-axis unit: ``"s"``, ``"min"``, ``"h"`` (default), or ``"d"``.
+        target_col : str
+            Heat flow column name. Default ``"normalized_heat_flow_w_g"``.
+        age_col : str
+            Time column name. Default ``"time_s"``.
+        y_unit_milli : bool
+            If True, scale heat flow by 1000 (e.g. W/g -> mW/g).
+        gradient_unit_milli : bool
+            If True, scale the gradient by 1000.
+        regex : str, optional
+            Filter samples whose name matches this regex.
+        show_info : bool
+            Print which sample is being plotted.
+        ax : matplotlib.axes.Axes, optional
+            Primary axis to plot on. A new figure is created when not provided.
+
+        Returns
+        -------
+        (ax, ax_grad) : tuple of matplotlib.axes.Axes
+            The primary (heat flow) and secondary (gradient) axes.
+        """
+        try:
+            unit_conversions = {
+                "s": (1.0, "Time [s]", "s"),
+                "min": (1 / 60, "Time [min]", "min"),
+                "h": (1 / 3600, "Time [h]", "h"),
+                "d": (1 / (24 * 3600), "Time [d]", "d"),
+            }
+
+            y_configs = {
+                "normalized_heat_flow_w_g": ("Normalized Heat Flow", "W/g"),
+                "heat_flow_w": ("Heat Flow", "W"),
+                "normalized_heat_j_g": ("Normalized Heat", "J/g"),
+                "heat_j": ("Heat", "J"),
+            }
+
+            x_factor, x_label, t_unit_str = unit_conversions.get(
+                t_unit, (1.0, "Time [s]", "s")
+            )
+
+            base_name, base_unit = y_configs.get(target_col, (target_col, ""))
+            y_factor = 1000 if y_unit_milli else 1
+            grad_factor = 1000 if gradient_unit_milli else 1
+            y_unit_label = f"m{base_unit}" if y_unit_milli else base_unit
+            grad_unit_label = f"m{base_unit}" if gradient_unit_milli else base_unit
+
+            if ax is None:
+                _, ax = plt.subplots(figsize=processparams.plotting.figsize)
+            ax_grad = ax.twinx()
+
+            processor = HeatFlowProcessor(processparams)
+
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_label = pathlib.Path(str(sample)).stem
+                if show_info:
+                    print(f"Plotting {sample_label}")
+
+                prepared = sample_data[[age_col, target_col]].dropna().reset_index(
+                    drop=True
+                )
+                if prepared.empty:
+                    continue
+
+                if processparams.cutoff.cutoff_min:
+                    cutoff_seconds = processparams.cutoff.cutoff_min * 60
+                    prepared = prepared[prepared[age_col] >= cutoff_seconds].reset_index(
+                        drop=True
+                    )
+                    if prepared.empty:
+                        continue
+
+                prepared = DataCleaner.make_equidistant(prepared, time_col=age_col)
+                if processparams.rolling_mean.apply:
+                    prepared = processor.apply_rolling_mean(prepared, target_col)
+
+                gradient, _ = processor.calculate_heatflow_derivatives(
+                    prepared, time_col=age_col, target_col=target_col
+                )
+
+                t_plot = prepared[age_col].to_numpy() * x_factor
+                hf_plot = prepared[target_col].to_numpy() * y_factor
+                # gradient is per second; convert to per-t_unit, then optional milli scale
+                grad_plot = gradient / x_factor * grad_factor
+
+                (line,) = ax.plot(t_plot, hf_plot, label=sample_label)
+                grad_line_color = (
+                    gradient_color if gradient_color is not None else line.get_color()
+                )
+                ax_grad.plot(
+                    t_plot,
+                    grad_plot,
+                    color=grad_line_color,
+                    linestyle="--",
+                    alpha=0.7,
+                    label=f"{sample_label} (gradient)",
+                )
+
+            ax.set_xlabel(x_label)
+            ax.set_ylabel(f"{base_name} / [{y_unit_label}]")
+            ax_grad.set_ylabel(f"Gradient / [{grad_unit_label}/{t_unit_str}]")
+            if grid:
+                ax.grid(True, alpha=0.3)
+
+            if align_zeros:
+                self._align_zero_baselines(ax, ax_grad)
+
+            if show_zero_line:
+                ax.axhline(
+                    0,
+                    color="dimgray",
+                    linestyle="--",
+                    linewidth=1.8,
+                    alpha=0.8,
+                    zorder=0,
+                )
+
+            handles, labels = ax.get_legend_handles_labels()
+            handles_g, labels_g = ax_grad.get_legend_handles_labels()
+            if handles or handles_g:
+                ax.legend(handles + handles_g, labels + labels_g, loc="best", fontsize=8)
+
+            return ax, ax_grad
+
+        except Exception as e:
+            raise DataProcessingException("plot_heatflow_with_gradient", e)
 
     def plot_peaks(
         self,
@@ -298,6 +498,8 @@ class SimplePlotter:
         figsize: tuple = (8, 5),
         metadata: Optional[pd.DataFrame] = None,
         metadata_id: Optional[str] = None,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """
         Unified plotting method for tangent-based analysis results.
@@ -397,6 +599,8 @@ class SimplePlotter:
                     heat_unit=heat_unit,
                     metadata=metadata,
                     metadata_id=metadata_id,
+                    monochrome=monochrome,
+                    marker_size=marker_size,
                 )
             else:
                 raise ValueError(f"Unknown analysis_type: {analysis_type}")
@@ -620,8 +824,68 @@ class SimplePlotter:
         heat_unit: str = "W",
         metadata: Optional[pd.DataFrame] = None,
         metadata_id: Optional[str] = None,
+        monochrome: bool = False,
+        marker_size: float = 1.0,
     ):
         """Plot elements specific to onset intersection analysis."""
+        # Color / marker style helpers driven by monochrome flag
+        def mc(color):
+            return "black" if monochrome else color
+
+        def mc_line_color(default_color: str) -> str:
+            """Tangent / line color: gray in monochrome mode."""
+            return "gray" if monochrome else default_color
+
+        def mc_fill_color(default_color: str) -> str:
+            """Fill-area color: lightgray in monochrome mode."""
+            return "lightgray" if monochrome else default_color
+
+        def strip_style_color(style: str) -> str:
+            """Drop leading single-letter matplotlib color from a style string."""
+            if not style:
+                return style
+            color_letters = set("bgrcmykw")
+            if style[0] in color_letters:
+                return style[1:]
+            return style
+
+        def mc_style(style):
+            # matplotlib short-format style strings start with a single-letter color
+            if not monochrome or not style:
+                return style
+            color_letters = set("bgrcmykw")
+            if style[0] in color_letters:
+                return "k" + style[1:]
+            return style
+
+        def mc_marker_plot(style):
+            """Return (style, extra_kwargs) for an ax.plot() marker call.
+
+            In monochrome mode markers are drawn with white fill and black edge.
+            """
+            if not monochrome:
+                return style, {}
+            return strip_style_color(style), {
+                "markerfacecolor": "white",
+                "markeredgecolor": "black",
+                "markeredgewidth": 1.0,
+            }
+
+        def mc_scatter_kwargs(default_color: str) -> dict:
+            """Return kwargs for ax.scatter() honoring monochrome mode."""
+            if monochrome:
+                return {
+                    "facecolors": "white",
+                    "edgecolors": "black",
+                    "linewidths": 1.0,
+                }
+            return {"c": default_color}
+
+        def s_size(size):
+            return size * marker_size
+
+        def m_size(size):
+            return size * marker_size
         if results is None:
             raise ValueError(
                 "results required for onset_intersection analysis"
@@ -706,7 +970,7 @@ class SimplePlotter:
         ax.plot(
             x_tangent[mask],
             y_tangent[mask],
-            color="orange",
+            color="black" if monochrome else "orange",
             linestyle="--",
             linewidth=2,
             alpha=0.8,
@@ -754,8 +1018,8 @@ class SimplePlotter:
                     fill_data[age_col] * time_correction_factor,
                     flank_start_val,
                     flank_end_val,
-                    alpha=0.3,
-                    color="orange",
+                    alpha=0.45 if monochrome else 0.3,
+                    color="darkgray" if monochrome else "orange",
                     label="y-val range averaged",
                 )
 
@@ -812,7 +1076,7 @@ class SimplePlotter:
                 ax.plot(
                     x_first_tangent,
                     y_first_tangent,
-                    color="purple",
+                    color=mc_line_color("purple"),
                     linestyle="--",
                     linewidth=2,
                     alpha=0.9,
@@ -828,10 +1092,10 @@ class SimplePlotter:
                         first_slope * first_start_t + first_intercept,
                         first_slope * first_end_t + first_intercept,
                     ],
-                    c="purple",
-                    s=20,
+                    s=s_size(20),
                     zorder=5,
                     label="First ascending segment",
+                    **mc_scatter_kwargs("purple"),
                 )
 
 
@@ -855,22 +1119,25 @@ class SimplePlotter:
             if pd.notna(t_raw) and pd.notna(v_raw):
                 t_val = t_raw * time_correction_factor
                 v_val = v_raw * heat_correction_factor
+                m_style, m_kwargs = mc_marker_plot(style)
                 ax.plot(
                     t_val,
                     v_val,
-                    style,
+                    m_style,
                     alpha=0.7,
+                    markersize=m_size(6),
                     label=fmt_lbl(label_name, t_val, time_unit),
+                    **m_kwargs,
                 )
-        
+
         # Plot slope point
         ax.scatter(
             slope_time,
             slope_value,
-            c="orange",
-            s=30,
+            s=s_size(30),
             label=fr"$t_{{{analysis_type}\ slope}}$: {decimal_number_format.format(slope_time)} {time_unit}, ",
             zorder=5,
+            **mc_scatter_kwargs("orange"),
         )
 
         if analysis_type == "ascending":
@@ -883,52 +1150,56 @@ class SimplePlotter:
                 ax.scatter(
                     frac_start_time * time_correction_factor,
                     frac_start_value * heat_correction_factor,
-                    c="purple",
                     marker="o",
-                    s=36,
+                    s=s_size(36),
                     zorder=6,
                     label="First ascending fraction start",
+                    **mc_scatter_kwargs("purple"),
                 )
 
             if pd.notna(frac_end_time) and pd.notna(frac_end_value):
                 ax.scatter(
                     frac_end_time * time_correction_factor,
                     frac_end_value * heat_correction_factor,
-                    c="purple",
                     marker="s",
-                    s=36,
+                    s=s_size(36),
                     zorder=6,
                     label="First ascending fraction end",
+                    **mc_scatter_kwargs("purple"),
                 )
 
 
 
         # Plot Abscissa Intersection
         if not pd.isna(intersection_abscissa):
+            abs_style, abs_kwargs = mc_marker_plot("k*")
             ax.plot(
                 intersection_abscissa,
                 0,
-                "k*",
-                markersize=7,
+                abs_style,
+                markersize=m_size(7),
                 alpha=0.7,
                 label=fmt_lbl("t_{onset,abscissa}", intersection_abscissa, time_unit),
                 clip_on=False,
+                **abs_kwargs,
             )
 
 
         # Plot Onset Point
         if onset_time is not None and not np.isnan(onset_time) and pd.notna(onset_heat_flow):
+            ons_style, ons_kwargs = mc_marker_plot("rv")
             ax.plot(
                 onset_time,
                 onset_heat_flow,
-                "rv",
-                markersize=6,
+                ons_style,
+                markersize=m_size(6),
                 label=fmt_lbl("t_{onset,dormant}", onset_time, time_unit),
                 zorder=5,
+                **ons_kwargs,
             )
             ax.axhline(
                 onset_heat_flow,
-                color="orange",
+                color="black" if monochrome else "orange",
                 linestyle=":",
                 alpha=1,
                 label=rf"$\dot{{Q}}_{{dormant}}$: {decimal_number_format.format(onset_heat_flow)} W/g",
@@ -939,13 +1210,15 @@ class SimplePlotter:
                 0, color="orange", linestyle=":", alpha=0.8, label="Abscissa (y=0)"
             )
             if not pd.isna(intersection_abscissa):
+                fb_style, fb_kwargs = mc_marker_plot("ro")
                 ax.plot(
                     intersection_abscissa,
                     0,
-                    "ro",
-                    markersize=6,
+                    fb_style,
+                    markersize=m_size(6),
                     label=fmt_lbl("t_{onset,abcissa}", intersection_abscissa, time_unit),
                     zorder=5,
+                    **fb_kwargs,
                 )
 
 

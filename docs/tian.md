@@ -6,7 +6,7 @@
 
 ### Load the Data
 
-For fast reactions, e.g., reactions occuring during the first minutes of cement hydration, the thermal inertia of the calorimeter significantly broadens the heat flow signal. 
+For fast reactions, e.g., reactions occurring during the first minutes of cement hydration, the thermal inertia of the calorimeter significantly broadens the heat flow signal. 
 If the characteristic time constants are determined experimentally, a Tian correction can be applied to the heat flow data.
 
 <!-- Assuming the file structure outlined above, we can apply the Tian correction using the following code.
@@ -45,7 +45,7 @@ The numeric value needs to be determined experimentally.
 
 ```python
 
-# Set Proceesing Parameters
+# Set Processing Parameters
 processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 240
 processparams.time_constants.tau2 = 80
@@ -123,11 +123,11 @@ Therefore, the second equation reads like
 \dot{Q}_{Tian}(t) =  \dot{Q}(t) + (\tau_1+\tau_2) \frac{\dot{Q}}{dt} + \tau_1\tau_2 \frac{d^2\dot{Q}}{dt^2} 
 \]
 
-In pratical terms, if only the attribute tau1 is set, only the first derivative of the heat flow will be considered.
+In practical terms, if only the attribute tau1 is set, only the first derivative of the heat flow will be considered.
 
 ```python
 
-# Set Proceesing Parameters
+# Set Processing Parameters
 processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 300
 ```
@@ -144,13 +144,13 @@ In general, having two tau constants renders the signal even more narrow.
 ### No smoothing
 It is important to smoothen the data. 
 Otherwise, small noise in the raw heat flow data will lead to significant noise especially in the second derivative.
-By default the smoothing is no applied. 
+By default the smoothing is not applied. 
 Here, we explicitly set the attributes to `False` and repeat the analysis as shown above.
 The results demonstrates the noise in the data which originates from tiny fluctuations which result in significant noise in the second derivative.
 
 ```python
 
-# Set Proceesing Parameters
+# Set Processing Parameters
 processparams.median_filter.apply = False
 processparams.spline_interpolation.apply = False
 ```
@@ -164,7 +164,7 @@ Here is the result of only applying a [median filter](https://docs.scipy.org/doc
 
 ```python
 
-# Set Proceesing Parameters
+# Set Processing Parameters
 processparams.median_filter.apply = True
 processparams.median_filter.size = 15
 processparams.spline_interpolation.apply = False
@@ -173,12 +173,12 @@ processparams.spline_interpolation.apply = False
 
 ### Only Spline Smoothing
 
-Here is the result of only applying a [Univariate Spline](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html#scipy.interpolate.UnivariateSpline) with smmothing of 1e-10 for both the first and the second derivative.
+Here is the result of only applying a [Univariate Spline](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html#scipy.interpolate.UnivariateSpline) with smoothing of 1e-10 for both the first and the second derivative.
 The combination of a median filter and spline smoothing reliably delivers smooth data without introducing artifacts or significant line broadening.
 
 ```python
 
-# Set Proceesing Parameters
+# Set Processing Parameters
 processparams.median_filter.apply = False
 processparams.spline_interpolation.apply = True
 processparams.spline_interpolation.smoothing_1st_deriv = 1e-10

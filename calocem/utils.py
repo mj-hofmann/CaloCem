@@ -278,16 +278,10 @@ def remove_unnecessary_data(df):
     # cut out data part
     data = df.iloc[1:].reset_index(drop=True)
 
-    # drop column
-    try:
-        data = data.drop(columns=["time_markers_nan"])
-    except KeyError:
-        pass
-    
-    try:
-        data = data.drop(columns=["_nan"])
-    except KeyError:
-        pass
+    # Drop all annotation columns. tidy_colnames suffixes any non-data column
+    # with "_nan", so this generically removes time markers, comments, and any
+    # future metadata column the instrument firmware may add.
+    data = data.drop(columns=[c for c in data.columns if c.endswith("_nan")])
     # remove columns with too many NaNs
     #data = data.dropna(axis=1, thresh=20)
 

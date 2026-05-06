@@ -35,21 +35,57 @@ processparams.median_filter.size = 5
 processparams.cutoff.cutoff_min = 75
 processparams.slope_analysis.flank_fraction_start = 0.4
 processparams.slope_analysis.flank_fraction_end = 0.6
-processparams.plotting.figsize = (2.6, 2.3)
+processparams.plotting.figsize = (5, 4)
 processparams.plotting.time_unit = "hours"
 processparams.plotting.heat_unit = "mW"
 processparams.plotting.show_plot_title = True
 processparams.plotting.plot_title = ['cem:', 'cement_name', 'cement_amount_g']
 processparams.plotting.legend_pos = "outside"
 processparams.plotting.xlims = (0, 75)
-processparams.plotting.ylims = (0, 5)  # Set x-axis limits
+processparams.plotting.ylims = (0, 3)  # Set x-axis limits
 # %%
 mainpeak = tam.get_mainpeak_params(
     processparams=processparams,
     show_plot=True,
     save_plot=True,
-    plot_type="mean"
+    plot_type="mean",
+    monochrome=True,
+    marker_size=1.2,
     #regex=".*example3.*",
 )
+
+# %% composite 2x2 figure of selected samples
+tam_multi = Measurement(
+    folder=datapath,
+    regex=r".*peak_detection_example[1234].*",
+    show_info=True,
+    auto_clean=False,
+    cold_start=True,
+    metadata_path=metadatapath,
+    metadata_id_column="file_name",
+)
+
+selected_patterns = [
+    r".*peak_detection_example1\..*",
+    r".*peak_detection_example2\..*",
+    r".*peak_detection_example3\..*",
+    r".*peak_detection_example4\..*",
+]
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+for ax, pattern in zip(axes.flat, selected_patterns):
+    tam_multi.get_mainpeak_params(
+        processparams=processparams,
+        ax=ax,
+        regex=pattern,
+        show_plot=True,
+        save_plot=False,
+        plot_type="mean",
+        monochrome=True,
+        marker_size=1.2,
+    )
+
+fig.tight_layout()
+plt.show()
 
 # %%
