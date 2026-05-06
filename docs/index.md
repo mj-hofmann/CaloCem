@@ -1,6 +1,6 @@
 This site contains the project documentation and serves as your starting point
-for working with the `TAInstCalorimetry` packaga made available 
-on [PyPI](https://pypi.org/project/tainstcalorimetry/).
+for working with the `CaloCem` package made available 
+on [PyPI](https://pypi.org/project/calocem/).
 
 ## Table Of Contents
 
