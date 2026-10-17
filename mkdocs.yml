@@ -28,6 +28,9 @@ plugins:
         python:
           options:
             docstring_style: numpy
+            docstring_section_style: table
+            show_signature_annotations: true
+            separate_signature: true
   - mkdocs-jupyter:
       no_input: False
       execute: True
@@ -41,14 +44,18 @@ plugins:
       branch: main
 
 nav:
-  - Docs: index.md
-  #- Plotting: plotting.md
-  - Plotting Example: plotting_example.ipynb
-  - Main Peak Parameters: example_get_mainpeak_params.ipynb
-  - Quantification: quantification.md
-  - Tian Correction: tian.md
-  - How-To Guides: how-to-guide.md
-  - Reference: reference.md
+  - Home: index.md
+  - User Guide:
+      - Loading Data: loading.md
+      - Processing Parameters: processing-parameters.md
+      - Plotting: plotting_example.ipynb
+      - Characteristic Values: quantification.md
+      - Main Peak Parameters: example_get_mainpeak_params.ipynb
+      - Tian Correction: tian.md
+  - Reference:
+      - Measurement: reference/measurement.md
+      - ProcessingParameters: reference/processing-parameters.md
+  - Changelog: changelog.md
 
 extra:
   social:
@@ -61,6 +68,11 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.snippets:
+      check_paths: true
+  - tables
+  - toc:
+      permalink: true
   - pymdownx.arithmatex:
       generic: true
 

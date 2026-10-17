@@ -16,7 +16,7 @@ Some of the features are:
 * Feature extraction (cumulative heat, time of dormant period, gradient of silicate reaction, etc.)
 
 ## Documentation
-The full documentation is here [here](https://mj-hofmann.github.io/CaloCem/index.html).
+The full documentation is available [here](https://mj-hofmann.github.io/CaloCem/).
 
 ## Download Stats
 
@@ -24,92 +24,38 @@ The full documentation is here [here](https://mj-hofmann.github.io/CaloCem/index
 [![PyPI - Downloads](https://static.pepy.tech/personalized-badge/calocem?period=total&units=none&left_color=black&right_color=grey&left_text=Downloads)](https://pepy.tech/project/tainstcalorimetry)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/calocem.svg?logo=python&label=Python&logoColor=gold)](https://pypi.org/project/calocem/) 
 
-<!-- 
-## Example Usage
+## Quickstart
 
-Import the ```tacalorimetry``` module from **CaloCem**.
-
-```python
-# import
-import os
-from CaloCem import tacalorimetry
+```bash
+pip install calocem
 ```
 
-Next, we define where the exported files are stored. With this information at hand, a ```Measurement``` is initialized. Experimental raw data and the metadata passed in the course of the measurement are retrieved by the methods ```get_data()``` and ```get_information()```, respectively.
-
 ```python
-# define data path
-# "mycalodata" is the subfoldername where the calorimetry
-# data files (both .csv or .xlsx) are stored
+from pathlib import Path
 
-pathname = os.path.dirname(os.path.realpath(__file__))
-path_to_data = pathname + os.sep + "mycalodata"
+import matplotlib.pyplot as plt
 
-# Example: if projectfile is at "C:\Users\myname\myproject\myproject.py", then "mydata"
-# refers to "C:\Users\myname\myproject\mycalodata" where the data is stored
+from calocem import Measurement, ProcessingParameters
 
-# load experiments via class, i.e. instantiate tacalorimetry object with data
-tam = tacalorimetry.Measurement(folder=path_to_data)
+# folder containing the exported .csv or .xls files
+tam = Measurement(folder=Path("calo_data"), show_info=False)
 
-# get sample and information
-data = tam.get_data()
-info = tam.get_information()
+tam.plot(t_unit="h")
+plt.show()
+
+processparams = ProcessingParameters()
+processparams.cutoff.cutoff_min = 30  # ignore the first 30 minutes
+
+peaks = tam.get_peaks(processparams, show_plot=False)
+mainpeak = tam.get_mainpeak_params(processparams)
 ```
 
-### Basic plotting
-
-Furthermore, the ```Measurement``` features a ```plot()```-method for readily visualizing the collected results.
-
-```python
-# make plot
-tam.plot()
-# show plot
-tacalorimetry.plt.show()
-```
-
-Without further options specified, the ```plot()```-method yields the following.
-
-![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-08%20112743.png?raw=true)
-
-The ```plot()```-method can also be tuned to show the temporal course of normalized heat. On the one hand, this "tuning" refers to the specification of further keyword arguments such as ```t_unit``` and ```y```. On the other hand, the ```plot()```-method returns an object of type ```matplotlib.axes._subplots.AxesSubplot```, which can be used to further customize the plot. In the following, a guide-to-the-eye line is introduced next to adjuting the axes limts, which is not provided for via the ```plot()```-method's signature.
-
-```python
-# show cumulated heat plot
-ax = tam.plot(
-    t_unit="h",
-    y='normalized_heat',
-    y_unit_milli=False
-)
-
-# define target time
-target_h = 1.5
-
-# guide to the eye line
-ax.axvline(target_h, color="gray", alpha=0.5, linestyle=":")
-
-# set upper limits
-ax.set_ylim(top=250)
-ax.set_xlim(right=6)
-# show plot
-tacalorimetry.plt.show()
-```
-The following plot is obtained:
-
-![enter image description here](https://github.com/mj-hofmann/TAInstCalorimetry/blob/main/tests/plots/Figure%202022-08-19%20085928.png?raw=true)
-
-### Feature Extraction
-
-Additionally, the package allows among others for streamlining routine tasks such as
-
-- getting cumulated heat values,
-- identifying peaks positions and characteristics,
-- identifying peak onsets,
-- Plotting by Category,
-- ... -->
+See the [documentation](https://mj-hofmann.github.io/CaloCem/) for loading
+metadata, Tian correction, slope and onset analysis and more.
 
 ## Installation
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install TAInstCalorimetry.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install CaloCem. Python 3.10 or newer is required.
 
 ```bash
 pip install CaloCem
@@ -129,8 +75,13 @@ List of contributors:
 
 
 ## Test
-![Tests](https://github.com/mj-hofmann/TAInstCalorimetry/actions/workflows/run-tests.yml/badge.svg)
+![Tests](https://github.com/mj-hofmann/CaloCem/actions/workflows/run-tests.yml/badge.svg)
 
-## Code Styling
+## Code Style
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+Code is checked with [ruff](https://docs.astral.sh/ruff/) and [mypy](https://mypy-lang.org/):
+
+```bash
+uv run ruff check calocem tests
+uv run mypy
+```
