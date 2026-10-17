@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 
 from .data_processing import (
@@ -97,29 +98,29 @@ class DeconvolutionAnalyzer:
 
     @staticmethod
     def _lognormal_peak(
-        x: np.ndarray, amplitude: float, center: float, sigma: float
-    ) -> np.ndarray:
+        x: NDArray[np.float64], amplitude: float, center: float, sigma: float
+    ) -> NDArray[np.float64]:
         eps = 1e-12
         x_safe = np.clip(x, eps, None)
         center_safe = max(center, eps)
         sigma_safe = max(sigma, eps)
-        result: np.ndarray = amplitude * np.exp(
+        result: NDArray[np.float64] = amplitude * np.exp(
             -0.5 * ((np.log(x_safe) - np.log(center_safe)) / sigma_safe) ** 2
         )
         return result
 
     @staticmethod
     def _gaussian_peak(
-        x: np.ndarray, amplitude: float, center: float, sigma: float
-    ) -> np.ndarray:
+        x: NDArray[np.float64], amplitude: float, center: float, sigma: float
+    ) -> NDArray[np.float64]:
         sigma_safe = max(sigma, 1e-12)
         return amplitude * np.exp(-0.5 * ((x - center) / sigma_safe) ** 2)
 
     def _evaluate_component_curve(
         self,
-        x: np.ndarray,
+        x: NDArray[np.float64],
         component_row: pd.Series,
-    ) -> np.ndarray:
+    ) -> NDArray[np.float64]:
         shape = str(component_row.get("peak_shape", "lognormal")).lower()
         amplitude = float(component_row["amplitude"])
         center = float(component_row["center_time_s"])
@@ -371,7 +372,7 @@ class DeconvolutionAnalyzer:
                         lower_try.extend([-coeff_bound] * (degree + 1))
                         upper_try.extend([coeff_bound] * (degree + 1))
 
-                    def model_try(xvals: np.ndarray, *fit_params: float) -> np.ndarray:
+                    def model_try(xvals: NDArray[np.float64], *fit_params: float) -> NDArray[np.float64]:
                         y_model = np.zeros_like(xvals, dtype=float)
                         for comp_idx in range(n_components):
                             start = comp_idx * 3
@@ -393,12 +394,12 @@ class DeconvolutionAnalyzer:
 
                         return y_model
 
-                    def objective_fn(fit_params: np.ndarray) -> float:
+                    def objective_fn(fit_params: NDArray[np.float64]) -> float:
                         residual_local = y_fit_opt - model_try(x_fit_opt, *fit_params)
                         return float(np.sum(residual_local * residual_local))
 
                     def _peak_time_from_params(
-                        fit_params: np.ndarray, comp_idx: int
+                        fit_params: NDArray[np.float64], comp_idx: int
                     ) -> float:
                         start = comp_idx * 3
                         center = float(fit_params[start + 1])
@@ -1538,8 +1539,8 @@ class FirstAscendingSlopeAnalyzer:
 
     @staticmethod
     def _calculate_segment_mean_tangent(
-        x_segment: np.ndarray,
-        y_segment: np.ndarray,
+        x_segment: NDArray[np.float64],
+        y_segment: NDArray[np.float64],
         fraction_start: float,
         fraction_end: float,
         window_size: float,

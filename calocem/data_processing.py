@@ -8,6 +8,7 @@ import warnings
 from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 from scipy import signal
 from scipy.interpolate import UnivariateSpline
@@ -131,8 +132,8 @@ class HeatFlowProcessor:
             raise DataProcessingException("apply_rolling_mean", e) from e
 
     def _smooth_derivative(
-        self, values: np.ndarray, time: np.ndarray, smoothing: float
-    ) -> np.ndarray:
+        self, values: NDArray[np.float64], time: NDArray[np.float64], smoothing: float
+    ) -> NDArray[np.float64]:
         """Apply median filter and/or spline smoothing to a derivative array."""
         if self.processparams.median_filter.apply:
             values = median_filter(values, size=self.processparams.median_filter.size)
@@ -149,7 +150,7 @@ class HeatFlowProcessor:
         data: pd.DataFrame,
         time_col: str = "time_s",
         target_col: str = "normalized_heat_flow_w_g",
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         """
         Calculate gradient and curvature of heat flow data.
 
@@ -230,7 +231,7 @@ class PeakDetector:
 
     def find_peaks(
         self, data: pd.DataFrame, target_col: str = "normalized_heat_flow_w_g"
-    ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    ) -> tuple[NDArray[np.intp], dict[str, NDArray[np.float64]]]:
         """Find peaks in the heat flow data."""
         try:
             # Apply cutoff if specified
@@ -258,7 +259,7 @@ class PeakDetector:
             raise DataProcessingException("find_peaks", e) from e
 
     def compile_peak_characteristics(
-        self, data: pd.DataFrame, peaks: np.ndarray, properties: dict[str, np.ndarray]
+        self, data: pd.DataFrame, peaks: NDArray[np.intp], properties: dict[str, NDArray[np.float64]]
     ) -> pd.DataFrame:
         """Compile peak characteristics into a DataFrame."""
         try:
@@ -531,7 +532,7 @@ class MetadataAggregator:
                     continue
 
                 # Interpolate each sample onto the common grid, then stack
-                interpolated: dict[str, list[np.ndarray]] = {col: [] for col in heat_cols}
+                interpolated: dict[str, list[NDArray[np.float64]]] = {col: [] for col in heat_cols}
 
                 for _, sample_df in group_data.groupby("sample_short"):
                     sample_df = sample_df.sort_values("time_s")

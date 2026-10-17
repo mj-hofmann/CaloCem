@@ -11,6 +11,7 @@ import matplotlib as mpl
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 
 from .data_processing import DataCleaner, HeatFlowProcessor, SampleIterator
@@ -336,7 +337,7 @@ class SimplePlotter:
     def plot_peaks(
         self,
         data: pd.DataFrame,
-        peaks: np.ndarray,
+        peaks: NDArray[np.intp],
         sample: str,
         ax: Optional[matplotlib.axes.Axes] = None,
         age_col: str = "time_s",
