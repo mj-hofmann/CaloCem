@@ -2,8 +2,10 @@
 Refactored main measurement class for calorimetry data handling.
 """
 
+import copy
 import logging
 import pathlib
+import re
 import warnings
 from typing import Optional, Union
 
@@ -13,7 +15,6 @@ import matplotlib.pyplot as plt
 
 from .analysis import (
     ASTMC1679Analyzer,
-    AverageSlopeAnalyzer,
     DeconvolutionAnalyzer,
     DormantPeriodAnalyzer,
     FirstAscendingSlopeAnalyzer,
@@ -38,6 +39,18 @@ from .utils import adaptive_downsample, downsample_sections
 logger = logging.getLogger(__name__)
 
 
+def _warn_ignored_args(method: str, **kwargs) -> None:
+    """Emit a DeprecationWarning for each argument that was passed but has no effect."""
+    for name, value in kwargs.items():
+        if value is not None and value is not False:
+            warnings.warn(
+                f"{method}(): the '{name}' parameter has no effect and will be "
+                "removed in a future release.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
 class Measurement:
     """
     Class for handling and processing isothermal heat flow calorimetry data.
@@ -54,7 +67,7 @@ class Measurement:
         auto_clean: bool = False,
         cold_start: bool = True,
         processparams: Optional[ProcessingParameters] = None,
-        new_code: bool = False,
+        new_code: Optional[bool] = None,
         processed: bool = False,
         metadata_path: Optional[Union[str, pathlib.Path]] = None,
         metadata_id_column: Optional[str] = None,
@@ -78,7 +91,7 @@ class Measurement:
         processparams : ProcessingParameters, optional
             Processing parameters, by default None. If None, the default parameters will be used
         new_code : bool, optional
-            Flag for new code features, by default False
+            Deprecated, has no effect.
         processed : bool, optional
             Whether data is already processed, i.e., if a .csv file is used which was processed  by Calocem. By default False
         metadata_path : str or pathlib.Path, optional
@@ -99,8 +112,9 @@ class Measurement:
         self._metadata_id = ""
         self._average_groupby: Optional[list[str]] = None
 
+        _warn_ignored_args("Measurement", new_code=new_code)
+
         # Store configuration
-        self._new_code = new_code
         self._processed = processed
         self._save_cache = save_cache
 
@@ -131,9 +145,9 @@ class Measurement:
                 if show_info:
                     print(f"Error during initialization: {e}")
                 if auto_clean:
-                    raise AutoCleanException()
+                    raise AutoCleanException() from e
                 if not cold_start:
-                    raise ColdStartException()
+                    raise ColdStartException() from e
                 raise
 
         # Load metadata if provided
@@ -167,7 +181,7 @@ class Measurement:
                 self._data_persistence.save_data(self._data, self._info)
 
         except Exception as e:
-            raise DataProcessingException("load_from_folder", e)
+            raise DataProcessingException("load_from_folder", e) from e
 
     def _load_from_cache(self):
         """Load data from cached pickle files."""
@@ -224,7 +238,7 @@ class Measurement:
         """Get the measurement information/metadata."""
         return self._info
 
-    def get_metadata(self) -> tuple:
+    def get_metadata(self) -> tuple[pd.DataFrame, str]:
         """Get added metadata and the ID column name."""
         return self._metadata, self._metadata_id
 
@@ -246,7 +260,7 @@ class Measurement:
             self._average_groupby,
         )
 
-    def get_sample_names(self) -> list:
+    def get_sample_names(self) -> list[str]:
         """Get list of sample names."""
         return [
             pathlib.Path(str(sample)).stem
@@ -294,7 +308,8 @@ class Measurement:
             If the file cannot be unpickled, e.g. because it was written by an
             incompatible calocem version. Regenerate it from the raw folder.
         """
-        return load_measurement(path)
+        measurement: Measurement = load_measurement(path)
+        return measurement
 
     # Plotting methods
     def plot(
@@ -358,17 +373,68 @@ class Measurement:
 
     def plot_by_category(
         self,
-        categories: str,
+        categories: Union[str, list[str]],
         t_unit: str = "h",
         y: str = "normalized_heat_flow_w_g",
         y_unit_milli: bool = True,
     ):
-        """Plot data by metadata categories."""
-        # Simplified implementation - would need full metadata integration
-        logger.warning(
-            "plot_by_category requires metadata integration - not fully implemented"
+        """
+        Plot the samples group-wise, grouped by one or more metadata columns.
+
+        Requires metadata added via ``metadata_path`` or :meth:`add_metadata_source`.
+
+        Parameters
+        ----------
+        categories : str or list of str
+            Metadata column(s) to group by.
+        t_unit : str, optional
+            Time unit, see :meth:`plot`. By default "h".
+        y : str, optional
+            Column to plot, see :meth:`plot`. By default "normalized_heat_flow_w_g".
+        y_unit_milli : bool, optional
+            See :meth:`plot`. By default True.
+
+        Yields
+        ------
+        tuple
+            ``(category_value, ax)`` for each group, where ``category_value`` is a
+            tuple when grouping by several columns.
+
+        Examples
+        --------
+        >>> for value, ax in tam.plot_by_category(["date", "cement_name"]):
+        ...     ax.set_ylim(0, 3)
+        ...     plt.show()
+        """
+        if self._metadata.empty:
+            raise ValueError(
+                "plot_by_category requires metadata; call add_metadata_source first."
+            )
+
+        def join_words(values) -> str:
+            words = [str(v) for v in values]
+            if len(words) > 1:
+                return ", ".join(words[:-1]) + " and " + words[-1]
+            return words[0] if words else ""
+
+        by = [categories] if isinstance(categories, str) else list(categories)
+        loaded = self._metadata[self._metadata_id].astype(str).isin(
+            self._data["sample_short"].astype(str)
         )
-        yield from []
+        for selection, group in self._metadata[loaded].groupby(by=by):
+            samples = group[self._metadata_id].astype(str)
+            regex = "|".join(f"({re.escape(sample)})" for sample in samples)
+
+            ax = self.plot(
+                t_unit=t_unit,
+                y=y,
+                y_unit_milli=y_unit_milli,
+                regex=regex,
+                show_info=False,
+            )
+            ax.set_title(f"Grouped by {join_words(by)} ({join_words(selection)})")
+
+            yield (selection if len(by) > 1 else selection[0]), ax
 
     # Analysis methods
     def get_peaks(
@@ -434,7 +500,11 @@ class Measurement:
         regex: Optional[str] = None,
         ax=None,
     ):
-        """Get peak onsets based on gradient threshold."""
+        """Get peak onsets based on gradient threshold.
+
+        ``show_plot`` and ``ax`` are deprecated and have no effect.
+        """
+        _warn_ignored_args("get_peak_onsets", show_plot=show_plot, ax=ax)
         analyzer = OnsetAnalyzer(self.processparams)
         return analyzer.get_peak_onsets(
             self._data,
@@ -615,13 +685,15 @@ class Measurement:
         regex: Optional[str] = None,
         ax=None,
         save_path: Optional[pathlib.Path] = None,
-        xunit: str = "s",
+        xunit: Optional[str] = None,
     ) -> pd.DataFrame:
         """Find the point in time of the maximum slope.
 
         Wrapper around :meth:`get_mainpeak_params` returning only the
         ``max_slope`` columns together with sample identifiers.
+        ``save_path`` and ``xunit`` are deprecated and have no effect.
         """
+        _warn_ignored_args("get_maximum_slope", save_path=save_path, xunit=xunit)
         result = self.get_mainpeak_params(
             processparams=processparams,
             target_col=target_col,
@@ -1012,7 +1084,7 @@ class Measurement:
             self._data,
             target_col,
             age_col,
-            regex,
+            regex=regex,
         )
 
         if max_slopes.empty:
@@ -1315,18 +1387,28 @@ class Measurement:
         regex: Optional[str] = None,
         age_col: str = "time_s",
         target_col: str = "normalized_heat_flow_w_g",
-        time_discarded_s: float = 900,
+        time_discarded_s: Optional[float] = None,
         save_path: Optional[pathlib.Path] = None,
-        xscale: str = "linear",
-        xunit: str = "s",
-        intersection: str = "dormant_hf",
+        xscale: Optional[str] = None,
+        xunit: Optional[str] = None,
+        intersection: Optional[str] = None,
     ):
         """
         Get reaction onset via maximum slope intersection method.
 
-        This is a wrapper around get_peak_onset_via_slope for backward compatibility.
-        Returns only the max slope related columns for compatibility.
+        This is a wrapper around :meth:`get_mainpeak_params` for backward
+        compatibility. ``time_discarded_s``, ``save_path``, ``xscale``, ``xunit``
+        and ``intersection`` are deprecated and have no effect; use
+        ``processparams.cutoff.cutoff_min`` to discard the initial period.
         """
+        _warn_ignored_args(
+            "get_peak_onset_via_max_slope",
+            time_discarded_s=time_discarded_s,
+            save_path=save_path,
+            xscale=xscale,
+            xunit=xunit,
+            intersection=intersection,
+        )
         full_results = self.get_mainpeak_params(
             processparams=processparams,
             target_col=target_col,
@@ -1335,10 +1417,6 @@ class Measurement:
             regex=regex,
             ax=ax,
             plot_type="max",
-
-            #time_discarded_s=time_discarded_s,
-            #intersection=intersection,
-            #xunit=xunit,
         )
 
         if full_results.empty:
@@ -1373,9 +1451,9 @@ class Measurement:
         processparams: Optional[ProcessingParameters] = None,
         target_col: str = "normalized_heat_flow_w_g",
         age_col: str = "time_s",
-        flank_fraction_start: float = 0.2,
-        flank_fraction_end: float = 0.8,
-        window_size: float = 0.1,
+        flank_fraction_start: Optional[float] = None,
+        flank_fraction_end: Optional[float] = None,
+        window_size: Optional[float] = None,
         cutoff_min: Optional[float] = None,
         show_plot: bool = False,
         regex: Optional[str] = None,
@@ -1385,60 +1463,62 @@ class Measurement:
         """
         Determine tangent to ascending flank of peak by averaging over sections.
 
-        This is a wrapper around get_peak_onset_via_slope for backward compatibility.
-        Returns only the mean slope related columns for compatibility.
+        ``flank_fraction_start``, ``flank_fraction_end``, ``window_size`` and
+        ``cutoff_min`` override the corresponding values in
+        ``processparams.slope_analysis`` and ``processparams.cutoff`` when given.
+        ``show_plot``, ``plotpath`` and ``ax`` are deprecated and have no effect;
+        use ``get_mainpeak_params(show_plot=True, plot_type="mean")`` to plot.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``tangent_slope``, ``tangent_time_s``,
+            ``x_intersection`` and related columns.
         """
-        full_results = self.get_peak_onset_via_slope(
-            processparams=processparams,
-            target_col=target_col,
-            age_col=age_col,
-            cutoff_min=cutoff_min,
+        _warn_ignored_args(
+            "get_ascending_flank_tangent",
             show_plot=show_plot,
-            regex=regex,
             plotpath=plotpath,
             ax=ax,
-            flank_fraction_start=flank_fraction_start,
-            flank_fraction_end=flank_fraction_end,
-            window_size=window_size,
         )
+        params = copy.deepcopy(processparams or self.processparams)
+        if flank_fraction_start is not None:
+            params.slope_analysis.flank_fraction_start = flank_fraction_start
+        if flank_fraction_end is not None:
+            params.slope_analysis.flank_fraction_end = flank_fraction_end
+        if window_size is not None:
+            params.slope_analysis.window_size = window_size
+        if cutoff_min is not None:
+            params.cutoff.cutoff_min = cutoff_min
 
-        if full_results.empty:
-            return full_results
-
-        # Extract only mean slope related columns for backward compatibility
-        mean_slope_cols = [
-            col
-            for col in full_results.columns
-            if col.startswith("mean_slope_")
-            or col in ["sample", "sample_short", "peak_time_s", "peak_value"]
-        ]
-
-        result = full_results[mean_slope_cols].copy()
-
-        # Rename columns to match old API
-        column_mapping = {
-            "mean_slope_onset_time_s": "x_intersection",
-            "mean_slope_value": "tangent_slope",
-            "mean_slope_time_s": "tangent_time_s",
-        }
-
-        for old_name, new_name in column_mapping.items():
-            if old_name in result.columns:
-                result = result.rename(columns={old_name: new_name})
-
-        return result
+        analyzer = FlankTangentAnalyzer(params)
+        return analyzer.get_ascending_flank_tangent(
+            self._data, target_col, age_col, regex
+        )
 
     def get_dormant_period_heatflow(
         self,
         processparams: Optional[ProcessingParameters] = None,
         regex: Optional[str] = None,
-        cutoff_min: int = 5,
+        cutoff_min: Optional[int] = None,
         upper_dormant_thresh_w_g: float = 0.002,
-        plot_right_boundary: float = 2e5,
-        prominence: float = 1e-3,
+        plot_right_boundary: Optional[float] = None,
+        prominence: Optional[float] = None,
         show_plot: bool = False,
     ) -> pd.DataFrame:
-        """Get dormant period heat flow characteristics."""
+        """Get dormant period heat flow characteristics.
+
+        ``cutoff_min``, ``plot_right_boundary``, ``prominence`` and ``show_plot``
+        are deprecated and have no effect; set ``processparams.cutoff.cutoff_min``
+        and ``processparams.peakdetection.prominence`` instead.
+        """
+        _warn_ignored_args(
+            "get_dormant_period_heatflow",
+            cutoff_min=cutoff_min,
+            plot_right_boundary=plot_right_boundary,
+            prominence=prominence,
+            show_plot=show_plot,
+        )
         params = processparams or self.processparams
 
         # Get peaks first
@@ -1462,10 +1542,14 @@ class Measurement:
         show_plot: bool = False,
         ax=None,
         regex: Optional[str] = None,
-        xscale: str = "log",
+        xscale: Optional[str] = None,
         xunit: str = "s",
     ) -> pd.DataFrame:
-        """Get characteristics according to ASTM C1679."""
+        """Get characteristics according to ASTM C1679.
+
+        ``xscale`` is deprecated and has no effect.
+        """
+        _warn_ignored_args("get_astm_c1679_characteristics", xscale=xscale)
         params = processparams or self.processparams
 
         peaks = self.get_peaks(params, regex=regex, show_plot=False)
@@ -1511,13 +1595,15 @@ class Measurement:
         show_plot: bool = False,
         ax=None,
         save_path: Optional[pathlib.Path] = None,
-        xunit: str = "s",
+        xunit: Optional[str] = None,
     ) -> pd.DataFrame:
         """Calculate the mean (flank tangent) slope of the main hydration peak.
 
         Wrapper around :meth:`get_mainpeak_params` returning only the
         ``mean_slope`` columns together with sample identifiers.
+        ``save_path`` and ``xunit`` are deprecated and have no effect.
         """
+        _warn_ignored_args("get_average_slope", save_path=save_path, xunit=xunit)
         result = self.get_mainpeak_params(
             processparams=processparams,
             target_col=target_col,
@@ -1532,174 +1618,6 @@ class Measurement:
         id_cols = ["sample", "sample_short"]
         mean_slope_cols = [c for c in result.columns if "mean_slope" in c]
         return result[id_cols + mean_slope_cols].reset_index(drop=True)
-
-    def _plot_tangent_analysis_unified(
-        self,
-        results: pd.DataFrame,
-        analysis_type: str,
-        target_col: str,
-        age_col: str,
-        regex: Optional[str] = None,
-        plotpath: Optional[pathlib.Path] = None,
-        cutoff_time_min: Optional[float] = None,
-        intersection: str = "dormant_hf",
-        xunit: str = "s",
-        time_discarded_s: float = 900,
-        ax=None,
-        # Additional data for onset intersection analysis
-        max_slopes: Optional[pd.DataFrame] = None,
-        dormant_hfs: Optional[pd.DataFrame] = None,
-        onsets: Optional[pd.DataFrame] = None,
-    ):
-        """
-        Unified plotting method for tangent-based analysis results.
-
-        This method handles both flank tangent and onset intersection analysis,
-        with the main difference being how the slope is determined:
-        - Flank tangent: Uses averaged slope over a window
-        - Max slope: Uses single point with maximum gradient
-
-        Parameters
-        ----------
-        results : pd.DataFrame
-            Results from the analysis (tangent results for flank, onsets for max slope)
-        analysis_type : str
-            Either 'flank_tangent' or 'max_slope_onset'
-        target_col : str
-            Column name for heat flow data
-        age_col : str
-            Column name for time data
-        regex : str, optional
-            Regex to filter samples
-        plotpath : pathlib.Path, optional
-            Path to save plots
-        cutoff_time_min : float, optional
-            Cutoff time in minutes
-        intersection : str
-            Type of intersection for onset analysis ('dormant_hf' or 'abscissa')
-        xunit : str
-            Time unit for plotting
-        time_discarded_s : float
-            Time to discard for onset analysis
-        ax : matplotlib.axes.Axes, optional
-            Matplotlib axes to plot on
-        max_slopes : pd.DataFrame, optional
-            Required for onset intersection analysis
-        dormant_hfs : pd.DataFrame, optional
-            Required for onset intersection analysis with dormant_hf
-        onsets : pd.DataFrame, optional
-            Required for onset intersection analysis
-        """
-        try:
-            if analysis_type == "flank_tangent":
-                self._plot_flank_tangent_unified(
-                    results, target_col, age_col, regex, plotpath, cutoff_time_min, ax
-                )
-            elif analysis_type == "max_slope_onset":
-                self._plot_onset_intersection_unified(
-                    results,
-                    max_slopes,
-                    dormant_hfs,
-                    target_col,
-                    age_col,
-                    regex,
-                    intersection,
-                    xunit,
-                    time_discarded_s,
-                    ax,
-                )
-            else:
-                raise ValueError(f"Unknown analysis_type: {analysis_type}")
-
-        except Exception as e:
-            logger.error(f"Error plotting tangent analysis results: {e}")
-            print(f"Plotting failed: {e}")
-
-    def _plot_flank_tangent_unified(
-        self,
-        results: pd.DataFrame,
-        target_col: str,
-        age_col: str,
-        regex: Optional[str] = None,
-        plotpath: Optional[pathlib.Path] = None,
-        cutoff_time_min: Optional[float] = None,
-        ax=None,
-    ):
-        """Plot flank tangent analysis results using unified SimplePlotter."""
-        for _, result_row in results.iterrows():
-            sample = result_row["sample"]
-            sample_short = result_row["sample_short"]
-
-            # Get sample data
-            sample_data = self._get_filtered_sample_data(
-                sample, age_col, cutoff_time_min=cutoff_time_min
-            )
-            if sample_data.empty:
-                continue
-
-            # Create a DataFrame with just this result for plotting
-            single_result = pd.DataFrame([result_row])
-
-            # Use unified plotting method
-            self._plotter.plot_tangent_analysis(
-                sample_data,
-                sample_short,
-                ax=ax,
-                age_col=age_col,
-                target_col=target_col,
-                cutoff_time_min=cutoff_time_min,
-                analysis_type="flank_tangent",
-                tangent_results=single_result,
-                figsize=(7, 5),
-            )
-
-            self._save_and_show_plot(plotpath, f"flank_tangent_{sample_short}.png", ax)
-
-    def _plot_onset_intersection_unified(
-        self,
-        onsets: pd.DataFrame,
-        max_slopes: Optional[pd.DataFrame],
-        dormant_hfs: Optional[pd.DataFrame],
-        target_col: str,
-        age_col: str,
-        regex: Optional[str] = None,
-        intersection: str = "dormant_hf",
-        xunit: str = "s",
-        time_discarded_s: float = 900,
-        ax=None,
-    ):
-        """Plot onset intersection analysis results using unified SimplePlotter."""
-        if max_slopes is None:
-            raise ValueError("max_slopes required for onset intersection analysis")
-
-        for _, onset_row in onsets.iterrows():
-            sample = onset_row["sample"]
-
-            # Get sample data
-            sample_data = self._get_filtered_sample_data(
-                sample, age_col, time_discarded_s=time_discarded_s
-            )
-            if sample_data.empty:
-                continue
-
-            # Use unified plotting method
-            self._plotter.plot_tangent_analysis(
-                sample_data,
-                sample,
-                ax=ax,
-                age_col=age_col,
-                target_col=target_col,
-                analysis_type="onset_intersection",
-                max_slopes=max_slopes,
-                dormant_hfs=dormant_hfs,
-                onsets=onsets,
-                intersection=intersection,
-                xunit=xunit,
-                figsize=(12, 8),
-            )
-
-            # Note: plotpath not available in this context, only show plot
-            self._save_and_show_plot(None, f"onset_intersection_{sample}.png", ax)
 
     def _get_filtered_sample_data(
         self,
@@ -1747,65 +1665,6 @@ class Measurement:
             else:
                 plt.close()
 
-    def _plot_flank_tangent_results(
-        self,
-        results: pd.DataFrame,
-        target_col: str,
-        age_col: str,
-        regex: Optional[str] = None,
-        plotpath: Optional[pathlib.Path] = None,
-        cutoff_time_min: Optional[float] = None,
-        ax=None,
-    ):
-        """
-        Plot flank tangent analysis results using SimplePlotter.
-
-        This is a wrapper around the unified plotting method for backward compatibility.
-        """
-        return self._plot_tangent_analysis_unified(
-            results=results,
-            analysis_type="flank_tangent",
-            target_col=target_col,
-            age_col=age_col,
-            regex=regex,
-            plotpath=plotpath,
-            cutoff_time_min=cutoff_time_min,
-            ax=ax,
-        )
-
-    def _plot_onset_intersections(
-        self,
-        onsets: pd.DataFrame,
-        max_slopes: pd.DataFrame,
-        dormant_hfs: pd.DataFrame,
-        target_col: str,
-        age_col: str,
-        regex: Optional[str] = None,
-        intersection: str = "dormant_hf",
-        xunit: str = "s",
-        time_discarded_s: float = 900,
-        ax=None,
-    ):
-        """
-        Plot onset intersection analysis results using SimplePlotter.
-
-        This is a wrapper around the unified plotting method for backward compatibility.
-        """
-        return self._plot_tangent_analysis_unified(
-            results=onsets,
-            analysis_type="max_slope_onset",
-            target_col=target_col,
-            age_col=age_col,
-            regex=regex,
-            intersection=intersection,
-            xunit=xunit,
-            time_discarded_s=time_discarded_s,
-            ax=ax,
-            max_slopes=max_slopes,
-            dormant_hfs=dormant_hfs,
-            onsets=onsets,
-        )
-
     # Data manipulation methods
     def normalize_sample_to_mass(
         self, sample_short: str, mass_g: float, show_info: bool = True
@@ -1844,7 +1703,7 @@ class Measurement:
         from scipy import integrate
 
         if processparams is None:
-            processparams = self._processparams
+            processparams = self.processparams
 
         for s, sample_data in SampleIterator.iter_samples(self._data):
             processor = HeatFlowProcessor(processparams)
@@ -1916,7 +1775,7 @@ class Measurement:
 
         except Exception as e:
             logger.error(f"Error loading metadata file: {e}")
-            raise ValueError(f"Failed to load metadata from {file_path}: {e}")
+            raise ValueError(f"Failed to load metadata from {file_path}: {e}") from e
 
         # Validate sample_id_column
         if sample_id_column not in self._metadata.columns:

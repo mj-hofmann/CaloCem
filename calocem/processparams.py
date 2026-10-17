@@ -15,7 +15,7 @@ class SampleParamRule:
 
 @dataclass
 class CutOffParameters:
-    cutoff_min: int = 60
+    cutoff_min: float = 60
     cutoff_max: int = 2880  # 2 days in minutes
 
 
@@ -33,8 +33,8 @@ class TianCorrectionParameters:
         Time constant for the second correction step in Tian's method. The default value is 100.
     """
 
-    tau1: int = 300
-    tau2: int = 100
+    tau1: float = 300
+    tau2: float | None = 100
 
 
 @dataclass
@@ -264,14 +264,14 @@ class PlottingParameters:
         String that determines the title of the plot. plot_title can be 'filename' (default) or a list containing the column names of the metadata e.g. '["cement_name", "dosage"]'. 
     ----------
     """
-    figsize: tuple = (10, 6)
+    figsize: tuple[float, float] = (10, 6)
     time_unit: str = "seconds"
     heat_unit: str = "W"
     show_plot_title: bool = True
     legend_pos: str = "best"
-    plot_title = "filename"
-    xlims: tuple = None
-    ylims: tuple = None
+    plot_title: str | list[str] = "filename"
+    xlims: tuple[float, float] | None = None
+    ylims: tuple[float, float] | None = None
 
 @dataclass
 class ProcessingParameters:
@@ -366,7 +366,20 @@ class ProcessingParameters:
         overrides: dict[str, Any],
         priority: int = 100,
     ) -> None:
-        """Add a regex rule to override parameters for matching sample names."""
+        """Add a regex rule to override parameters for matching sample names.
+
+        Note
+        ----
+        Rules are currently only honoured by the first-ascending-slope analysis,
+        i.e. ``get_mainpeak_params(method="ascending")``. All other analyses use
+        the base parameters for every sample.
+
+        Examples
+        --------
+        >>> processparams.add_sample_param_rule(
+        ...     r"^c3a", {"slope_analysis": {"first_ascending_range_method": "delta"}}
+        ... )
+        """
         self.sample_param_rules.append(
             SampleParamRule(pattern=pattern, overrides=overrides, priority=priority)
         )

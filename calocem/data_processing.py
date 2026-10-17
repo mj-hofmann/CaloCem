@@ -69,7 +69,7 @@ class DataCleaner:
             return cleaned_data
 
         except Exception as e:
-            raise DataProcessingException("auto_clean_data", e)
+            raise DataProcessingException("auto_clean_data", e) from e
 
     @staticmethod
     def make_equidistant(data: pd.DataFrame, time_col: str = "time_s") -> pd.DataFrame:
@@ -98,7 +98,7 @@ class DataCleaner:
             return result_data
 
         except Exception as e:
-            raise DataProcessingException("make_equidistant", e)
+            raise DataProcessingException("make_equidistant", e) from e
 
 
 class HeatFlowProcessor:
@@ -128,7 +128,7 @@ class HeatFlowProcessor:
             return result_data
 
         except Exception as e:
-            raise DataProcessingException("apply_rolling_mean", e)
+            raise DataProcessingException("apply_rolling_mean", e) from e
 
     def _smooth_derivative(
         self, values: np.ndarray, time: np.ndarray, smoothing: float
@@ -173,7 +173,7 @@ class HeatFlowProcessor:
             return gradient, curvature
 
         except Exception as e:
-            raise DataProcessingException("calculate_heatflow_derivatives", e)
+            raise DataProcessingException("calculate_heatflow_derivatives", e) from e
 
     def get_largest_slope(
         self, data: pd.DataFrame, processparams: ProcessingParameters
@@ -203,7 +203,7 @@ class HeatFlowProcessor:
             return result
 
         except Exception as e:
-            raise DataProcessingException("get_largest_slope", e)
+            raise DataProcessingException("get_largest_slope", e) from e
 
     def apply_median_filter(
         self, data: pd.DataFrame, target_col: str = "normalized_heat_flow_w_g"
@@ -219,7 +219,7 @@ class HeatFlowProcessor:
             return result_data
 
         except Exception as e:
-            raise DataProcessingException("apply_median_filter", e)
+            raise DataProcessingException("apply_median_filter", e) from e
 
 
 class PeakDetector:
@@ -230,7 +230,7 @@ class PeakDetector:
 
     def find_peaks(
         self, data: pd.DataFrame, target_col: str = "normalized_heat_flow_w_g"
-    ) -> tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
         """Find peaks in the heat flow data."""
         try:
             # Apply cutoff if specified
@@ -255,10 +255,10 @@ class PeakDetector:
             return peaks, properties
 
         except Exception as e:
-            raise DataProcessingException("find_peaks", e)
+            raise DataProcessingException("find_peaks", e) from e
 
     def compile_peak_characteristics(
-        self, data: pd.DataFrame, peaks: np.ndarray, properties: dict
+        self, data: pd.DataFrame, peaks: np.ndarray, properties: dict[str, np.ndarray]
     ) -> pd.DataFrame:
         """Compile peak characteristics into a DataFrame."""
         try:
@@ -284,7 +284,7 @@ class PeakDetector:
             return peak_characteristics
 
         except Exception as e:
-            raise DataProcessingException("compile_peak_characteristics", e)
+            raise DataProcessingException("compile_peak_characteristics", e) from e
 
 
 class OnsetDetector:
@@ -326,7 +326,7 @@ class OnsetDetector:
             return onset
 
         except Exception as e:
-            raise DataProcessingException("find_gradient_onset", e)
+            raise DataProcessingException("find_gradient_onset", e) from e
 
 
 class IntersectionCalculator:
@@ -349,10 +349,10 @@ class IntersectionCalculator:
             # x = (dormant_hf - b) / m
             x_intersect = (dormant_hf - y_intercept) / max_slope_row["gradient"]
 
-            return x_intersect
+            return float(x_intersect)
 
         except Exception as e:
-            raise DataProcessingException("calculate_dormant_hf_intersection", e)
+            raise DataProcessingException("calculate_dormant_hf_intersection", e) from e
 
     @staticmethod
     def calculate_abscissa_intersection(max_slope_row: pd.Series) -> float:
@@ -364,10 +364,10 @@ class IntersectionCalculator:
                 max_slope_row["normalized_heat_flow_w_g"] / max_slope_row["gradient"]
             )
 
-            return x_intersect
+            return float(x_intersect)
 
         except Exception as e:
-            raise DataProcessingException("calculate_abscissa_intersection", e)
+            raise DataProcessingException("calculate_abscissa_intersection", e) from e
 
 
 class SampleIterator:
@@ -439,7 +439,7 @@ class DataNormalizer:
             return result_data
 
         except Exception as e:
-            raise DataProcessingException("normalize_sample_to_mass", e)
+            raise DataProcessingException("normalize_sample_to_mass", e) from e
 
     @staticmethod
     def infer_heat_j_column(data: pd.DataFrame) -> pd.DataFrame:
@@ -465,7 +465,7 @@ class DataNormalizer:
             return result_data
 
         except Exception as e:
-            raise DataProcessingException("infer_heat_j_column", e)
+            raise DataProcessingException("infer_heat_j_column", e) from e
 
 
 class MetadataAggregator:
@@ -531,7 +531,7 @@ class MetadataAggregator:
                     continue
 
                 # Interpolate each sample onto the common grid, then stack
-                interpolated = {col: [] for col in heat_cols}
+                interpolated: dict[str, list[np.ndarray]] = {col: [] for col in heat_cols}
 
                 for _, sample_df in group_data.groupby("sample_short"):
                     sample_df = sample_df.sort_values("time_s")
@@ -574,7 +574,7 @@ class MetadataAggregator:
             return pd.concat(rows, ignore_index=True)
 
         except Exception as e:
-            raise DataProcessingException("average_by_metadata", e)
+            raise DataProcessingException("average_by_metadata", e) from e
 
     @staticmethod
     def combine_with_metadata(

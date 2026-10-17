@@ -40,10 +40,8 @@ for sample_name in sample_names:
         # time_discarded_s=3000,
         # exclude_discarded_time=True,
         show_plot=True,
-        save_path=assetpath,
         regex=sample_name,
         ax=ax,
-        xunit="h",
     )
     # ax.set_xlim(0, 24)
     # ax.set_ylim(0, 0.005)

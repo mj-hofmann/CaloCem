@@ -20,7 +20,6 @@ tam = Measurement(
     show_info=True,
     auto_clean=False,
     cold_start=True,
-    new_code=True,
     processed=True,
     processparams=processparams
 )

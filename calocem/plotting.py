@@ -2,14 +2,14 @@
 Plotting functionality for calorimetry data visualization.
 """
 
+import functools
 import logging
 import pathlib
-from typing import Optional
+from typing import Any, Optional
 
 import matplotlib as mpl
 import matplotlib.axes
 import matplotlib.pyplot as plt
-from matplotlib.font_manager import FontProperties
 import numpy as np
 import pandas as pd
 
@@ -19,7 +19,19 @@ from .processparams import ProcessingParameters
 
 logger = logging.getLogger(__name__)
 
-mpl.rcParams["font.family"] = "serif"
+_PLOT_RC = {"font.family": "serif"}
+
+
+def _calocem_style(func):
+    """Apply calocem's plot style while ``func`` runs, without touching global rcParams."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        with mpl.rc_context(_PLOT_RC):
+            return func(*args, **kwargs)
+
+    return wrapper
+
 
 class SimplePlotter:
     """Simplified plotting functionality."""
@@ -51,6 +63,7 @@ class SimplePlotter:
 
         return float(candidate[age_col].min())
 
+    @_calocem_style
     def plot_data(
         self,
         data: pd.DataFrame,
@@ -117,7 +130,7 @@ class SimplePlotter:
             return ax
 
         except Exception as e:
-            raise DataProcessingException("plot_data", e)
+            raise DataProcessingException("plot_data", e) from e
 
     @staticmethod
     def _align_zero_baselines(
@@ -160,6 +173,7 @@ class SimplePlotter:
         ax.set_ylim(*adjust(lo1, hi1, f))
         ax_grad.set_ylim(*adjust(lo2, hi2, f))
 
+    @_calocem_style
     def plot_heatflow_with_gradient(
         self,
         data: pd.DataFrame,
@@ -316,8 +330,9 @@ class SimplePlotter:
             return ax, ax_grad
 
         except Exception as e:
-            raise DataProcessingException("plot_heatflow_with_gradient", e)
+            raise DataProcessingException("plot_heatflow_with_gradient", e) from e
 
+    @_calocem_style
     def plot_peaks(
         self,
         data: pd.DataFrame,
@@ -363,8 +378,9 @@ class SimplePlotter:
             return ax
 
         except Exception as e:
-            raise DataProcessingException("plot_peaks", e)
+            raise DataProcessingException("plot_peaks", e) from e
 
+    @_calocem_style
     def plot_slopes(
         self,
         data: pd.DataFrame,
@@ -482,8 +498,9 @@ class SimplePlotter:
             return ax
 
         except Exception as e:
-            raise DataProcessingException("plot_slopes", e)
+            raise DataProcessingException("plot_slopes", e) from e
 
+    @_calocem_style
     def plot_tangent_analysis(
         self,
         data: pd.DataFrame,
@@ -495,7 +512,7 @@ class SimplePlotter:
         cutoff_time_min: Optional[float] = None,
         analysis_type: str = "mean",
         results: Optional[pd.DataFrame] = None,
-        figsize: tuple = (8, 5),
+        figsize: tuple[float, float] = (8, 5),
         metadata: Optional[pd.DataFrame] = None,
         metadata_id: Optional[str] = None,
         monochrome: bool = False,
@@ -532,6 +549,8 @@ class SimplePlotter:
         metadata_id : str, optional
             Column name in metadata that matches sample names
         """
+        if results is None:
+            raise ValueError("plot_tangent_analysis requires analysis results")
         try:
             if ax is None:
                 fig_size = (
@@ -637,7 +656,7 @@ class SimplePlotter:
             return ax
 
         except Exception as e:
-            raise DataProcessingException("plot_tangent_analysis", e)
+            raise DataProcessingException("plot_tangent_analysis", e) from e
 
     def _plot_flank_tangent_elements(
         self,
@@ -871,7 +890,7 @@ class SimplePlotter:
                 "markeredgewidth": 1.0,
             }
 
-        def mc_scatter_kwargs(default_color: str) -> dict:
+        def mc_scatter_kwargs(default_color: str) -> dict[str, Any]:
             """Return kwargs for ax.scatter() honoring monochrome mode."""
             if monochrome:
                 return {
@@ -1109,8 +1128,8 @@ class SimplePlotter:
         # Plot Standard Markers (ASTM, Max Slope, Peak)
         markers = [
             ("peak_time_s", "normalized_heat_flow_w_g_at_peak", "mD", "t_{peak}"),
-            ("max_slope_time_s", "normalized_heat_flow_w_g_at_max_slope", "c^", "t_{max\; slope}"),
-            ("astm_time_s", "normalized_heat_flow_w_g_astm", "gs", "t_{ASTM\; C1679}"),
+            ("max_slope_time_s", "normalized_heat_flow_w_g_at_max_slope", "c^", r"t_{max\; slope}"),
+            ("astm_time_s", "normalized_heat_flow_w_g_astm", "gs", r"t_{ASTM\; C1679}"),
         ]
 
         for t_col, v_col, style, label_name in markers:
@@ -1244,7 +1263,6 @@ class SimplePlotter:
                         for col in plot_title_cols:
                             if col in sample_metadata.columns:
                                 value = sample_metadata.iloc[0][col]
-                                colname = col.replace("_", " ").title()
                                 if pd.notna(value):
                                     metadata_parts.append(f"{value}")
                             else:
@@ -1257,33 +1275,7 @@ class SimplePlotter:
 
         return ax
 
-    def plot_flank_tangent(
-        self,
-        data: pd.DataFrame,
-        tangent_results: pd.DataFrame,
-        sample: str,
-        ax: Optional[matplotlib.axes.Axes] = None,
-        age_col: str = "time_s",
-        target_col: str = "normalized_heat_flow_w_g",
-        cutoff_time_min: Optional[float] = None,
-    ):
-        """
-        Plot ascending flank tangent analysis results.
-
-        This is a wrapper around plot_tangent_analysis for backward compatibility.
-        """
-        return self.plot_tangent_analysis(
-            data=data,
-            sample=sample,
-            ax=ax,
-            age_col=age_col,
-            target_col=target_col,
-            cutoff_time_min=cutoff_time_min,
-            analysis_type="flank_tangent",
-            tangent_results=tangent_results,
-            figsize=(7, 5),
-        )
-
+    @_calocem_style
     def plot_astm_c1679(
         self,
         data: pd.DataFrame,
@@ -1342,38 +1334,3 @@ class SimplePlotter:
         ax.legend()
         ax.grid(True, alpha=0.3)
         return ax
-
-    def plot_onset_intersections(
-        self,
-        data: pd.DataFrame,
-        max_slopes: pd.DataFrame,
-        dormant_hfs: pd.DataFrame,
-        onsets: pd.DataFrame,
-        sample: str,
-        ax: Optional[matplotlib.axes.Axes] = None,
-        age_col: str = "time_s",
-        target_col: str = "normalized_heat_flow_w_g",
-        intersection: str = "dormant_hf",
-        xunit: str = "s",
-        cutoff_time_min: Optional[float] = None,
-    ):
-        """
-        Plot onset intersections via maximum slope method.
-
-        This is a wrapper around plot_tangent_analysis for backward compatibility.
-        """
-        return self.plot_tangent_analysis(
-            data=data,
-            sample=sample,
-            ax=ax,
-            age_col=age_col,
-            target_col=target_col,
-            cutoff_time_min=cutoff_time_min,
-            analysis_type="onset_intersection",
-            max_slopes=max_slopes,
-            dormant_hfs=dormant_hfs,
-            onsets=onsets,
-            intersection=intersection,
-            xunit=xunit,
-            figsize=(12, 8),
-        )

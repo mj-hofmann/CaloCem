@@ -5,7 +5,7 @@ Analysis operations for calorimetry data.
 import logging
 import pathlib
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -55,7 +55,7 @@ class PeakAnalyzer:
         try:
             list_of_peaks_dfs = []
 
-            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+            for _sample, sample_data in SampleIterator.iter_samples(data, regex):
                 # Apply cutoff
                 filtered_data = sample_data.copy()
                 if self.processparams.cutoff.cutoff_min:
@@ -86,7 +86,7 @@ class PeakAnalyzer:
                 return pd.DataFrame()
 
         except Exception as e:
-            raise DataProcessingException("get_peaks", e)
+            raise DataProcessingException("get_peaks", e) from e
 
 
 class DeconvolutionAnalyzer:
@@ -103,9 +103,10 @@ class DeconvolutionAnalyzer:
         x_safe = np.clip(x, eps, None)
         center_safe = max(center, eps)
         sigma_safe = max(sigma, eps)
-        return amplitude * np.exp(
+        result: np.ndarray = amplitude * np.exp(
             -0.5 * ((np.log(x_safe) - np.log(center_safe)) / sigma_safe) ** 2
         )
+        return result
 
     @staticmethod
     def _gaussian_peak(
@@ -465,7 +466,7 @@ class DeconvolutionAnalyzer:
                     bounded_x0 = np.array(
                         [
                             min(max(v, lo), hi)
-                            for v, lo, hi in zip(p0_try, lower_try, upper_try)
+                            for v, lo, hi in zip(p0_try, lower_try, upper_try, strict=True)
                         ],
                         dtype=float,
                     )
@@ -475,7 +476,7 @@ class DeconvolutionAnalyzer:
                             objective_fn,
                             x0=bounded_x0,
                             method="SLSQP",
-                            bounds=list(zip(lower_try, upper_try)),
+                            bounds=list(zip(lower_try, upper_try, strict=True)),
                             constraints=constraints,
                             options={"maxiter": int(params.max_nfev), "ftol": 1e-12},
                         )
@@ -565,7 +566,7 @@ class DeconvolutionAnalyzer:
             return pd.DataFrame(all_rows)
 
         except Exception as e:
-            raise DataProcessingException("get_deconvolution", e)
+            raise DataProcessingException("get_deconvolution", e) from e
 
     def get_left_peak_inflection_tangent_intersection(
         self,
@@ -656,7 +657,7 @@ class DeconvolutionAnalyzer:
         except Exception as e:
             raise DataProcessingException(
                 "get_left_peak_inflection_tangent_intersection", e
-            )
+            ) from e
 
 
 class SlopeAnalyzer:
@@ -685,9 +686,7 @@ class SlopeAnalyzer:
                 if self.processparams.cutoff.cutoff_min
                 else 0
             )
-            for sample, sample_data in SampleIterator.iter_samples(data, regex):
-                sample_name = pathlib.Path(str(sample)).stem
-
+            for _sample, sample_data in SampleIterator.iter_samples(data, regex):
                 # Apply time filtering
                 filtered_data = sample_data.copy()
                 if time_discarded_s > 0:
@@ -748,7 +747,7 @@ class SlopeAnalyzer:
                 return pd.DataFrame()
 
         except Exception as e:
-            raise DataProcessingException("get_maximum_slope", e)
+            raise DataProcessingException("get_maximum_slope", e) from e
 
 
 class OnsetAnalyzer:
@@ -774,7 +773,7 @@ class OnsetAnalyzer:
         try:
             list_of_characteristics = []
 
-            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+            for _sample, sample_data in SampleIterator.iter_samples(data, regex):
                 # Apply time filtering
                 if exclude_discarded_time:
                     sample_data = sample_data[sample_data[age_col] >= time_discarded_s]
@@ -800,7 +799,7 @@ class OnsetAnalyzer:
                 return pd.DataFrame()
 
         except Exception as e:
-            raise DataProcessingException("get_peak_onsets", e)
+            raise DataProcessingException("get_peak_onsets", e) from e
 
     def get_peak_onset_via_max_slope(
         self,
@@ -886,7 +885,7 @@ class OnsetAnalyzer:
                 return pd.DataFrame()
 
         except Exception as e:
-            raise DataProcessingException("get_peak_onset_via_max_slope", e)
+            raise DataProcessingException("get_peak_onset_via_max_slope", e) from e
 
 
 class DormantPeriodAnalyzer:
@@ -949,7 +948,7 @@ class DormantPeriodAnalyzer:
                 return pd.DataFrame()
 
         except Exception as e:
-            raise DataProcessingException("get_dormant_period_heatflow", e)
+            raise DataProcessingException("get_dormant_period_heatflow", e) from e
 
     def rename_and_select_columns(self, dormant_hf: pd.DataFrame) -> pd.DataFrame:
         """Rename and select relevant columns for dormant heat flow DataFrame."""
@@ -1047,7 +1046,7 @@ class ASTMC1679Analyzer:
                 return pd.DataFrame()
 
         except Exception as e:
-            raise DataProcessingException("get_astm_c1679_characteristics", e)
+            raise DataProcessingException("get_astm_c1679_characteristics", e) from e
 
     def rename_and_select_columns(self, astm_df: pd.DataFrame) -> pd.DataFrame:
         """Rename and select relevant columns for ASTM DataFrame."""
@@ -1116,7 +1115,7 @@ class HeatCalculator:
             return results
 
         except Exception as e:
-            raise DataProcessingException("get_cumulated_heat_at_hours", e)
+            raise DataProcessingException("get_cumulated_heat_at_hours", e) from e
 
 
 class AverageSlopeAnalyzer:
@@ -1232,7 +1231,7 @@ class AverageSlopeAnalyzer:
                 return pd.DataFrame()
 
         except Exception as e:
-            raise DataProcessingException("get_average_slope", e)
+            raise DataProcessingException("get_average_slope", e) from e
 
 
 class FlankTangentAnalyzer:
@@ -1528,7 +1527,7 @@ class FlankTangentAnalyzer:
             return pd.DataFrame(results)
 
         except Exception as e:
-            raise DataProcessingException("get_ascending_flank_tangent", e)
+            raise DataProcessingException("get_ascending_flank_tangent", e) from e
 
 
 class FirstAscendingSlopeAnalyzer:
@@ -1544,7 +1543,7 @@ class FirstAscendingSlopeAnalyzer:
         fraction_start: float,
         fraction_end: float,
         window_size: float,
-    ) -> Optional[dict]:
+    ) -> Optional[dict[str, Any]]:
         """Calculate representative mean tangent on a segment using fraction-based windows."""
         if len(x_segment) < 3:
             return None
@@ -1921,4 +1920,4 @@ class FirstAscendingSlopeAnalyzer:
             return pd.DataFrame(results)
 
         except Exception as e:
-            raise DataProcessingException("get_first_ascending_slope_to_fraction", e)
+            raise DataProcessingException("get_first_ascending_slope_to_fraction", e) from e

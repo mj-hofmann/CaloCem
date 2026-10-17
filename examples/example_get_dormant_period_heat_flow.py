@@ -37,10 +37,6 @@ processparams.gradient_peakdetection.prominence = 1e-5
 processparams.cutoff.cutoff_min = 60
 
 # get peak onsets via alternative method
-onsets_spline = tam.get_dormant_period_heatflow(
-    processparams=processparams,
-    show_plot=True,
-    plot_right_boundary=3e5
-)
+onsets_spline = tam.get_dormant_period_heatflow(processparams=processparams)
 
 # %%

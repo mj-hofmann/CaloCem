@@ -1,7 +1,6 @@
 import pandas as pd
 import pathlib
 
-import pytest
 
 from calocem.measurement import Measurement
 from calocem.processparams import ProcessingParameters
