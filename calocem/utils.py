@@ -82,7 +82,7 @@ def read_excel(file, show_info=True):
 
         # get new column names
         new_columnames = []
-        for i, j in zip(df_data.iloc[0, :], df_data.iloc[1, :]):
+        for i, j in zip(df_data.iloc[0, :], df_data.iloc[1, :], strict=True):
             # build
             new_columnames.append(
                 re.sub(r"[\s\n\[\]\(\)° _]+", "_", f"{i}_{j}".lower())
@@ -338,7 +338,7 @@ def tidy_colnames(df: pd.DataFrame) -> pd.DataFrame:
     # set
     df.columns = new_columnames
     # validate new column names
-    if not "time_s" in new_columnames:
+    if "time_s" not in new_columnames:
         # stop here
         return None
 
@@ -425,7 +425,7 @@ def parse_rowwise_data(data):
     list_of_lists = []
     for _, r in data.iterrows():
         # append to list
-        list_of_lists.append(str(r.to_list()).strip("['']").split(","))
+        list_of_lists.append(str(r.to_list()).strip("['']").split(","))  # noqa: B005 (strips a char set)
 
     # get DataFrame from list of lists
     data = pd.DataFrame(list_of_lists)
@@ -454,9 +454,6 @@ def apply_resampling(df: pd.DataFrame, resampling_s="10s") -> pd.DataFrame:
     num_cols = df.select_dtypes(include="number").columns
     resampled_stringcols = resampler[string_cols].first().ffill()
     resampled_numcols = resampler[num_cols].mean().interpolate()
-    df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
-    df["time_s"] = (df.index - df.index[0]).total_seconds()
-    return df
     df = pd.concat([resampled_stringcols, resampled_numcols], axis=1)
     df["time_s"] = (df.index - df.index[0]).total_seconds()
     return df

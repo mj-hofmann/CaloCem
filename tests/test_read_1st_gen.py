@@ -1,7 +1,6 @@
 
 import pathlib
 
-import pytest
 
 from calocem import tacalorimetry
 

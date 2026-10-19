@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `Measurement.apply_tian_correction()` without `processparams` crashed with an
+  `AttributeError`; it now uses the instance's parameters.
+- `Measurement.get_ascending_flank_tangent()` crashed because it called a
+  removed method. It works again, and `flank_fraction_start`,
+  `flank_fraction_end`, `window_size` and `cutoff_min` override the
+  corresponding `processparams` values.
+- `regex` was dropped by the maximum-slope analysis, so `get_maximum_slope()`,
+  `get_mainpeak_params()` and `get_peak_onset_via_max_slope()` returned
+  max-slope results for all samples.
+- `Measurement.plot_by_category()` was an empty stub; it again yields one
+  plot per metadata group, as documented.
+- `PlottingParameters.plot_title` is now a proper dataclass field and can be
+  passed to the constructor.
+- Importing calocem no longer sets matplotlib's global `font.family`; the
+  serif font is applied only to calocem's own plots.
+- Exceptions re-raised by calocem now chain the original error (`raise ... from e`).
+
+### Deprecated
+
+- Arguments that had no effect now emit a `DeprecationWarning` when passed:
+  `get_dormant_period_heatflow(cutoff_min, prominence, plot_right_boundary,
+  show_plot)`, `get_peak_onsets(show_plot, ax)`,
+  `get_maximum_slope(save_path, xunit)`, `get_average_slope(save_path, xunit)`,
+  `get_peak_onset_via_max_slope(time_discarded_s, save_path, xscale, xunit,
+  intersection)`, `get_astm_c1679_characteristics(xscale)`,
+  `get_ascending_flank_tangent(show_plot, plotpath, ax)` and
+  `Measurement(new_code)`. Use `ProcessingParameters` instead.
+
+### Removed
+
+- Internal plotting helpers that could no longer run
+  (`SimplePlotter.plot_flank_tangent`, `SimplePlotter.plot_onset_intersections`
+  and their private `Measurement` callers).
+- Unused `requests` dependency.
+
+### Internal
+
+- CI now runs `ruff` and `mypy`; both pass.
+- Replaced two test scripts that swallowed exceptions with real tests.
+
 ## [0.3.4] - 2026-05-28
 
 ### Added

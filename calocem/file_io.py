@@ -8,7 +8,7 @@ import pickle
 import re
 from abc import ABC, abstractmethod
 from importlib.metadata import PackageNotFoundError, version
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import pandas as pd
 from scipy import integrate
@@ -82,7 +82,7 @@ class CSVReader(FileReader):
 
         except Exception as e:
             logger.error(f"✗ reading {file_path} FAILED: {e}")
-            raise FileReadingException(file_path, e)
+            raise FileReadingException(file_path, e) from e
 
     def _read_processed_csv(
         self, file_path: pathlib.Path, show_info: bool = True
@@ -149,7 +149,7 @@ class CSVReader(FileReader):
 
     def _scan_csv_structure(
         self, file_path: pathlib.Path
-    ) -> Optional[tuple]:
+    ) -> Optional[tuple[Any, Any, Any, list[tuple[float, float]]]]:
         """
         Scan the file line-by-line to determine its structure.
 
@@ -167,7 +167,7 @@ class CSVReader(FileReader):
         header_row = None
         footer_row = None
         reaction_start_time = None
-        gap_intervals: list = []
+        gap_intervals: list[tuple[float, float]] = []
         pending_interrupt: Optional[float] = None
 
         with open(file_path, "r", encoding="utf-8", errors="replace") as fh:
@@ -507,10 +507,10 @@ class XLSReader(FileReader):
                 if show_info:
                     print(f"Could not read data from {file_path}: {e}")
                 logger.error(f"✗ reading {file_path} FAILED: {e}")
-                raise FileReadingException(file_path, e)
+                raise FileReadingException(file_path, e) from e
 
         except Exception as e:
-            raise FileReadingException(file_path, e)
+            raise FileReadingException(file_path, e) from e
 
     def read_info(
         self, file_path: pathlib.Path, show_info: bool = True

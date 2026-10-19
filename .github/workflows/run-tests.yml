@@ -4,6 +4,26 @@ on:
   - pull_request
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: "latest"
+        python-version: '3.10'
+
+    - name: Sync dependencies and install package
+      run: uv sync --dev
+
+    - name: Ruff
+      run: uv run ruff check calocem tests
+
+    - name: Mypy
+      run: uv run mypy
+
   build:
     strategy:
       matrix:
