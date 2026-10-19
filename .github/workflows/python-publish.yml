@@ -1,17 +1,14 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+# Builds the package and uploads it to PyPI when a GitHub release is published.
+#
+# To release: bump `version` in pyproject.toml (and the CHANGELOG heading),
+# merge to main, then create a GitHub release whose tag is `v<version>`,
+# e.g. `v0.4.0`. The job fails early if the tag and the version disagree.
 
 name: Publish Python Package
 
 on:
-  push:
-    branches:
-      - main  
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -20,10 +17,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5  
+      uses: actions/checkout@v5
 
     - name: Set up Python
-      uses: actions/setup-python@v6  
+      uses: actions/setup-python@v6
       with:
         python-version: '3.13'
 
@@ -31,6 +28,16 @@ jobs:
       uses: astral-sh/setup-uv@v7
       with:
         version: "latest"
+
+    - name: Check tag matches package version
+      env:
+        TAG: ${{ github.event.release.tag_name }}
+      run: |
+        version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        if [ "$TAG" != "v$version" ]; then
+          echo "::error::Release tag '$TAG' does not match pyproject.toml version '$version' (expected 'v$version')."
+          exit 1
+        fi
 
     - name: Sync dependencies
       run: uv sync --dev
@@ -43,8 +50,6 @@ jobs:
       env:
         UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       run: uv publish
-        
+
     - name: Clean up
       run: rm -rf dist build *.egg-info
-
-
