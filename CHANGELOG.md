@@ -44,9 +44,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and their private `Measurement` callers).
 - Unused `requests` dependency.
 
+### Documentation
+
+- Restructured the documentation: new quickstart on the home page, new pages
+  *Loading Data* and *Processing Parameters*, revised *Characteristic Values*,
+  *Plotting* and *Tian Correction* pages. The outdated how-to guide was
+  merged into these pages.
+- The reference now covers `ProcessingParameters` and all parameter groups;
+  the public `Measurement` methods have numpy-style docstrings listing
+  parameters, returned columns and units.
+- Fixed the Tian correction docs: a single time constant requires
+  `tau2 = None`.
+- Added a changelog page and a quickstart to the README.
+
 ### Internal
 
-- CI now runs `ruff` and `mypy`; both pass.
+- CI now runs `ruff` and `mypy`; both pass. The example scripts are run in CI.
 - Replaced two test scripts that swallowed exceptions with real tests.
 
 ## [0.3.4] - 2026-05-28

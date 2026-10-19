@@ -16,24 +16,21 @@ tam = Measurement(
 )
 
 
-# %% plot
+# %% plot the main-peak analysis of each sample into its own subplot
 
-# init
-fig, axs = plt.subplots(1, 3, layout="constrained", sharey=True)
+fig, axs = plt.subplots(1, 3, layout="constrained", sharey=True, figsize=(15, 5))
 
-# populate subplots
-for i, grad in enumerate([5e-9, 3e-8, 7e-8]):
-    
-    # get and show onsets
-    _, ax = tam.get_mainpeak_params(
-        ax=axs[i],
-        # gradient_threshold=grad,
-        show_plot=True
-        )
+for ax, sample in zip(axs, tam.get_sample_names()):
+    tam.get_mainpeak_params(
+        regex=sample,
+        ax=ax,
+        show_plot=True,
+    )
 
     # tune appearance
-    # ax.set_xlim(7000, 10000)
     ax.set_xlim(0, 60000)
     ax.set_ylim(0, 0.003)
-    ax.set_title(f"{grad:.1e}")
+    ax.set_title(sample)
+
+plt.show()
 # %%

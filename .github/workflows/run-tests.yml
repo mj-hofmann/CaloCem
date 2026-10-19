@@ -24,6 +24,33 @@ jobs:
     - name: Mypy
       run: uv run mypy
 
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: "latest"
+        python-version: '3.12'
+
+    - name: Sync dependencies and install package
+      run: uv sync --dev
+
+    - name: Run example scripts
+      working-directory: examples
+      env:
+        MPLBACKEND: Agg
+      run: |
+        for f in *.py; do
+          # example_debug.py loads gen3_calofile_no_mass.csv, which the CSV loader cannot read yet
+          if [ "$f" = "example_debug.py" ]; then continue; fi
+          echo "::group::$f"
+          uv run python "$f"
+          echo "::endgroup::"
+        done
+
   build:
     strategy:
       matrix:

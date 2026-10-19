@@ -53,10 +53,59 @@ def _warn_ignored_args(method: str, **kwargs) -> None:
 
 class Measurement:
     """
-    Class for handling and processing isothermal heat flow calorimetry data.
+    Isothermal heat flow calorimetry data of one or more samples.
 
-    This class coordinates file I/O, data processing, analysis, and visualization
-    operations while maintaining the same API as the original implementation.
+    A Measurement reads all calorimetry files of a folder into one long-format
+    DataFrame and provides methods for plotting and analysing the samples.
+
+    Parameters
+    ----------
+    folder : str or pathlib.Path, optional
+        Folder with the exported calorimetry files (``.csv`` or ``.xls``).
+        Subfolders are not searched. If None, an empty Measurement is created.
+    show_info : bool, optional
+        Print information while loading, by default True.
+    regex : str, optional
+        Regular expression matched against the beginning of the file names;
+        only matching files are loaded.
+    auto_clean : bool, optional
+        Drop rows without heat flow values and merge differently named
+        temperature columns into ``temperature_c``, by default False.
+    cold_start : bool, optional
+        If True (default), read the files. If False, read ``_data.pickle`` and
+        ``_info.pickle`` from the current working directory instead (see
+        ``save_cache``).
+    processparams : ProcessingParameters, optional
+        Default processing parameters for all analysis methods. The ``downsample``
+        settings are applied while loading.
+    new_code : bool, optional
+        Deprecated, has no effect.
+    processed : bool, optional
+        Read plain CSV files previously written from :meth:`get_data`, by default
+        False.
+    metadata_path : str or pathlib.Path, optional
+        CSV or Excel file with one row of metadata per sample, see
+        :meth:`add_metadata_source`.
+    metadata_id_column : str, optional
+        Column of the metadata file holding the sample names. Required together
+        with ``metadata_path``.
+    save_cache : bool, optional
+        Write ``_data.pickle`` and ``_info.pickle`` to the current working
+        directory after loading, by default False. Prefer :meth:`save`.
+
+    Raises
+    ------
+    AutoCleanException
+        If ``auto_clean`` fails.
+    ColdStartException
+        If ``cold_start=False`` and no cache files are found.
+
+    Examples
+    --------
+    >>> from calocem import Measurement, ProcessingParameters
+    >>> tam = Measurement(folder="calo_data", regex=r"opc_.*", show_info=False)
+    >>> tam.get_sample_names()
+    ['opc_1', 'opc_2']
     """
 
     def __init__(
@@ -73,37 +122,6 @@ class Measurement:
         metadata_id_column: Optional[str] = None,
         save_cache: bool = False,
     ):
-        """
-        Initialize measurements from folder or existing data.
-
-        Parameters
-        ----------
-        folder : str or pathlib.Path, optional
-            Path to folder containing experimental files
-        show_info : bool, optional
-            Whether to print informative messages, by default True
-        regex : str, optional
-            Regex pattern to filter files, by default None
-        auto_clean : bool, optional
-            Whether to clean data automatically, by default False
-        cold_start : bool, optional
-            Whether to read from files or use cached data, by default True
-        processparams : ProcessingParameters, optional
-            Processing parameters, by default None. If None, the default parameters will be used
-        new_code : bool, optional
-            Deprecated, has no effect.
-        processed : bool, optional
-            Whether data is already processed, i.e., if a .csv file is used which was processed  by Calocem. By default False
-        metadata_path : str or pathlib.Path, optional
-            Path to metadata file (CSV, Excel, etc.), by default None
-        metadata_id_column : str, optional
-            Column name in metadata file that matches sample names, by default None
-        save_cache : bool, optional
-            Whether to write `_data.pickle` and `_info.pickle` cache files when loading
-            from a folder, by default False. When True, subsequent runs can be sped up
-            with ``cold_start=False`` to read from the cache instead of re-parsing the
-            folder. When False (default), no pickle files are created.
-        """
         # Initialize attributes
         self._data = pd.DataFrame()
         self._info = pd.DataFrame()
@@ -231,15 +249,46 @@ class Measurement:
 
     # Data access methods
     def get_data(self) -> pd.DataFrame:
-        """Get the processed calorimetry data."""
+        """
+        Return the calorimetry data of all samples.
+
+        Returns
+        -------
+        pd.DataFrame
+            Long-format data with one row per sample and time. Typical columns are
+            ``time_s`` (s), ``temperature_c`` (°C), ``heat_flow_w`` (W), ``heat_j``
+            (J), ``normalized_heat_flow_w_g`` (W/g), ``normalized_heat_j_g`` (J/g),
+            ``sample`` (path of the source file) and ``sample_short`` (sample name).
+
+        Notes
+        -----
+        The returned DataFrame is the internal data, not a copy. Use ``.copy()``
+        before modifying it.
+        """
         return self._data
 
     def get_information(self) -> pd.DataFrame:
-        """Get the measurement information/metadata."""
+        """
+        Return the sample information stored in the calorimetry files.
+
+        Returns
+        -------
+        pd.DataFrame
+            Information such as the sample mass, with ``sample`` and ``sample_short``
+            columns. The content depends on the file format.
+        """
         return self._info
 
     def get_metadata(self) -> tuple[pd.DataFrame, str]:
-        """Get added metadata and the ID column name."""
+        """
+        Return the metadata added with :meth:`add_metadata_source`.
+
+        Returns
+        -------
+        tuple of (pd.DataFrame, str)
+            The metadata table and the name of its sample ID column. Both are empty
+            if no metadata was added.
+        """
         return self._metadata, self._metadata_id
 
     def get_data_with_metadata(self) -> pd.DataFrame:
@@ -261,7 +310,15 @@ class Measurement:
         )
 
     def get_sample_names(self) -> list[str]:
-        """Get list of sample names."""
+        """
+        Return the names of all loaded samples.
+
+        Returns
+        -------
+        list of str
+            Sample names, i.e. the file names without extension. After
+            :meth:`average_by_metadata` the group names are returned.
+        """
         return [
             pathlib.Path(str(sample)).stem
             for sample, _ in SampleIterator.iter_samples(self._data)
@@ -321,7 +378,34 @@ class Measurement:
         show_info: bool = True,
         ax=None,
     ):
-        """Plot the calorimetry data."""
+        """
+        Plot a data column of all samples over time.
+
+        Parameters
+        ----------
+        t_unit : str, optional
+            Time unit of the x-axis: "s", "min", "h" (default) or "d".
+        y : str, optional
+            Column to plot, by default "normalized_heat_flow_w_g".
+        y_unit_milli : bool, optional
+            Show heat flow and heat in milli units (mW/g, mJ/g), by default True.
+        regex : str, optional
+            Plot only samples whose name matches this regular expression.
+        show_info : bool, optional
+            Print the name of each plotted sample, by default True.
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw into. A new figure is created if None.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with one line per sample.
+
+        Examples
+        --------
+        >>> ax = tam.plot(y="normalized_heat_j_g", t_unit="h", y_unit_milli=False)
+        >>> ax.set_xlim(0, 48)
+        """
         return self._plotter.plot_data(
             self._data, t_unit, y, y_unit_milli, regex, show_info, ax
         )
@@ -451,7 +535,37 @@ class Measurement:
         plot_labels: Optional[bool] = None,
         xmarker: bool = False,
     ) -> pd.DataFrame:
-        """Get DataFrame of peak characteristics."""
+        """
+        Detect peaks in the heat flow of each sample.
+
+        Peaks are searched after ``processparams.cutoff.cutoff_min`` with
+        :func:`scipy.signal.find_peaks`, using ``processparams.peakdetection``.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        cutoff_min : float, optional
+            Deprecated, use ``processparams.cutoff.cutoff_min``.
+        show_plot : bool, optional
+            Plot each sample with its peaks, by default True.
+        plt_right_s, plt_top, xunit, plot_labels, xmarker
+            Currently have no effect.
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw into. If None, one figure per sample is created.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per peak: the data row at the peak (``time_s``,
+            ``normalized_heat_flow_w_g``, ...), its ``prominence`` and ``peak_nr``
+            (counting from 0 for each sample).
+        """
         if cutoff_min is not None:
             warnings.warn(
                 "The cutoff_min parameter is deprecated. Use ProcessingParameters instead.",
@@ -500,9 +614,41 @@ class Measurement:
         regex: Optional[str] = None,
         ax=None,
     ):
-        """Get peak onsets based on gradient threshold.
+        """
+        Find the first time at which the heat flow gradient exceeds a threshold.
 
-        ``show_plot`` and ``ax`` are deprecated and have no effect.
+        Parameters
+        ----------
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        time_discarded_s : float, optional
+            Ignore data before this time in seconds, by default 900.
+        rolling : int, optional
+            Window (number of points) of a rolling mean applied before the gradient
+            is taken, by default 1 (no smoothing).
+        gradient_threshold : float, optional
+            Gradient threshold in W/g/s, by default 0.0005.
+        show_plot, ax
+            Deprecated, have no effect.
+        exclude_discarded_time : bool, optional
+            Also remove the discarded data before computing the gradient, by default
+            False.
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with the data row at the onset and its ``gradient``.
+            Samples that never exceed the threshold are missing.
+
+        Notes
+        -----
+        This method does not use the processing parameters. The default threshold is
+        too high for typical cement pastes; values around 1e-8 W/g/s are a better
+        starting point.
         """
         _warn_ignored_args("get_peak_onsets", show_plot=show_plot, ax=ax)
         analyzer = OnsetAnalyzer(self.processparams)
@@ -531,7 +677,55 @@ class Measurement:
         show_plot: bool = False,
         ax=None,
     ) -> pd.DataFrame:
-        """Fit a multi-peak deconvolution model to each sample."""
+        """
+        Fit the heat flow of each sample as a sum of peaks plus a baseline.
+
+        The data after ``processparams.cutoff.cutoff_min`` is fitted with
+        ``n_peaks`` lognormal or Gaussian components by constrained least squares.
+        If the fit with the requested baseline fails, simpler baselines are tried.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        n_peaks : int, optional
+            Number of components. Defaults to ``processparams.deconvolution.n_peaks``.
+        peak_shape : str, optional
+            "lognormal" (default) or "gaussian".
+        baseline_mode : str, optional
+            "constant", "linear", "chebyshev" or "none". Defaults to
+            ``processparams.deconvolution.baseline_mode``.
+        relative_intensity_upper_bounds : list of float, optional
+            One value per component in (0, 1]: maximum share of the total amplitude.
+        peak_width_upper_bounds : list of float, optional
+            One value per component: maximum width.
+        show_plot : bool, optional
+            Plot the data, the components and the fit, by default False.
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw into.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample and component with ``component`` (from 1),
+            ``amplitude`` (W/g), ``center_time_s``, ``peak_time_s``, ``width``,
+            ``component_area`` (J/g), ``component_area_fraction``, the fit quality
+            ``fit_r2`` and ``fit_rmse`` (W/g) and the baseline coefficients.
+
+        Notes
+        -----
+        For lognormal components, ``width`` is the dimensionless standard deviation
+        of ln(t) and ``center_time_s`` the median; for Gaussian components both are
+        in seconds. A component with an amplitude close to zero has a meaningless
+        ``peak_time_s``.
+        """
         params = processparams or self.processparams
         analyzer = DeconvolutionAnalyzer(params)
         result = analyzer.get_deconvolution(
@@ -651,7 +845,37 @@ class Measurement:
         baseline_mode: Optional[str] = None,
         deconvolution_results: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
-        """Determine abscissa intersection from tangent at left-peak flank inflection."""
+        """
+        Determine an onset from the tangent at the inflection point of the first peak.
+
+        The earliest fitted component of :meth:`get_deconvolution` is taken, and the
+        tangent at the inflection point of its ascending flank is intersected with
+        the time axis.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        n_peaks, peak_shape, baseline_mode
+            Passed to :meth:`get_deconvolution` if no results are given.
+        deconvolution_results : pd.DataFrame, optional
+            Result of :meth:`get_deconvolution`, to avoid fitting again.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``left_peak_component``,
+            ``left_peak_center_time_s``, ``inflection_time_s``,
+            ``inflection_heat_flow_w_g``, ``inflection_tangent_slope`` (W/g/s),
+            ``x_intersection_abscissa_s`` and ``x_intersection_abscissa_min``.
+        """
         params = processparams or self.processparams
         analyzer = DeconvolutionAnalyzer(params)
 
@@ -687,11 +911,39 @@ class Measurement:
         save_path: Optional[pathlib.Path] = None,
         xunit: Optional[str] = None,
     ) -> pd.DataFrame:
-        """Find the point in time of the maximum slope.
+        """
+        Determine the maximum slope of the main hydration peak.
 
-        Wrapper around :meth:`get_mainpeak_params` returning only the
-        ``max_slope`` columns together with sample identifiers.
-        ``save_path`` and ``xunit`` are deprecated and have no effect.
+        Runs :meth:`get_mainpeak_params` and returns only the maximum slope columns.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        show_plot : bool, optional
+            Plot the analysis for each sample, by default False.
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw into.
+        save_path, xunit
+            Deprecated, have no effect.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``gradient_from_max_slope`` (W/g/s),
+            ``curvature_at_max_slope``, ``max_slope_time_s``,
+            ``normalized_heat_flow_w_g_at_max_slope``,
+            ``normalized_heat_j_g_at_max_slope``, the onset time
+            ``onset_time_s_from_max_slope`` (and ``onset_time_min_max_slope``),
+            ``normalized_heat_j_g_at_onset_time_max_slope`` and
+            ``onset_time_s_max_slope_abscissa``.
         """
         _warn_ignored_args("get_maximum_slope", save_path=save_path, xunit=xunit)
         result = self.get_mainpeak_params(
@@ -725,58 +977,77 @@ class Measurement:
         marker_size: float = 1.0,
     ) -> pd.DataFrame:
         """
-                Unified method for main-peak slope analysis.
+        Characterize the main hydration peak: slopes, onset times and peak values.
 
-                Depending on ``method`` this either:
-                - ``"mean"`` (default): calculates maximum and mean slope onset analyses
-                - ``"ascending"``: calculates first ascending slope analysis via
-                    ``get_first_ascending_slope_to_fraction``
+        With ``method="mean"`` (default) two analyses are combined:
 
-                Results are returned in a single DataFrame with all available slope values.
+        * maximum slope: the maximum of the time derivative of the heat flow (after
+          optional smoothing), and the onset where the tangent at this point meets
+          the dormant heat flow or the time axis;
+        * mean slope: a tangent averaged over the ascending flank between
+          ``slope_analysis.flank_fraction_start`` and ``flank_fraction_end`` of the
+          peak height, and its onset.
+
+        With ``method="ascending"`` the slope of the first ascending segment up to
+        a threshold (``slope_analysis.first_ascending_*``) is determined instead.
+        This is the only analysis that honours sample parameter rules.
+
+        In both cases the dormant period (:meth:`get_dormant_period_heatflow`) and
+        ASTM C1679 (:meth:`get_astm_c1679_characteristics`) values are added.
 
         Parameters
         ----------
         processparams : ProcessingParameters, optional
-            Processing parameters, by default None
-        target_col : str
-            Column containing heat flow data. The default is 'normalized_heat_flow_w_g'.
-        age_col : str
-            Column containing time data. The default is 'time_s'.
-        show_plot : bool
-            Whether to plot the results
-        plot_type : str
-            Type of plot to show: 'max', 'mean',
-            - 'max': Shows only maximum slope analysis plot
-            - 'mean': Shows only mean slope (flank tangent) analysis plot
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        show_plot : bool, optional
+            Plot the analysis for each sample, by default False.
+        save_plot : bool, optional
+            Save each plot as PNG to ``plotpath``, by default False.
+        plot_type : str, optional
+            For ``method="mean"``: show the "mean" (default) or "max" slope analysis.
         regex : str, optional
-            Regex to filter samples
+            Regular expression; only samples whose name matches are analysed.
         plotpath : pathlib.Path, optional
-            Path to save plots
+            Folder for ``save_plot``.
         ax : matplotlib.axes.Axes, optional
-            Matplotlib axes to plot on
-        method : str
-            Slope analysis method to run: 'mean' or 'ascending'.
-        monochrome : bool
-            If True, render all scatter/marker symbols on the analysis plot in
-            black instead of their default colors. Default is False.
-        marker_size : float
-            Multiplicative scale factor applied to all scatter/marker sizes on
-            the analysis plot. Default is 1.0.
+            Axes to draw into. If None, one figure per sample is created and shown.
+        method : str, optional
+            "mean" (default) or "ascending".
+        monochrome : bool, optional
+            Draw all markers in black, by default False.
+        marker_size : float, optional
+            Scale factor for marker sizes, by default 1.0.
 
         Returns
         -------
         pd.DataFrame
-            Comprehensive DataFrame with available slope and characteristic results.
-        
+            One row per sample. For ``method="mean"`` the columns include
+            ``gradient_from_max_slope`` (W/g/s), ``max_slope_time_s``,
+            ``onset_time_s_from_max_slope``, ``onset_time_min_max_slope``,
+            ``gradient_of_mean_slope`` (W/g/s), ``mean_slope_time_s``,
+            ``onset_time_s_from_mean_slope``, ``peak_time_s``,
+            ``normalized_heat_flow_w_g_at_peak``, ``dorm_time_s``,
+            ``normalized_heat_flow_w_g_dormant`` and ``astm_time_s``, together with
+            the heat flows and heats at these times. For ``method="ascending"`` the
+            slope is in ``gradient_of_first_ascending_slope_to_fraction_of_max`` and
+            the onset in ``onset_time_s_from_first_ascending_slope``.
+
+        Raises
+        ------
+        ValueError
+            If ``method`` is not "mean" or "ascending".
+
         Examples
         --------
-        >>> measurement = Measurement(folder="data/")
-        >>> mainpeak_params = measurement.get_mainpeak_params(
-        ...     processparams=ProcessingParameters(),
-        ...     show_plot=False,
-        ...     plot_type="mean",
-        ...     method="mean",
-        ... )
+        >>> processparams = ProcessingParameters()
+        >>> processparams.spline_interpolation.apply = True
+        >>> result = tam.get_mainpeak_params(processparams, show_plot=True, plot_type="max")
+        >>> result[["sample_short", "gradient_from_max_slope", "onset_time_s_from_max_slope"]]
         """
         params = processparams or self.processparams
 
@@ -1394,12 +1665,34 @@ class Measurement:
         intersection: Optional[str] = None,
     ):
         """
-        Get reaction onset via maximum slope intersection method.
+        Determine the onset of the main hydration peak from the maximum slope.
 
-        This is a wrapper around :meth:`get_mainpeak_params` for backward
-        compatibility. ``time_discarded_s``, ``save_path``, ``xscale``, ``xunit``
-        and ``intersection`` are deprecated and have no effect; use
-        ``processparams.cutoff.cutoff_min`` to discard the initial period.
+        Equivalent to ``get_mainpeak_params(processparams, plot_type="max")``.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        show_plot : bool, optional
+            Plot the analysis for each sample, by default False.
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw into.
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        time_discarded_s, save_path, xscale, xunit, intersection
+            Deprecated, have no effect. Use ``processparams.cutoff.cutoff_min`` to
+            discard the initial period.
+
+        Returns
+        -------
+        pd.DataFrame
+            The full result of :meth:`get_mainpeak_params`. The onset is in
+            ``onset_time_s_from_max_slope``.
         """
         _warn_ignored_args(
             "get_peak_onset_via_max_slope",
@@ -1461,19 +1754,43 @@ class Measurement:
         ax=None,
     ) -> pd.DataFrame:
         """
-        Determine tangent to ascending flank of peak by averaging over sections.
+        Determine a tangent to the ascending flank of the main peak.
 
-        ``flank_fraction_start``, ``flank_fraction_end``, ``window_size`` and
-        ``cutoff_min`` override the corresponding values in
-        ``processparams.slope_analysis`` and ``processparams.cutoff`` when given.
-        ``show_plot``, ``plotpath`` and ``ax`` are deprecated and have no effect;
-        use ``get_mainpeak_params(show_plot=True, plot_type="mean")`` to plot.
+        Linear fits in windows along the flank between ``flank_fraction_start`` and
+        ``flank_fraction_end`` of the peak height are combined to one tangent, which
+        is intersected with the time axis and with the minimum heat flow before the
+        peak.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        flank_fraction_start, flank_fraction_end : float, optional
+            Override ``processparams.slope_analysis.flank_fraction_start`` and
+            ``flank_fraction_end``.
+        window_size : float, optional
+            Override ``processparams.slope_analysis.window_size``.
+        cutoff_min : float, optional
+            Override ``processparams.cutoff.cutoff_min``.
+        show_plot, plotpath, ax
+            Deprecated, have no effect. Use
+            ``get_mainpeak_params(show_plot=True, plot_type="mean")`` to plot.
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
 
         Returns
         -------
         pd.DataFrame
-            One row per sample with ``tangent_slope``, ``tangent_time_s``,
-            ``x_intersection`` and related columns.
+            One row per sample with ``peak_time_s``, ``peak_value`` (W/g),
+            ``tangent_slope`` (W/g/s), ``tangent_time_s``, ``tangent_value``,
+            ``tangent_intercept``, ``x_intersection`` (onset on the time axis, s),
+            ``x_intersection_dormant`` (onset at the minimum before the peak, s) and
+            further details of the fit.
         """
         _warn_ignored_args(
             "get_ascending_flank_tangent",
@@ -1506,11 +1823,32 @@ class Measurement:
         prominence: Optional[float] = None,
         show_plot: bool = False,
     ) -> pd.DataFrame:
-        """Get dormant period heat flow characteristics.
+        """
+        Determine the minimum heat flow of the dormant period.
 
-        ``cutoff_min``, ``plot_right_boundary``, ``prominence`` and ``show_plot``
-        are deprecated and have no effect; set ``processparams.cutoff.cutoff_min``
-        and ``processparams.peakdetection.prominence`` instead.
+        The minimum of ``normalized_heat_flow_w_g`` between
+        ``processparams.cutoff.cutoff_min`` and the first peak found by
+        :meth:`get_peaks` is returned.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        cutoff_min, plot_right_boundary, prominence, show_plot
+            Deprecated, have no effect. Use ``processparams.cutoff.cutoff_min`` and
+            ``processparams.peakdetection.prominence``.
+        upper_dormant_thresh_w_g : float, optional
+            Currently has no effect.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``dorm_time_s``,
+            ``normalized_heat_flow_w_g_dormant`` and ``normalized_heat_j_g_dormant``.
+            Samples without a detected peak are missing.
         """
         _warn_ignored_args(
             "get_dormant_period_heatflow",
@@ -1545,9 +1883,36 @@ class Measurement:
         xscale: Optional[str] = None,
         xunit: str = "s",
     ) -> pd.DataFrame:
-        """Get characteristics according to ASTM C1679.
+        """
+        Determine the half-maximum point of the main peak according to ASTM C1679.
 
-        ``xscale`` is deprecated and has no effect.
+        For each sample, the last point on the ascending flank whose heat flow is at
+        most half of the highest peak is returned.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        individual : bool, optional
+            If True (default), use half of each sample's own peak height. If False,
+            use half of the mean peak height of all samples.
+        show_plot : bool, optional
+            Plot the curves with the ASTM points, by default False.
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw into.
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        xscale
+            Deprecated, has no effect.
+        xunit : str, optional
+            Time unit of the plot: "s" (default), "min", "h" or "d".
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``astm_time_s``,
+            ``normalized_heat_flow_w_g_astm`` and ``normalized_heat_j_g_astm``.
         """
         _warn_ignored_args("get_astm_c1679_characteristics", xscale=xscale)
         params = processparams or self.processparams
@@ -1570,7 +1935,32 @@ class Measurement:
         target_h: float = 4,
         **kwargs,
     ) -> pd.DataFrame:
-        """Get cumulated heat flow at specific age."""
+        """
+        Return the heat released up to a given age.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_h : float, optional
+            Age in hours, by default 4.
+        **kwargs
+            ``cutoff_min`` is deprecated but still honoured; use
+            ``processparams.cutoff.cutoff_min``.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``sample``, ``cumulated_heat_at_hours`` (J/g),
+            ``target_h`` and ``cutoff_min``.
+
+        Notes
+        -----
+        The heat released before ``processparams.cutoff.cutoff_min`` is subtracted.
+        With the default cutoff of 60 min the result is the heat released between
+        1 h and ``target_h``; set the cutoff to 0 for the total heat.
+        """
         if "cutoff_min" in kwargs:
             cutoff_min = kwargs["cutoff_min"]
             warnings.warn(
@@ -1597,11 +1987,35 @@ class Measurement:
         save_path: Optional[pathlib.Path] = None,
         xunit: Optional[str] = None,
     ) -> pd.DataFrame:
-        """Calculate the mean (flank tangent) slope of the main hydration peak.
+        """
+        Determine the mean slope of the ascending flank of the main hydration peak.
 
-        Wrapper around :meth:`get_mainpeak_params` returning only the
-        ``mean_slope`` columns together with sample identifiers.
-        ``save_path`` and ``xunit`` are deprecated and have no effect.
+        Runs :meth:`get_mainpeak_params` and returns only the mean slope columns.
+
+        Parameters
+        ----------
+        processparams : ProcessingParameters, optional
+            Processing parameters. If None, the parameters of the Measurement are
+            used.
+        target_col : str, optional
+            Column with the heat flow, by default "normalized_heat_flow_w_g".
+        age_col : str, optional
+            Column with the time in seconds, by default "time_s".
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+        show_plot : bool, optional
+            Plot the analysis for each sample, by default False.
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw into.
+        save_path, xunit
+            Deprecated, have no effect.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``gradient_of_mean_slope`` (W/g/s),
+            ``mean_slope_time_s``, the heat flow and heat at that time and the onset
+            times and heats derived from the tangent.
         """
         _warn_ignored_args("get_average_slope", save_path=save_path, xunit=xunit)
         result = self.get_mainpeak_params(
@@ -1669,7 +2083,18 @@ class Measurement:
     def normalize_sample_to_mass(
         self, sample_short: str, mass_g: float, show_info: bool = True
     ):
-        """Normalize heat flow values to a specific mass."""
+        """
+        Recalculate the normalized heat flow and heat of one sample for a new mass.
+
+        Parameters
+        ----------
+        sample_short : str
+            Name of the sample.
+        mass_g : float
+            Sample mass in grams.
+        show_info : bool, optional
+            Print a confirmation, by default True.
+        """
         self._data = DataNormalizer.normalize_sample_to_mass(
             self._data, sample_short, mass_g, show_info
         )
@@ -1843,7 +2268,14 @@ class Measurement:
         self._average_groupby = [groupby] if isinstance(groupby, str) else list(groupby)
 
     def undo_average_by_metadata(self) -> None:
-        """Restore the original per-sample data after average_by_metadata."""
+        """
+        Restore the individual samples after :meth:`average_by_metadata`.
+
+        Raises
+        ------
+        ValueError
+            If the data has not been averaged.
+        """
         if not hasattr(self, "_data_before_average"):
             raise ValueError(
                 "No averaged data to undo. Call average_by_metadata() first."
@@ -1853,7 +2285,12 @@ class Measurement:
         self._average_groupby = None
 
     def remove_pickle_files(self):
-        """Remove pickle cache files."""
+        """
+        Delete the cache files ``_data.pickle`` and ``_info.pickle``.
+
+        The files are removed from the current working directory, if present. See
+        the ``save_cache`` argument of :class:`Measurement`.
+        """
         self._data_persistence.remove_pickle_files()
 
     # Private utility methods

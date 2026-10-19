@@ -6,7 +6,21 @@ from typing import Any
 
 @dataclass
 class SampleParamRule:
-    """Regex-based override rule for sample-specific processing parameters."""
+    """
+    Regex-based override rule for sample-specific processing parameters.
+
+    Created with :meth:`ProcessingParameters.add_sample_param_rule`.
+
+    Attributes
+    ----------
+    pattern : str
+        Regular expression searched in the sample name.
+    overrides : dict
+        Nested dictionary of parameter groups and values to override, e.g.
+        ``{"cutoff": {"cutoff_min": 30}}``.
+    priority : int
+        Rules are applied in ascending priority, so higher values win.
+    """
 
     pattern: str
     overrides: dict[str, Any]
@@ -15,22 +29,35 @@ class SampleParamRule:
 
 @dataclass
 class CutOffParameters:
+    """
+    Initial period excluded from the analysis.
+
+    Attributes
+    ----------
+    cutoff_min : float
+        Time in minutes; data before ``cutoff_min * 60`` seconds is ignored by
+        the analyses. ``get_cumulated_heat_at_hours`` subtracts the heat released
+        until then instead. Default 60.
+    cutoff_max : int
+        Reserved, currently not used.
+    """
+
     cutoff_min: float = 60
-    cutoff_max: int = 2880  # 2 days in minutes
+    cutoff_max: int = 2880
 
 
 @dataclass
 class TianCorrectionParameters:
     """
-    Parameters related to time constants used in Tian's correction method for thermal analysis. The default values are defined in the TianCorrectionParameters class.
+    Time constants of the calorimeter for the Tian correction.
 
-    Parameters
+    Attributes
     ----------
-    tau1 : int
-        Time constant for the first correction step in Tian's method. The default value is 300.
-
-    tau2 : int
-        Time constant for the second correction step in Tian's method. The default value is 100.
+    tau1 : float
+        First time constant in seconds. Default 300.
+    tau2 : float or None
+        Second time constant in seconds. Set to None to correct with ``tau1``
+        only. Default 100.
     """
 
     tau1: float = 300
@@ -39,22 +66,37 @@ class TianCorrectionParameters:
 
 @dataclass
 class RollingMeanParameters:
+    """
+    Rolling mean applied to the heat flow before the gradient is taken.
+
+    Used by the maximum slope analysis and ``plot_heatflow_with_gradient``.
+
+    Attributes
+    ----------
+    apply : bool
+        Apply the rolling mean. Default False.
+    window : int
+        Window size in data points. Default 11.
+    """
+
     apply: bool = False
     window: int = 11
 
 
 @dataclass
 class MedianFilterParameters:
-    """Parameters for the application of a Median filter to the data. The SciPy method `median_filter` is applied. [Link to method](https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.median_filter.html)
+    """
+    Median filter applied to the first and second derivative of the heat flow.
 
+    Uses :func:`scipy.ndimage.median_filter`. The heat flow itself is not
+    filtered.
 
-    Parameters
+    Attributes
     ----------
-    apply: bool
-        default is false. If `True`, a median filter is applied. The Scipy function `median_filter` is  applied.
-    size: int
-        The size of the median filter (see the SciPy documentation)
-
+    apply : bool
+        Apply the filter. Default False.
+    size : int
+        Filter size in data points. Default 7.
     """
 
     apply: bool = False
@@ -63,6 +105,10 @@ class MedianFilterParameters:
 
 @dataclass
 class NonLinSavGolParameters:
+    """
+    Reserved, currently not used.
+    """
+
     apply: bool = False
     window: int = 11
     polynom: int = 3
@@ -70,20 +116,20 @@ class NonLinSavGolParameters:
 
 @dataclass
 class SplineInterpolationParameters:
-    """Parameters for spline interpolation of heat flow data.
+    """
+    Smoothing splines fitted to the first and second derivative of the heat flow.
 
-    Parameters
+    Uses :class:`scipy.interpolate.UnivariateSpline`.
+
+    Attributes
     ----------
-
-    apply :
-        Flag indicating whether spline interpolation should be applied to the heat flow data. The default value is False.
-
-    smoothing_1st_deriv :
-        Smoothing parameter for the first derivative of the heat flow data. The default value is 1e-9.
-
-    smoothing_2nd_deriv :
-        Smoothing parameter for the second derivative of the heat flow data. The default value is 1e-9.
-
+    apply : bool
+        Apply the splines. Default False.
+    smoothing_1st_deriv : float
+        Smoothing factor ``s`` for the first derivative; larger is smoother.
+        Default 1e-9.
+    smoothing_2nd_deriv : float
+        Smoothing factor ``s`` for the second derivative. Default 1e-9.
     """
 
     apply: bool = False
@@ -94,15 +140,14 @@ class SplineInterpolationParameters:
 @dataclass
 class PeakDetectionParameters:
     """
-    Parameters that control the identication of peaks during peak detection.
+    Settings of :func:`scipy.signal.find_peaks` for peak detection in the heat flow.
 
-    Parameters
+    Attributes
     ----------
-
-    prominence: float
-        The minimum prominence of the peak
-    distance: int
-        The minimum distance of the peak.
+    prominence : float
+        Minimum peak prominence in W/g. Default 1e-5.
+    distance : int
+        Minimum distance between peaks in data points. Default 100.
     """
 
     prominence: float = 1e-5
@@ -112,24 +157,7 @@ class PeakDetectionParameters:
 @dataclass
 class GradientPeakDetectionParameters:
     """
-    Parameters that control the identifcation of Peaks in the first derivative (gradient) of the heat flow data. Under the hood the SciPy `find_peaks()` is used [Link to SciPy method](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html).
-
-    Parameters
-    ----------
-    prominence: float
-        Minimum prominence of the peak
-    distance: int
-        Minimum distance
-    width: int
-        Minimum width
-    rel_height: float
-        Relative height of the peak
-    height: float
-        Minimum height of the peak
-    use_first: bool
-        If true, only the first peak will be used
-    use_largest_width: bool
-        If true the peak with the largest peak width will be used.
+    Reserved, currently not used.
     """
 
     prominence: float = 1e-9
@@ -145,26 +173,29 @@ class GradientPeakDetectionParameters:
 @dataclass
 class DownSamplingParameters:
     """
-    Parameters for adaptive downsampling of the heat flow data.
-    
-    Parameters
+    Adaptive downsampling applied when a Measurement is created.
+
+    More points are kept where the heat flow curve bends, fewer in flat
+    regions. Values are picked from the measured data, not interpolated.
+
+    Attributes
     ----------
-    apply: bool
-        If True, adaptive downsampling is applied to the heat flow data.
-    num_points: int
-        The target number of points after downsampling. Default is 1000.
-    smoothing_factor: float
-        Relative smoothing factor for the spline used in the downsampling
-        algorithm. It is scaled internally by the number of points and the
-        variance of the heat flow, so the same value behaves consistently
-        regardless of the heat flow magnitude. Smaller values follow the
-        data more closely. Default is 1e-6.
-    baseline_weight: float
-        Weight of the baseline in the downsampling algorithm. Default is 0.1.
-    section_split: bool
-        If True, the data is split into sections for downsampling. This can be useful if there is a narrow peak in the data early on. Default is False.
-    section_split_time_s: int
-        Time in seconds for splitting the data into two sections. Default is 1000 seconds.
+    apply : bool
+        Apply downsampling. Default False.
+    num_points : int
+        Target number of points per sample (upper bound). Default 1000.
+    smoothing_factor : float
+        Relative smoothing of the spline used to estimate the curvature; scaled
+        internally by the number of points and the variance of the heat flow.
+        Default 1e-6.
+    baseline_weight : float
+        Weight of evenly spread points, so flat regions keep some points.
+        Default 0.1.
+    section_split : bool
+        Downsample the data before and after ``section_split_time_s``
+        separately, e.g. to keep an early narrow peak. Default False.
+    section_split_time_s : int
+        Split time in seconds. Default 1000.
     """
     apply: bool = False
     num_points: int = 1000
@@ -177,12 +208,7 @@ class DownSamplingParameters:
 @dataclass
 class PreProcessParameters:
     """
-    Parameters for preprocessing the data before analysis.
-
-    Attributes
-    ----------
-    infer_heat: bool
-        If True, the heat flow is inferred from the data. This is useful for data that does not have a heat flow column.
+    Reserved, currently not used.
     """
 
     infer_heat: bool = False
@@ -191,40 +217,35 @@ class PreProcessParameters:
 @dataclass
 class SlopeAnalysisParameters:
     """
-    Parameters for slope analysis of heat flow data.
+    Settings of the slope analyses of the main hydration peak.
 
     Attributes
     ----------
-    flank_fraction_start: float
-        The start fraction of the window for averaging the slope of the main hydration peak. Example: 0.35 (the default value) means that the slope is calculated starting from 35% of the peak height measured relative to the minimum of the dormant period heat flow.
-    flank_fraction_end: float
-        The end fraction of the window for averaging the slope of the main hydration peak. Example: 0.55 (the default value) means that the slope is calculated up to 55% of the peak height measured relative to the minimum of the dormant period heat flow.
-    window_size: float
-        The size of the window for averaging the slope, given as a fraction of the total number of data points. Example: 0.1 (the default value) means that the slope is averaged over a window that is 10% of the total number of data points.
-    first_ascending_fraction_of_max: float
-        Fraction of the global maximum heat flow used to detect the first ascending slope.
-        Example: 0.2 means the first ascending slope is determined up to 20% of the
-        global maximum of the heat-flow curve.
-        first_ascending_range_method: str
-                Method used to define the first-ascending segment range.
-                - 'fraction' (default): end at first crossing of
-                    ``first_ascending_fraction_of_max * max(heat_flow)``
-                - 'delta': end at first crossing of
-                    ``min(heat_flow) + first_ascending_delta_y_w_g`` where the minimum is
-                    evaluated on the search interval (after cutoff).
-        first_ascending_delta_y_w_g: float
-                Delta heat-flow value in W/g used when
-                ``first_ascending_range_method == 'delta'``.
-        flexible: float
-            Adaptive multiplier factor for ``first_ascending_delta_y_w_g`` in delta mode.
-            The effective delta is computed from a multiplier that increases with the
-            difference between main peak height and base delta value. Set to 0 to
-            disable adaptive scaling.
+    flank_fraction_start : float
+        Start of the ascending flank as fraction of the height between the
+        minimum before the peak and the peak. Default 0.35.
+    flank_fraction_end : float
+        End of the ascending flank, same scale. Default 0.55.
+    window_size : float
+        Width of the averaging windows as fraction of the time span of the flank.
+        Default 0.1.
+    first_ascending_fraction_of_max : float
+        ``method="ascending"``: threshold as fraction of the maximum heat flow
+        after the cutoff, in (0, 1]. Default 0.2.
+    first_ascending_range_method : str
+        ``method="ascending"``: "fraction" (default) ends the segment at
+        ``first_ascending_fraction_of_max * max``; "delta" ends it at the minimum
+        plus ``first_ascending_delta_y_w_g``.
+    first_ascending_delta_y_w_g : float
+        Heat flow rise in W/g for the "delta" method. Default 0.001.
+    flexible : float
+        "delta" method: increases the delta for high peaks; 0 (default) disables
+        the adaptation.
     """
 
     flank_fraction_start: float = 0.35
     flank_fraction_end: float = 0.55
-    window_size: float = 0.1  # as fraction of total data points
+    window_size: float = 0.1
     first_ascending_fraction_of_max: float = 0.2
     first_ascending_range_method: str = "fraction"
     first_ascending_delta_y_w_g: float = 0.001
@@ -233,7 +254,40 @@ class SlopeAnalysisParameters:
 
 @dataclass
 class DeconvolutionParameters:
-    """Parameters controlling peak deconvolution fitting."""
+    """
+    Settings of the peak deconvolution fit.
+
+    Attributes
+    ----------
+    n_peaks : int
+        Number of fitted peaks. Default 2.
+    peak_shape : str
+        Currently ignored; select the shape with the ``peak_shape`` argument of
+        ``Measurement.get_deconvolution``.
+    baseline_mode : str
+        "constant" (default), "linear", "chebyshev" or "none".
+    chebyshev_degree : int
+        Degree of the Chebyshev baseline. Default 2.
+    max_nfev : int
+        Maximum number of optimizer iterations. Default 5000.
+    max_fit_points : int
+        The data is subsampled to at most this many points. Default 2500.
+    min_points : int
+        Samples with fewer points after the cutoff are skipped. Default 30.
+    min_peak_distance_fraction : float
+        Minimum distance of the initial peak guesses as fraction of the number of
+        points. Default 0.05.
+    min_sigma_fraction, max_sigma_fraction : float
+        Width bounds of Gaussian peaks as fraction of the time range. Defaults
+        0.005 and 0.3.
+    min_peak_time_separation_fraction : float
+        Minimum separation of the fitted peak times as fraction of the time
+        range. Default 1e-4.
+    relative_intensity_upper_bounds : list of float or None
+        One value per peak in (0, 1]: maximum share of the total amplitude.
+    peak_width_upper_bounds : list of float or None
+        One value per peak: maximum width.
+    """
 
     n_peaks: int = 2
     peak_shape: str = "lognormal"
@@ -253,16 +307,29 @@ class DeconvolutionParameters:
 @dataclass
 class PlottingParameters:
     """
-    Parameters for plotting data.
+    Appearance of the analysis plots of ``get_mainpeak_params``.
+
+    ``Measurement.plot`` does not use these settings; ``plot_heatflow_with_gradient``
+    uses ``figsize`` only.
 
     Attributes
-    show_plot_title: bool
-        Default is true. If True, the plot will have a title.
-    legend_pos: str
-        String that determines the position of the legend. legend_pos can be 'best' (default) or 'outside' which positions the legend to the right of the plot.
-    plot_title: str
-        String that determines the title of the plot. plot_title can be 'filename' (default) or a list containing the column names of the metadata e.g. '["cement_name", "dosage"]'. 
     ----------
+    figsize : tuple of float
+        Figure size in inches, used when no axes is passed. Default (10, 6).
+    time_unit : str
+        "seconds" (default), "minutes" or "hours".
+    heat_unit : str
+        "W" (default) or "mW".
+    show_plot_title : bool
+        Show a title. Default True.
+    legend_pos : str
+        "best" (default) or "outside" (right of the plot).
+    plot_title : str or list of str
+        With metadata loaded: metadata columns whose values form the title, e.g.
+        ``["cement_name", "w_c"]``. Default "filename".
+    xlims, ylims : tuple of float or None
+        Axis limits in plot units. ``ylims`` is only applied together with
+        ``xlims``. Default None.
     """
     figsize: tuple[float, float] = (10, 6)
     time_unit: str = "seconds"
@@ -276,48 +343,45 @@ class PlottingParameters:
 @dataclass
 class ProcessingParameters:
     """
-    A data class for storing all processing parameters for calorimetry data.
+    All processing parameters of CaloCem, grouped by topic.
 
-    This class aggregates various processing parameters, including cutoff criteria, time constants for the Tian correction, and parameters for peak detection and gradient peak detection.
+    Create an instance, change the values you need and pass it to the methods
+    of :class:`calocem.Measurement`. See the Processing Parameters guide for
+    which analyses use which settings.
 
     Attributes
     ----------
-
-    cutoff :
-        Parameters defining the cutoff criteria for the analysis.
-        Currently only cutoff_min is implemented, which defines the minimum time in minutes for the analysis. The default value is defined in the CutOffParameters class.
-
+    cutoff : CutOffParameters
+        Initial period excluded from the analysis.
     time_constants : TianCorrectionParameters
-        Parameters related to time constants used in Tian's correction method for thermal analysis. he default values are defined in the
-        TianCorrectionParameters class.
-
+        Time constants for the Tian correction.
     peakdetection : PeakDetectionParameters
-        Parameters for detecting peaks in the thermal analysis data. This includes settings such as the minimum
-        prominence and distance between peaks. The default values are defined in the PeakDetectionParameters class.
-
+        Peak detection in the heat flow.
     gradient_peakdetection : GradientPeakDetectionParameters
-        Parameters for detecting peaks based on the gradient of the thermal analysis data. This includes more
-        nuanced settings such as prominence, distance, width, relative height, and the criteria for selecting peaks
-        (e.g., first peak, largest width). The default values are defined in the GradientPeakDetectionParameters class.
-
+        Reserved, currently not used.
+    rolling_mean : RollingMeanParameters
+        Rolling mean of the heat flow before differentiation.
+    median_filter : MedianFilterParameters
+        Median filter of the derivatives.
+    nonlin_savgol : NonLinSavGolParameters
+        Reserved, currently not used.
+    spline_interpolation : SplineInterpolationParameters
+        Smoothing splines of the derivatives.
     downsample : DownSamplingParameters
-        Parameters for adaptive downsampling of the thermal analysis data. This includes settings such as the number of points,
-        smoothing factor, and baseline weight. The default values are defined in the DownSamplingParameters class.
-
-    spline_interpolation: SplineInterpolationParameters
-        Parameters which control the interpolation of the first and second derivative of the data. If no smoothing is applied the derivatives often become very noisy.
-
-    slope_analysis: SlopeAnalysisParameters
-        Parameters for slope analysis of the heat flow data. This includes settings which control the identification of the mean slope of the main hydration peak.
-
-    plotting: PlottingParameters
-        Parameters for plotting data. This includes settings such as figure size.
+        Adaptive downsampling while loading.
+    preprocess : PreProcessParameters
+        Reserved, currently not used.
+    slope_analysis : SlopeAnalysisParameters
+        Slope analyses of the main hydration peak.
+    deconvolution : DeconvolutionParameters
+        Peak deconvolution.
+    plotting : PlottingParameters
+        Appearance of the analysis plots.
+    sample_param_rules : list of SampleParamRule
+        Sample-specific overrides, see :meth:`add_sample_param_rule`.
 
     Examples
     --------
-
-    Define a set of processing parameters for thermal analysis data.
-
     >>> processparams = ProcessingParameters()
     >>> processparams.cutoff.cutoff_min = 30
     >>> processparams.spline_interpolation.apply = True

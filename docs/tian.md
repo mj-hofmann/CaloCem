@@ -1,5 +1,3 @@
-
-
 # Tian Correction
 
 ## Example Workflow 
@@ -8,11 +6,6 @@
 
 For fast reactions, e.g., reactions occurring during the first minutes of cement hydration, the thermal inertia of the calorimeter significantly broadens the heat flow signal. 
 If the characteristic time constants are determined experimentally, a Tian correction can be applied to the heat flow data.
-
-<!-- Assuming the file structure outlined above, we can apply the Tian correction using the following code.
-Please note, that the values for tau1 and tau2 need to be experimentally determined for the experimental setup.
-The other processing parameters, i.e., the Median Filter and the spline interpolation are necessary to smoothen the gradients.
-The default behavior of is `False`. -->
 
 First we load the data.
 
@@ -40,8 +33,9 @@ tam = Measurement(
 In the next step, we need to define a few parameters which are necessary for the Tian correction. 
 Therefore we create a ProcessingParameters object which we call `processparams` in this case.
 The `processparams` object has a number of attributes which we can define.
-First, we define two time constants `tau1` and `tau2`.
-The numeric value needs to be determined experimentally.
+First, we define two time constants `tau1` and `tau2` in seconds.
+The numeric values need to be determined experimentally for the calorimeter.
+The median filter and the spline interpolation smooth the derivatives, which are otherwise very noisy (see [Smoothing the Data](#smoothing-the-data) below).
 
 ```python
 
@@ -66,6 +60,8 @@ tam.apply_tian_correction(
 )
 
 ```
+
+The correction adds three columns to the data: `normalized_heat_flow_w_g_tian` (corrected heat flow), `normalized_heat_j_g_tian` (heat integrated from the corrected heat flow) and `gradient_normalized_heat_flow_w_g` (the smoothed first derivative).
 
 Finally, we can get the Pandas dataframe containing the calorimetric data by calling `get_data()`.
 Using the `df` DataFrame we can plot the calorimetry data using well-known Matplotlib methods.
@@ -123,13 +119,15 @@ Therefore, the second equation reads like
 \dot{Q}_{Tian}(t) =  \dot{Q}(t) + (\tau_1+\tau_2) \frac{\dot{Q}}{dt} + \tau_1\tau_2 \frac{d^2\dot{Q}}{dt^2} 
 \]
 
-In practical terms, if only the attribute tau1 is set, only the first derivative of the heat flow will be considered.
+In practical terms, if `tau2` is set to `None`, only `tau1` and the first derivative of the heat flow are considered.
+Note that `tau2` has a default value of 100 s, so it has to be set to `None` explicitly.
 
 ```python
 
 # Set Processing Parameters
 processparams = ProcessingParameters()
 processparams.time_constants.tau1 = 300
+processparams.time_constants.tau2 = None
 ```
 
 The difference between having one or two tau constants can be seen in the following plot.
