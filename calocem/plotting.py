@@ -2,12 +2,10 @@
 Plotting functionality for calorimetry data visualization.
 """
 
-import functools
 import logging
 import pathlib
 from typing import Any, Optional
 
-import matplotlib as mpl
 import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,20 +17,6 @@ from .exceptions import DataProcessingException
 from .processparams import ProcessingParameters
 
 logger = logging.getLogger(__name__)
-
-_PLOT_RC = {"font.family": "serif"}
-
-
-def _calocem_style(func):
-    """Apply calocem's plot style while ``func`` runs, without touching global rcParams."""
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        with mpl.rc_context(_PLOT_RC):
-            return func(*args, **kwargs)
-
-    return wrapper
-
 
 class SimplePlotter:
     """Simplified plotting functionality."""
@@ -64,7 +48,6 @@ class SimplePlotter:
 
         return float(candidate[age_col].min())
 
-    @_calocem_style
     def plot_data(
         self,
         data: pd.DataFrame,
@@ -174,7 +157,6 @@ class SimplePlotter:
         ax.set_ylim(*adjust(lo1, hi1, f))
         ax_grad.set_ylim(*adjust(lo2, hi2, f))
 
-    @_calocem_style
     def plot_heatflow_with_gradient(
         self,
         data: pd.DataFrame,
@@ -333,7 +315,6 @@ class SimplePlotter:
         except Exception as e:
             raise DataProcessingException("plot_heatflow_with_gradient", e) from e
 
-    @_calocem_style
     def plot_peaks(
         self,
         data: pd.DataFrame,
@@ -349,30 +330,37 @@ class SimplePlotter:
                 fig, ax = plt.subplots(figsize=(10, 6))
 
             # Plot main data
-            ax.plot(data[age_col], data[target_col], label=data["sample_short"].iloc[0])
+            (line,) = ax.plot(
+                data[age_col], data[target_col], label=data["sample_short"].iloc[0]
+            )
 
-            # Mark peaks
+            # Mark peaks in the color of the curve
             if len(peaks) > 0:
                 ax.plot(
                     data[age_col].iloc[peaks],
                     data[target_col].iloc[peaks],
-                    "rx",
+                    "x",
+                    color=line.get_color(),
                     markersize=10,
-                    label="Peaks",
+                    markeredgewidth=2,
                 )
 
                 # Add vertical lines
                 for peak_idx in peaks:
                     ax.axvline(
                         data[age_col].iloc[peak_idx],
-                        color="red",
+                        color=line.get_color(),
                         alpha=0.5,
                         linestyle="--",
                     )
 
-            ax.set_xlabel(age_col)
-            ax.set_ylabel(target_col)
-            ax.set_title(f"Peak Detection - {sample}")
+            ax.set_xlabel("Time / s" if age_col == "time_s" else age_col)
+            ax.set_ylabel(
+                "Normalized Heat Flow / W g$^{-1}$"
+                if target_col == "normalized_heat_flow_w_g"
+                else target_col
+            )
+            ax.set_title("Peak Detection (x: peaks)")
             ax.legend()
             ax.grid(True, alpha=0.3)
 
@@ -381,7 +369,6 @@ class SimplePlotter:
         except Exception as e:
             raise DataProcessingException("plot_peaks", e) from e
 
-    @_calocem_style
     def plot_slopes(
         self,
         data: pd.DataFrame,
@@ -501,7 +488,6 @@ class SimplePlotter:
         except Exception as e:
             raise DataProcessingException("plot_slopes", e) from e
 
-    @_calocem_style
     def plot_tangent_analysis(
         self,
         data: pd.DataFrame,
@@ -626,7 +612,7 @@ class SimplePlotter:
                 raise ValueError(f"Unknown analysis_type: {analysis_type}")
 
             ax.set_xlabel(f"Time / {time_unit}")
-            ax.set_ylabel(f"Normalized Heat Flow / {heat_unit}g$^{-1}$")
+            ax.set_ylabel(f"Normalized Heat Flow / {heat_unit} g$^{{-1}}$")
 
             legend_loc = processparams.plotting.legend_pos if hasattr(processparams.plotting, "legend_pos") else "best"
             if legend_loc == "best":
@@ -994,7 +980,7 @@ class SimplePlotter:
             linestyle="--",
             linewidth=2,
             alpha=0.8,
-            label=f"{analysis_type.title()} Gradient:\n{gradient:.2e} W/(g·{time_unit})",
+            label=f"{analysis_type.title()} Gradient:\n{gradient:.3g} {heat_unit}/(g·{time_unit})",
         )
 
         # Handle mean slope specific fill area
@@ -1132,6 +1118,9 @@ class SimplePlotter:
             ("max_slope_time_s", "normalized_heat_flow_w_g_at_max_slope", "c^", r"t_{max\; slope}"),
             ("astm_time_s", "normalized_heat_flow_w_g_astm", "gs", r"t_{ASTM\; C1679}"),
         ]
+        if analysis_type == "max":
+            # the max slope point is drawn below as the slope point
+            markers = [m for m in markers if m[0] != "max_slope_time_s"]
 
         for t_col, v_col, style, label_name in markers:
             t_raw = res.get(t_col, np.nan)
@@ -1155,7 +1144,7 @@ class SimplePlotter:
             slope_time,
             slope_value,
             s=s_size(30),
-            label=fr"$t_{{{analysis_type}\ slope}}$: {decimal_number_format.format(slope_time)} {time_unit}, ",
+            label=fr"$t_{{{analysis_type}\ slope}}$: {decimal_number_format.format(slope_time)} {time_unit}".replace(",", "\u2009"),
             zorder=5,
             **mc_scatter_kwargs("orange"),
         )
@@ -1222,7 +1211,7 @@ class SimplePlotter:
                 color="black" if monochrome else "orange",
                 linestyle=":",
                 alpha=1,
-                label=rf"$\dot{{Q}}_{{dormant}}$: {decimal_number_format.format(onset_heat_flow)} W/g",
+                label=rf"$\dot{{Q}}_{{dormant}}$: {onset_heat_flow:.3g} {heat_unit}/g",
             )
         else:
             # Fallback
@@ -1276,7 +1265,6 @@ class SimplePlotter:
 
         return ax
 
-    @_calocem_style
     def plot_astm_c1679(
         self,
         data: pd.DataFrame,
@@ -1312,7 +1300,7 @@ class SimplePlotter:
         if ax is None:
             _, ax = plt.subplots(figsize=(10, 6))
 
-        for _, row in results.iterrows():
+        for i, (_, row) in enumerate(results.iterrows()):
             sample_data = data[data["sample_short"] == row["sample_short"]]
             (line,) = ax.plot(
                 sample_data["time_s"] * x_factor,
@@ -1326,12 +1314,13 @@ class SimplePlotter:
                 color=line.get_color(),
                 markersize=8,
                 linestyle="none",
+                markeredgecolor="black",
                 zorder=5,
-                label=f"{row['sample_short']} (ASTM C1679)",
+                label="ASTM C1679 (half maximum)" if i == 0 else None,
             )
 
         ax.set_xlabel(x_label)
-        ax.set_ylabel("Normalized Heat Flow / [W/g]")
+        ax.set_ylabel("Normalized Heat Flow / W g$^{-1}$")
         ax.legend()
         ax.grid(True, alpha=0.3)
         return ax

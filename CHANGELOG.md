@@ -31,8 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plot per metadata group, as documented.
 - `PlottingParameters.plot_title` is now a proper dataclass field and can be
   passed to the constructor.
-- Importing calocem no longer sets matplotlib's global `font.family`; the
-  serif font is applied only to calocem's own plots.
+- calocem no longer changes matplotlib's font settings. Importing it used to
+  set the global `font.family` to serif; plots now use your matplotlib style.
+- Plots: `get_peaks` marks the peaks in the color of each curve, without a
+  file path in the title or repeated legend entries; `get_astm_c1679_characteristics`
+  shows one legend entry for the ASTM markers; the main peak plot of
+  `get_mainpeak_params` no longer shows the maximum slope point twice, labels
+  the y axis correctly (W g⁻¹), and shows the dormant heat flow and the
+  gradient in the selected heat unit instead of rounding the former to 0.
+- Documentation: the figures of "Characteristic Values" are generated from
+  the current code (`scripts/make_doc_figures.py`), and the main peak example
+  uses a spline smoothing (1e-13) that no longer underestimates the maximum
+  slope.
 - Exceptions re-raised by calocem now chain the original error (`raise ... from e`).
 
 ### Deprecated
