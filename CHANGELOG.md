@@ -39,10 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_mainpeak_params` no longer shows the maximum slope point twice, labels
   the y axis correctly (W g⁻¹), and shows the dormant heat flow and the
   gradient in the selected heat unit instead of rounding the former to 0.
-- Documentation: the figures of "Characteristic Values" are generated from
-  the current code (`scripts/make_doc_figures.py`), and the main peak example
-  uses a spline smoothing (1e-13) that no longer underestimates the maximum
-  slope.
 - Exceptions re-raised by calocem now chain the original error (`raise ... from e`).
 
 ### Deprecated
@@ -79,6 +75,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed the Tian correction docs: a single time constant requires
   `tau2 = None`.
 - Added a changelog page and a quickstart to the README.
+- The figures of *Characteristic Values* are generated from the current code
+  by `scripts/make_doc_figures.py`; an ASTM C1679 figure was added.
+- The main peak example on *Characteristic Values* uses
+  `smoothing_1st_deriv = 1e-13`; the former 1e-12 underestimated the maximum
+  slope by about 40 %.
 
 ### Internal
 
