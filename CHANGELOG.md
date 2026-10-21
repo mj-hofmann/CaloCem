@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0] - 2026-10-19
 
+### Added
+
+- `Measurement.get_heat_between(start_s, end_s)` returns the heat released
+  between two times. The limits can be one time for all samples or one time
+  per sample (dict or `pd.Series` keyed by `sample_short`), e.g. the onset
+  from `get_mainpeak_params()`.
+
 ### Fixed
 
 - `Measurement.apply_tian_correction()` without `processparams` crashed with an
@@ -30,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
+- `Measurement.get_cumulated_heat_at_hours()` is renamed to
+  `get_cumulative_heat_at_hours()`, and its result column
+  `cumulated_heat_at_hours` to `cumulative_heat_j_g`. The old method emits a
+  `DeprecationWarning`; the old column is still included.
 - Arguments that had no effect now emit a `DeprecationWarning` when passed:
   `get_dormant_period_heatflow(cutoff_min, prominence, plot_right_boundary,
   show_plot)`, `get_peak_onsets(show_plot, ax)`,

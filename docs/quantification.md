@@ -6,7 +6,8 @@ which can be saved with `to_csv` or merged with your metadata.
 
 | Quantity | Method |
 |---|---|
-| Cumulated heat at a given age | `get_cumulated_heat_at_hours` |
+| Cumulative heat at a given age | `get_cumulative_heat_at_hours` |
+| Heat released between two times, e.g. up to the onset | `get_heat_between` |
 | Peaks (time, height, prominence) | `get_peaks` |
 | Minimum heat flow of the dormant period | `get_dormant_period_heatflow` |
 | Main hydration peak: slopes, onset, peak | `get_mainpeak_params`, see [Main Peak Parameters](example_get_mainpeak_params.ipynb) |
@@ -31,14 +32,14 @@ processparams = ProcessingParameters()
 
 Times are given in seconds, heat flows in W/g and heats in J/g.
 
-## Cumulated heat
+## Cumulative heat
 
 ```python
 processparams.cutoff.cutoff_min = 0
-heat_24h = tam.get_cumulated_heat_at_hours(processparams, target_h=24)
+heat_24h = tam.get_cumulative_heat_at_hours(processparams, target_h=24)
 ```
 
-The result has the columns `sample`, `cumulated_heat_at_hours` (J/g),
+The result has the columns `sample`, `cumulative_heat_j_g` (J/g),
 `target_h` and `cutoff_min`.
 
 !!! warning "Effect of the cutoff"
@@ -46,6 +47,35 @@ The result has the columns `sample`, `cumulated_heat_at_hours` (J/g),
     default cutoff of 60 min, the result is the heat released between 1 h
     and `target_h`. Set `cutoff_min = 0` to get the total heat since the
     start of the measurement.
+
+!!! note "Renamed in 0.4.0"
+    `get_cumulative_heat_at_hours` was called `get_cumulated_heat_at_hours`,
+    and `cumulative_heat_j_g` was called `cumulated_heat_at_hours`. The old
+    method and column still work but are deprecated.
+
+## Heat between two times
+
+`get_heat_between` returns the heat released between `start_s` and `end_s`.
+The cumulative heat is interpolated at both times, and the cutoff has no
+effect. Each limit is either one time for all samples or one time per
+sample, given as a dict or `pd.Series` keyed by `sample_short`. This way
+you can integrate up to the onset of the main peak, which differs per
+sample:
+
+```python
+onsets = tam.get_mainpeak_params(processparams).set_index("sample_short")
+
+heat_to_onset = tam.get_heat_between(
+    start_s=1800,  # 30 min
+    end_s=onsets["onset_time_s_from_max_slope"],
+)
+```
+
+The result has the columns `sample`, `sample_short`, `start_s`, `end_s` and
+`heat_j_g` (J/g). Any other time column works as well, e.g.
+`onset_time_s_from_mean_slope`, `dorm_time_s` or `peak_time_s`. The heat is
+NaN if a sample has no time, a time lies outside the data, or `end_s` is
+before `start_s`.
 
 ## Peaks
 

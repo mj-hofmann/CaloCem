@@ -36,7 +36,7 @@ class CutOffParameters:
     ----------
     cutoff_min : float
         Time in minutes; data before ``cutoff_min * 60`` seconds is ignored by
-        the analyses. ``get_cumulated_heat_at_hours`` subtracts the heat released
+        the analyses. ``get_cumulative_heat_at_hours`` subtracts the heat released
         until then instead. Default 60.
     cutoff_max : int
         Reserved, currently not used.

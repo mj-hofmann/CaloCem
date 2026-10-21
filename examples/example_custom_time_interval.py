@@ -27,5 +27,5 @@ processparams = ProcessingParameters()
 processparams.cutoff.cutoff_min = 75 
 
 #%%
-heat = tam.get_cumulated_heat_at_hours( processparams, target_h=4)
+heat = tam.get_cumulative_heat_at_hours( processparams, target_h=4)
 # %%

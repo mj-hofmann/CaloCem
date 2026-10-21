@@ -49,16 +49,16 @@ ax.legend(bbox_to_anchor=(1., 1), loc="upper right")
 plt.show()
 
 
-# %% get table of cumulated heat at certain age
+# %% get table of cumulative heat at certain age
 
 # define target time
 target_h = 5
 
-# get cumlated heat flows for each sample
-cum_h = tam.get_cumulated_heat_at_hours(target_h=target_h, cutoff_min=1)
+# get cumulative heat for each sample
+cum_h = tam.get_cumulative_heat_at_hours(target_h=target_h, cutoff_min=1)
 print(cum_h)
 
-# show cumulated heat plot
+# show cumulative heat plot
 ax = tam.plot(t_unit="h", y="normalized_heat_j_g", y_unit_milli=False)
 
 # guide to the eye line
