@@ -1,0 +1,1396 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="loading.html">
+      
+      
+        <link rel="next" href="plotting_example.html">
+      
+      
+      <link rel="icon" href="assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.20">
+    
+    
+      
+        <title>Processing Parameters - </title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.e53b48f4.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Poppins:300,300i,400,400i,700,700i%7CBitter:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Poppins";--md-code-font:"Bitter"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#processing-parameters" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="" class="md-header__button md-logo" aria-label="" data-md-component="logo">
+      
+  <img src="assets/icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Processing Parameters
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mj-hofmann/CaloCem" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mj-hofmann/CaloCem
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="" class="md-nav__button md-logo" aria-label="" data-md-component="logo">
+      
+  <img src="assets/icon.png" alt="logo">
+
+    </a>
+    
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mj-hofmann/CaloCem" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mj-hofmann/CaloCem
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="loading.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Loading Data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Processing Parameters
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="processing-parameters.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Processing Parameters
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cutoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      cutoff
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#time_constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      time_constants
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#peakdetection" class="md-nav__link">
+    <span class="md-ellipsis">
+      peakdetection
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smoothing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Smoothing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#downsample" class="md-nav__link">
+    <span class="md-ellipsis">
+      downsample
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slope_analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      slope_analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deconvolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      deconvolution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plotting" class="md-nav__link">
+    <span class="md-ellipsis">
+      plotting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sample-specific-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sample-specific parameters
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reserved-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reserved parameters
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plotting_example.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Plotting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quantification.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Characteristic Values
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="example_get_mainpeak_params.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Extracting Main-Peak Parameters
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tian.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tian Correction
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/measurement.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Measurement
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/processing-parameters.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ProcessingParameters
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="changelog.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cutoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      cutoff
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#time_constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      time_constants
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#peakdetection" class="md-nav__link">
+    <span class="md-ellipsis">
+      peakdetection
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smoothing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Smoothing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#downsample" class="md-nav__link">
+    <span class="md-ellipsis">
+      downsample
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slope_analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      slope_analysis
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deconvolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      deconvolution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plotting" class="md-nav__link">
+    <span class="md-ellipsis">
+      plotting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sample-specific-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sample-specific parameters
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reserved-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reserved parameters
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="processing-parameters">Processing Parameters<a class="headerlink" href="#processing-parameters" title="Permanent link">&para;</a></h1>
+<p>All analysis settings in CaloCem live in one object, <code>ProcessingParameters</code>.
+You create it once, change the values you need and pass it to the methods of
+<code>Measurement</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">calocem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Measurement</span><span class="p">,</span> <span class="n">ProcessingParameters</span>
+
+<span class="n">processparams</span> <span class="o">=</span> <span class="n">ProcessingParameters</span><span class="p">()</span>
+<span class="n">processparams</span><span class="o">.</span><span class="n">cutoff</span><span class="o">.</span><span class="n">cutoff_min</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="n">processparams</span><span class="o">.</span><span class="n">spline_interpolation</span><span class="o">.</span><span class="n">apply</span> <span class="o">=</span> <span class="kc">True</span>
+
+<span class="n">tam</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="s2">&quot;calo_data&quot;</span><span class="p">,</span> <span class="n">processparams</span><span class="o">=</span><span class="n">processparams</span><span class="p">)</span>
+<span class="n">peaks</span> <span class="o">=</span> <span class="n">tam</span><span class="o">.</span><span class="n">get_peaks</span><span class="p">(</span><span class="n">processparams</span><span class="p">,</span> <span class="n">show_plot</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+<p>If a method is called without <code>processparams</code>, it uses the parameters the
+<code>Measurement</code> was created with (or the defaults).</p>
+<p>The parameters are grouped by topic. Each group is a small dataclass, so you
+can also create a group directly, e.g.
+<code>ProcessingParameters(cutoff=CutOffParameters(cutoff_min=30))</code>.</p>
+<h2 id="cutoff">cutoff<a class="headerlink" href="#cutoff" title="Permanent link">&para;</a></h2>
+<p>The beginning of a measurement is usually disturbed by mixing and thermal
+equilibration. <code>cutoff_min</code> removes it from the analysis.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cutoff_min</code></td>
+<td><code>60</code></td>
+<td>Time in <strong>minutes</strong>. Data with <code>time_s &lt; cutoff_min * 60</code> is ignored. <code>0</code> disables the cutoff.</td>
+</tr>
+</tbody>
+</table>
+<p><code>cutoff_min</code> is honoured by peak detection, dormant period, maximum and mean
+slope, first ascending slope, deconvolution and the related plots.</p>
+<div class="admonition note">
+<p class="admonition-title">Exceptions</p>
+<ul>
+<li><code>get_cumulative_heat_at_hours</code> does not discard data; instead, the heat
+  released up to <code>cutoff_min</code> is <strong>subtracted</strong> from the heat at <code>target_h</code>.</li>
+<li><code>get_peak_onsets</code> ignores <code>cutoff_min</code> and uses its own
+  <code>time_discarded_s</code> argument.</li>
+<li>The half-maximum search of <code>get_astm_c1679_characteristics</code> uses the
+  unfiltered data; only the peak detection it relies on honours the cutoff.</li>
+</ul>
+</div>
+<h2 id="time_constants">time_constants<a class="headerlink" href="#time_constants" title="Permanent link">&para;</a></h2>
+<p>Time constants of the calorimeter for the <a href="tian.html">Tian correction</a>, in
+seconds. Used by <code>apply_tian_correction</code> only.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tau1</code></td>
+<td><code>300</code></td>
+<td>First time constant.</td>
+</tr>
+<tr>
+<td><code>tau2</code></td>
+<td><code>100</code></td>
+<td>Second time constant. Set to <code>None</code> to correct with <code>tau1</code> only.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="peakdetection">peakdetection<a class="headerlink" href="#peakdetection" title="Permanent link">&para;</a></h2>
+<p>Passed to <a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html"><code>scipy.signal.find_peaks</code></a>
+when searching peaks in the heat flow.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prominence</code></td>
+<td><code>1e-5</code></td>
+<td>Minimum peak prominence, in the unit of the analysed column (W/g). Decrease it to find smaller peaks.</td>
+</tr>
+<tr>
+<td><code>distance</code></td>
+<td><code>100</code></td>
+<td>Minimum distance between peaks as a <strong>number of data points</strong>, not a time.</td>
+</tr>
+</tbody>
+</table>
+<p>Peak detection is the first step of <code>get_peaks</code>, <code>get_dormant_period_heatflow</code>,
+<code>get_astm_c1679_characteristics</code> and <code>get_mainpeak_params</code>.</p>
+<h2 id="smoothing">Smoothing<a class="headerlink" href="#smoothing" title="Permanent link">&para;</a></h2>
+<p>Derivatives of measured heat flow are noisy. Three groups control smoothing.
+They act at different points, so it matters which analysis you run:</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Fields (default)</th>
+<th>What is smoothed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rolling_mean</code></td>
+<td><code>apply</code> (<code>False</code>), <code>window</code> (<code>11</code> points)</td>
+<td>Heat flow, before the gradient is taken. Used by the maximum slope analysis and <code>plot_heatflow_with_gradient</code>.</td>
+</tr>
+<tr>
+<td><code>median_filter</code></td>
+<td><code>apply</code> (<code>False</code>), <code>size</code> (<code>7</code> points)</td>
+<td>The first and second <strong>derivative</strong> of the heat flow (not the heat flow itself).</td>
+</tr>
+<tr>
+<td><code>spline_interpolation</code></td>
+<td><code>apply</code> (<code>False</code>), <code>smoothing_1st_deriv</code> (<code>1e-9</code>), <code>smoothing_2nd_deriv</code> (<code>1e-9</code>)</td>
+<td>A cubic smoothing spline is fitted to the first and second derivative. The values are passed as <code>s</code> to <a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html"><code>UnivariateSpline</code></a>; larger values mean smoother curves.</td>
+</tr>
+</tbody>
+</table>
+<p>The smoothed derivatives are used by the maximum slope analysis
+(<code>get_maximum_slope</code>, <code>get_mainpeak_params</code>, <code>get_peak_onset_via_max_slope</code>),
+<code>plot_heatflow_with_gradient</code> and <code>apply_tian_correction</code>. The mean slope,
+first ascending slope, peak detection and deconvolution work on the
+unsmoothed data.</p>
+<h2 id="downsample">downsample<a class="headerlink" href="#downsample" title="Permanent link">&para;</a></h2>
+<p>Large files can be thinned out when the <code>Measurement</code> is created. Points are
+kept preferentially where the heat flow curve bends, so peaks stay sharp
+while flat regions are thinned out. Values are picked from the measured
+data, not interpolated.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apply</code></td>
+<td><code>False</code></td>
+<td>Enable downsampling.</td>
+</tr>
+<tr>
+<td><code>num_points</code></td>
+<td><code>1000</code></td>
+<td>Target number of points per sample (an upper bound).</td>
+</tr>
+<tr>
+<td><code>smoothing_factor</code></td>
+<td><code>1e-6</code></td>
+<td>Smoothing of the spline used to estimate the curvature.</td>
+</tr>
+<tr>
+<td><code>baseline_weight</code></td>
+<td><code>0.1</code></td>
+<td>Share of points spread evenly, so flat regions are not emptied.</td>
+</tr>
+<tr>
+<td><code>section_split</code></td>
+<td><code>False</code></td>
+<td>Downsample the data before and after <code>section_split_time_s</code> separately.</td>
+</tr>
+<tr>
+<td><code>section_split_time_s</code></td>
+<td><code>1000</code></td>
+<td>Split time in seconds.</td>
+</tr>
+</tbody>
+</table>
+<p>Downsampling only takes effect when passed to the constructor:
+<code>Measurement(folder, processparams=processparams)</code>. Save the result with
+<code>tam.save(...)</code> to avoid repeating it, see <a href="loading.html#saving-and-reloading">Loading data</a>.</p>
+<h2 id="slope_analysis">slope_analysis<a class="headerlink" href="#slope_analysis" title="Permanent link">&para;</a></h2>
+<p>Controls the analyses of the main hydration peak, see
+<a href="example_get_mainpeak_params.html">Main Peak Parameters</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flank_fraction_start</code></td>
+<td><code>0.35</code></td>
+<td>Start of the ascending flank, as fraction of the height between the minimum before the peak and the peak.</td>
+</tr>
+<tr>
+<td><code>flank_fraction_end</code></td>
+<td><code>0.55</code></td>
+<td>End of the ascending flank, same scale.</td>
+</tr>
+<tr>
+<td><code>window_size</code></td>
+<td><code>0.1</code></td>
+<td>Width of the averaging window for the mean slope, as fraction of the time span of the flank.</td>
+</tr>
+<tr>
+<td><code>first_ascending_fraction_of_max</code></td>
+<td><code>0.2</code></td>
+<td><code>method="ascending"</code>: heat flow threshold as fraction of the maximum (after cutoff). Must be in (0, 1].</td>
+</tr>
+<tr>
+<td><code>first_ascending_range_method</code></td>
+<td><code>"fraction"</code></td>
+<td><code>method="ascending"</code>: <code>"fraction"</code> uses the flank fractions above, <code>"delta"</code> uses a fixed heat-flow rise.</td>
+</tr>
+<tr>
+<td><code>first_ascending_delta_y_w_g</code></td>
+<td><code>0.001</code></td>
+<td><code>"delta"</code> mode: rise of the heat flow in W/g that defines the segment.</td>
+</tr>
+<tr>
+<td><code>flexible</code></td>
+<td><code>0.0</code></td>
+<td><code>"delta"</code> mode: widens the delta for high peaks; <code>0</code> disables it.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="deconvolution">deconvolution<a class="headerlink" href="#deconvolution" title="Permanent link">&para;</a></h2>
+<p>Used by <code>get_deconvolution</code> and <code>get_left_peak_inflection_tangent_intersection</code>,
+which fit a sum of peaks plus a baseline to the heat flow.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>n_peaks</code></td>
+<td><code>2</code></td>
+<td>Number of peaks to fit.</td>
+</tr>
+<tr>
+<td><code>baseline_mode</code></td>
+<td><code>"constant"</code></td>
+<td><code>"constant"</code>, <code>"linear"</code>, <code>"chebyshev"</code> or <code>"none"</code>.</td>
+</tr>
+<tr>
+<td><code>chebyshev_degree</code></td>
+<td><code>2</code></td>
+<td>Polynomial degree for <code>baseline_mode="chebyshev"</code>.</td>
+</tr>
+<tr>
+<td><code>max_nfev</code></td>
+<td><code>5000</code></td>
+<td>Maximum number of optimizer iterations.</td>
+</tr>
+<tr>
+<td><code>max_fit_points</code></td>
+<td><code>2500</code></td>
+<td>The data is subsampled to at most this many points for the fit.</td>
+</tr>
+<tr>
+<td><code>min_points</code></td>
+<td><code>30</code></td>
+<td>Samples with fewer points (after cutoff) are skipped.</td>
+</tr>
+<tr>
+<td><code>min_peak_distance_fraction</code></td>
+<td><code>0.05</code></td>
+<td>Minimum distance of the initial peak guesses, as fraction of the number of points.</td>
+</tr>
+<tr>
+<td><code>min_sigma_fraction</code>, <code>max_sigma_fraction</code></td>
+<td><code>0.005</code>, <code>0.3</code></td>
+<td>Width bounds of Gaussian peaks, as fraction of the time range.</td>
+</tr>
+<tr>
+<td><code>min_peak_time_separation_fraction</code></td>
+<td><code>1e-4</code></td>
+<td>Minimum separation of the fitted peak times, as fraction of the time range.</td>
+</tr>
+<tr>
+<td><code>relative_intensity_upper_bounds</code></td>
+<td><code>None</code></td>
+<td>Optional list (one value per peak, each in (0, 1]) capping each peak's share of the total amplitude.</td>
+</tr>
+<tr>
+<td><code>peak_width_upper_bounds</code></td>
+<td><code>None</code></td>
+<td>Optional list (one value per peak) of maximum peak widths.</td>
+</tr>
+</tbody>
+</table>
+<p>The peak shape is selected with the <code>peak_shape</code> argument of
+<code>get_deconvolution</code> (<code>"lognormal"</code> or <code>"gaussian"</code>); the <code>peak_shape</code> field is
+currently ignored.</p>
+<h2 id="plotting">plotting<a class="headerlink" href="#plotting" title="Permanent link">&para;</a></h2>
+<p>Used by the analysis plots of <code>get_mainpeak_params</code> (and the methods built on
+it) and, for <code>figsize</code>, by <code>plot_heatflow_with_gradient</code>. <code>Measurement.plot</code>
+does not use these settings.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>figsize</code></td>
+<td><code>(10, 6)</code></td>
+<td>Figure size in inches, used when no <code>ax</code> is passed.</td>
+</tr>
+<tr>
+<td><code>time_unit</code></td>
+<td><code>"seconds"</code></td>
+<td><code>"seconds"</code>, <code>"minutes"</code> or <code>"hours"</code>.</td>
+</tr>
+<tr>
+<td><code>heat_unit</code></td>
+<td><code>"W"</code></td>
+<td><code>"W"</code> or <code>"mW"</code>.</td>
+</tr>
+<tr>
+<td><code>show_plot_title</code></td>
+<td><code>True</code></td>
+<td>Show a title above each plot.</td>
+</tr>
+<tr>
+<td><code>plot_title</code></td>
+<td><code>"filename"</code></td>
+<td>With metadata loaded: a list of metadata column names whose values form the title, e.g. <code>["cement_name", "w_c"]</code>.</td>
+</tr>
+<tr>
+<td><code>legend_pos</code></td>
+<td><code>"best"</code></td>
+<td><code>"best"</code> or <code>"outside"</code> (right of the plot).</td>
+</tr>
+<tr>
+<td><code>xlims</code>, <code>ylims</code></td>
+<td><code>None</code></td>
+<td>Axis limits as <code>(min, max)</code> in plot units. <code>ylims</code> is only applied together with <code>xlims</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sample-specific-parameters">Sample-specific parameters<a class="headerlink" href="#sample-specific-parameters" title="Permanent link">&para;</a></h2>
+<p>Different samples sometimes need different settings. Rules map a regular
+expression on the sample name to parameter overrides:</p>
+<div class="highlight"><pre><span></span><code><span class="n">processparams</span><span class="o">.</span><span class="n">add_sample_param_rule</span><span class="p">(</span>
+    <span class="sa">r</span><span class="s2">&quot;^c3a&quot;</span><span class="p">,</span>  <span class="c1"># samples whose name starts with &quot;c3a&quot;</span>
+    <span class="p">{</span><span class="s2">&quot;slope_analysis&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;first_ascending_range_method&quot;</span><span class="p">:</span> <span class="s2">&quot;delta&quot;</span><span class="p">}},</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Rules with a higher <code>priority</code> are applied later and therefore win.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Sample rules are currently only honoured by
+<code>get_mainpeak_params(method="ascending")</code>. All other analyses use the base
+parameters for every sample.</p>
+</div>
+<h2 id="reserved-parameters">Reserved parameters<a class="headerlink" href="#reserved-parameters" title="Permanent link">&para;</a></h2>
+<p>The groups <code>gradient_peakdetection</code>, <code>nonlin_savgol</code> and <code>preprocess</code> and the
+field <code>cutoff.cutoff_max</code> exist but are not used by any analysis yet.
+Changing them has no effect.</p>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 23, 2026 08:32:02 UTC">October 23, 2026</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 23, 2026 08:32:02 UTC">October 23, 2026</span>
+  </span>
+
+    
+    
+    
+      
+  <span class="md-source-file__fact">
+    
+      
+  <span class="md-icon" title="Contributors">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg>
+  </span>
+  <span>GitHub</span>
+
+    
+    <nav>
+      
+        <a href="https://github.com/tgaedt" class="md-author" title="@tgaedt">
+          
+          <img src="https://avatars.githubusercontent.com/u/102058507?v=4&size=72" alt="tgaedt">
+        </a>
+      
+      
+      
+    </nav>
+  </span>
+
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="loading.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Loading Data">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Loading Data
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="plotting_example.html" class="md-footer__link md-footer__link--next" aria-label="Next: Plotting">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Plotting
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - present Matthias Hofmann
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mj-hofmann" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.linkedin.com/in/matthias-j-hofmann/" target="_blank" rel="noopener" title="www.linkedin.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3M135.4 416H69V202.2h66.5V416zM102.2 96a38.5 38.5 0 1 1 0 77 38.5 38.5 0 1 1 0-77m282.1 320h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": ".", "features": ["search.highlight", "search.suggest", "search.share", "header.autohide", "navigation.sections", "navigation.footer", "navigation.top"], "search": "assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="javascripts/katex.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/contrib/auto-render.min.js"></script>
+      
+    
+  </body>
+</html>
