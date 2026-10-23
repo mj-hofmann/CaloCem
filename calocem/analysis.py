@@ -3,6 +3,7 @@ Analysis operations for calorimetry data.
 """
 
 import logging
+import numbers
 import pathlib
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -1070,10 +1071,10 @@ class HeatCalculator:
     """Calculates cumulative heat at specific times."""
 
     @staticmethod
-    def get_cumulated_heat_at_hours(
+    def get_cumulative_heat_at_hours(
         data: pd.DataFrame, target_h: float = 4, cutoff_min: Optional[float] = None
     ) -> pd.DataFrame:
-        """Get cumulated heat flow at a specific age."""
+        """Get cumulative heat at a specific age."""
         try:
 
             def calculate_heat_at_target(sample_data: pd.DataFrame) -> float:
@@ -1109,14 +1110,84 @@ class HeatCalculator:
                 .reset_index()
             )
 
-            results.columns = ["sample", "cumulated_heat_at_hours"]
+            results.columns = ["sample", "cumulative_heat_j_g"]
+            # deprecated column name, kept for backward compatibility
+            results["cumulated_heat_at_hours"] = results["cumulative_heat_j_g"]
             results["target_h"] = target_h
             results["cutoff_min"] = cutoff_min
 
             return results
 
         except Exception as e:
-            raise DataProcessingException("get_cumulated_heat_at_hours", e) from e
+            raise DataProcessingException("get_cumulative_heat_at_hours", e) from e
+
+    @staticmethod
+    def get_heat_between(
+        data: pd.DataFrame,
+        start_s: Any,
+        end_s: Any,
+        regex: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Get the heat released between two times per sample.
+
+        ``start_s`` and ``end_s`` are either numbers or per-sample values, i.e. a
+        mapping (dict or pd.Series) keyed by ``sample_short`` or ``sample``. The
+        cumulative heat is linearly interpolated at both times.
+        """
+        try:
+
+            def time_for(limit: Any, sample: Any, sample_short: str) -> float:
+                if isinstance(limit, numbers.Real):
+                    return float(limit)
+                for key in (sample_short, sample, str(sample)):
+                    if key in limit:
+                        value = limit[key]
+                        return float(value) if pd.notna(value) else np.nan
+                return np.nan
+
+            rows = []
+            for sample, sample_data in SampleIterator.iter_samples(data, regex):
+                sample_short = pathlib.Path(str(sample)).stem
+                t_start = time_for(start_s, sample, sample_short)
+                t_end = time_for(end_s, sample, sample_short)
+
+                valid = sample_data[["time_s", "normalized_heat_j_g"]].dropna()
+                times = valid["time_s"].to_numpy(dtype=float)
+                heats = valid["normalized_heat_j_g"].to_numpy(dtype=float)
+
+                heat = np.nan
+                if times.size and np.isfinite([t_start, t_end]).all():
+                    if t_end < t_start:
+                        logger.warning(
+                            f"End time before start time for sample {sample_short}"
+                        )
+                    elif t_start < times[0] or t_end > times[-1]:
+                        logger.warning(
+                            f"Time interval outside the data for sample {sample_short}"
+                        )
+                    else:
+                        heat = float(
+                            np.interp(t_end, times, heats)
+                            - np.interp(t_start, times, heats)
+                        )
+
+                rows.append(
+                    {
+                        "sample": sample,
+                        "sample_short": sample_short,
+                        "start_s": t_start,
+                        "end_s": t_end,
+                        "heat_j_g": heat,
+                    }
+                )
+
+            return pd.DataFrame(
+                rows, columns=["sample", "sample_short", "start_s", "end_s", "heat_j_g"]
+            )
+
+        except Exception as e:
+            raise DataProcessingException("get_heat_between", e) from e
 
 
 class AverageSlopeAnalyzer:

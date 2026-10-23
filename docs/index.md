@@ -4,7 +4,7 @@ CaloCem reads, plots and analyses isothermal heat flow calorimetry data,
 with a focus on the hydration of cementitious materials. It loads the
 exports of TAM Air calorimeters, combines many experiments in one
 [pandas](https://pandas.pydata.org/) DataFrame and extracts characteristic
-values such as cumulated heat, peak positions, the dormant period and the
+values such as cumulative heat, peak positions, the dormant period and the
 slope of the main hydration peak.
 
 !!! warning
@@ -79,7 +79,7 @@ print(mainpeak[["sample_short", "gradient_from_max_slope", "onset_time_min_max_s
   and what they affect.
 * [Plotting](plotting_example.ipynb): customizing plots, subplots, plotting by
   metadata category.
-* [Characteristic Values](quantification.md): cumulated heat, peaks, dormant
+* [Characteristic Values](quantification.md): cumulative heat, peaks, dormant
   period, ASTM C1679, deconvolution.
 * [Main Peak Parameters](example_get_mainpeak_params.ipynb): slopes and onset
   of the main hydration peak.

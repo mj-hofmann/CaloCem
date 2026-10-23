@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0] - 2026-10-19
 
+### Added
+
+- `Measurement.get_heat_between(start_s, end_s)` returns the heat released
+  between two times. The limits can be one time for all samples or one time
+  per sample (dict or `pd.Series` keyed by `sample_short`), e.g. the onset
+  from `get_mainpeak_params()`.
+
 ### Fixed
 
 - `Measurement.apply_tian_correction()` without `processparams` crashed with an
@@ -24,12 +31,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plot per metadata group, as documented.
 - `PlottingParameters.plot_title` is now a proper dataclass field and can be
   passed to the constructor.
-- Importing calocem no longer sets matplotlib's global `font.family`; the
-  serif font is applied only to calocem's own plots.
+- calocem no longer changes matplotlib's font settings. Importing it used to
+  set the global `font.family` to serif; plots now use your matplotlib style.
+- Plots: `get_peaks` marks the peaks in the color of each curve, without a
+  file path in the title or repeated legend entries; `get_astm_c1679_characteristics`
+  shows one legend entry for the ASTM markers; the main peak plot of
+  `get_mainpeak_params` no longer shows the maximum slope point twice, labels
+  the y axis correctly (W g⁻¹), and shows the dormant heat flow and the
+  gradient in the selected heat unit instead of rounding the former to 0.
 - Exceptions re-raised by calocem now chain the original error (`raise ... from e`).
 
 ### Deprecated
 
+- `Measurement.get_cumulated_heat_at_hours()` is renamed to
+  `get_cumulative_heat_at_hours()`, and its result column
+  `cumulated_heat_at_hours` to `cumulative_heat_j_g`. The old method emits a
+  `DeprecationWarning`; the old column is still included.
 - Arguments that had no effect now emit a `DeprecationWarning` when passed:
   `get_dormant_period_heatflow(cutoff_min, prominence, plot_right_boundary,
   show_plot)`, `get_peak_onsets(show_plot, ax)`,
@@ -58,6 +75,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed the Tian correction docs: a single time constant requires
   `tau2 = None`.
 - Added a changelog page and a quickstart to the README.
+- The figures of *Characteristic Values* are generated from the current code
+  by `scripts/make_doc_figures.py`; an ASTM C1679 figure was added.
+- The main peak example on *Characteristic Values* uses
+  `smoothing_1st_deriv = 1e-13`; the former 1e-12 underestimated the maximum
+  slope by about 40 %.
 
 ### Internal
 

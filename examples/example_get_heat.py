@@ -21,6 +21,6 @@ tam = Measurement(
 processparams = ProcessingParameters()
 processparams.cutoff.cutoff_min = 60
 
-heats = tam.get_cumulated_heat_at_hours(target_h = 24, processparams=processparams)
-# heats_depracated = tam.get_cumulated_heat_at_hours(cutoff_min=30, target_h=24)
+heats = tam.get_cumulative_heat_at_hours(target_h = 24, processparams=processparams)
+# heats_depracated = tam.get_cumulative_heat_at_hours(cutoff_min=30, target_h=24)
 # %%

@@ -35,7 +35,7 @@ equilibration. `cutoff_min` removes it from the analysis.
 slope, first ascending slope, deconvolution and the related plots.
 
 !!! note "Exceptions"
-    * `get_cumulated_heat_at_hours` does not discard data; instead, the heat
+    * `get_cumulative_heat_at_hours` does not discard data; instead, the heat
       released up to `cutoff_min` is **subtracted** from the heat at `target_h`.
     * `get_peak_onsets` ignores `cutoff_min` and uses its own
       `time_discarded_s` argument.

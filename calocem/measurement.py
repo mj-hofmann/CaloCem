@@ -7,6 +7,7 @@ import logging
 import pathlib
 import re
 import warnings
+from collections.abc import Mapping
 from typing import Optional, Union
 
 import numpy as np
@@ -1929,7 +1930,7 @@ class Measurement:
 
         return df
 
-    def get_cumulated_heat_at_hours(
+    def get_cumulative_heat_at_hours(
         self,
         processparams: Optional[ProcessingParameters] = None,
         target_h: float = 4,
@@ -1952,14 +1953,17 @@ class Measurement:
         Returns
         -------
         pd.DataFrame
-            One row per sample with ``sample``, ``cumulated_heat_at_hours`` (J/g),
-            ``target_h`` and ``cutoff_min``.
+            One row per sample with ``sample``, ``cumulative_heat_j_g`` (J/g),
+            ``target_h`` and ``cutoff_min``. The deprecated column
+            ``cumulated_heat_at_hours`` holds the same values and will be removed
+            in a future release.
 
         Notes
         -----
         The heat released before ``processparams.cutoff.cutoff_min`` is subtracted.
         With the default cutoff of 60 min the result is the heat released between
-        1 h and ``target_h``; set the cutoff to 0 for the total heat.
+        1 h and ``target_h``; set the cutoff to 0 for the total heat. For the heat
+        between two arbitrary times, see :meth:`get_heat_between`.
         """
         if "cutoff_min" in kwargs:
             cutoff_min = kwargs["cutoff_min"]
@@ -1972,9 +1976,68 @@ class Measurement:
             params = processparams or self.processparams
             cutoff_min = params.cutoff.cutoff_min
 
-        return HeatCalculator.get_cumulated_heat_at_hours(
+        return HeatCalculator.get_cumulative_heat_at_hours(
             self._data, target_h, cutoff_min
         )
+
+    def get_cumulated_heat_at_hours(
+        self,
+        processparams: Optional[ProcessingParameters] = None,
+        target_h: float = 4,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Deprecated alias of :meth:`get_cumulative_heat_at_hours`.
+        """
+        warnings.warn(
+            "get_cumulated_heat_at_hours() is deprecated and will be removed in a "
+            "future release. Use get_cumulative_heat_at_hours() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_cumulative_heat_at_hours(processparams, target_h, **kwargs)
+
+    def get_heat_between(
+        self,
+        start_s: Union[float, Mapping[str, float]],
+        end_s: Union[float, Mapping[str, float]],
+        regex: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Return the heat released between two times.
+
+        The cumulative heat ``normalized_heat_j_g`` is linearly interpolated at
+        ``start_s`` and ``end_s`` and the difference is returned. The cutoff of
+        the processing parameters has no effect.
+
+        Parameters
+        ----------
+        start_s, end_s : float or mapping
+            Start and end of the interval in seconds. Either one time for all
+            samples, or one time per sample as a dict or pd.Series keyed by
+            ``sample_short`` (or ``sample``), e.g. an onset column of
+            :meth:`get_mainpeak_params` indexed by ``sample_short``.
+        regex : str, optional
+            Regular expression; only samples whose name matches are analysed.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per sample with ``sample``, ``sample_short``, ``start_s``,
+            ``end_s`` and ``heat_j_g`` (J/g). ``heat_j_g`` is NaN if a time is
+            missing for the sample, lies outside the data, or ``end_s`` is before
+            ``start_s``.
+
+        Examples
+        --------
+        Heat released between 30 min and the onset of the main peak:
+
+        >>> onsets = tam.get_mainpeak_params(processparams).set_index("sample_short")
+        >>> tam.get_heat_between(
+        ...     start_s=1800, end_s=onsets["onset_time_s_from_max_slope"]
+        ... )
+        """
+        return HeatCalculator.get_heat_between(self._data, start_s, end_s, regex)
 
     def get_average_slope(
         self,
@@ -2241,7 +2304,7 @@ class Measurement:
 
         Requires :meth:`add_metadata_source` to have been called first.
         The averaged data replaces ``self._data`` in-place so that all
-        downstream methods (``plot``, ``get_cumulated_heat_at_hours``, …)
+        downstream methods (``plot``, ``get_cumulative_heat_at_hours``, …)
         operate on the grouped curves.  Call :meth:`undo_average_by_metadata`
         to restore the original data.
 
